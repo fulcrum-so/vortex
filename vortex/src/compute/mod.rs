@@ -1,4 +1,5 @@
 use cast::{CastBoolFn, CastPrimitiveFn};
+use fill::FillForwardFn;
 use patch::PatchFn;
 use scalar_at::ScalarAtFn;
 use take::TakeFn;
@@ -6,6 +7,7 @@ use take::TakeFn;
 pub mod add;
 pub mod as_contiguous;
 pub mod cast;
+pub mod fill;
 pub mod patch;
 pub mod repeat;
 pub mod scalar_at;
@@ -18,6 +20,10 @@ pub trait ArrayCompute {
     }
 
     fn cast_primitive(&self) -> Option<&dyn CastPrimitiveFn> {
+        None
+    }
+
+    fn fill_forward(&self) -> Option<&dyn FillForwardFn> {
         None
     }
 
