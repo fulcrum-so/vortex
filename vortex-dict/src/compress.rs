@@ -6,7 +6,6 @@ use hashbrown::HashMap;
 use log::debug;
 use num_traits::{AsPrimitive, FromPrimitive, Unsigned};
 
-use vortex::array::downcast::DowncastArrayBuiltin;
 use vortex::array::primitive::PrimitiveArray;
 use vortex::array::varbin::VarBinArray;
 use vortex::array::{Array, ArrayKind, ArrayRef, CloneOptionalArray};
@@ -82,7 +81,9 @@ fn dict_compressor(array: &dyn Array, like: Option<&dyn Array>, ctx: CompressCtx
         _ => unreachable!("This array kind should have been filtered out"),
     };
 
-    DictArray::new(codes, dict).boxed()
+    let compressed = DictArray::new(codes, dict).boxed();
+    println!("N Bytes {}", compressed);
+    compressed
 }
 
 // TODO(robert): Use distinct count instead of len for width estimation
@@ -160,33 +161,34 @@ macro_rules! dict_encode_offsets_codes {
 
 /// Dictionary encode varbin array. Specializes for primitive byte arrays to avoid double copying
 pub fn dict_encode_varbin(array: &VarBinArray) -> (PrimitiveArray, VarBinArray) {
-    if let Some(bytes) = array.bytes().maybe_primitive() {
-        let bytes = bytes.buffer().typed_data::<u8>();
-        return if let Some(offsets) = array.offsets().maybe_primitive() {
-            match_each_native_ptype!(offsets.ptype(), |$P| {
-                let offsets = offsets.buffer().typed_data::<$P>();
+    // if let Some(bytes) = array.bytes().maybe_primitive() {
+    //     let bytes = bytes.buffer().typed_data::<u8>();
+    //     return if let Some(offsets) = array.offsets().maybe_primitive() {
+    //         match_each_native_ptype!(offsets.ptype(), |$P| {
+    //             let offsets = offsets.buffer().typed_data::<$P>();
+    //
+    //             dict_encode_offsets_codes!(bytes.len(), array.offsets().len(), |$O, $C| {
+    //                 dict_encode_typed_varbin::<$O, $C, _, &[u8]>(
+    //                     array.dtype().clone(),
+    //                     |idx| bytes_at_primitive(offsets, bytes, idx),
+    //                     array.len(),
+    //                     array.validity()
+    //                 )
+    //             })
+    //         })
+    //     } else {
+    //         dict_encode_offsets_codes!(bytes.len(), array.offsets().len(), |$O, $C| {
+    //             dict_encode_typed_varbin::<$O, $C, _, &[u8]>(
+    //                 array.dtype().clone(),
+    //                 |idx| bytes_at(array.offsets(), bytes, idx),
+    //                 array.len(),
+    //                 array.validity()
+    //             )
+    //         })
+    //     };
+    // }
 
-                dict_encode_offsets_codes!(bytes.len(), array.offsets().len(), |$O, $C| {
-                    dict_encode_typed_varbin::<$O, $C, _, &[u8]>(
-                        array.dtype().clone(),
-                        |idx| bytes_at_primitive(offsets, bytes, idx),
-                        array.len(),
-                        array.validity()
-                    )
-                })
-            })
-        } else {
-            dict_encode_offsets_codes!(bytes.len(), array.offsets().len(), |$O, $C| {
-                dict_encode_typed_varbin::<$O, $C, _, &[u8]>(
-                    array.dtype().clone(),
-                    |idx| bytes_at(array.offsets(), bytes, idx),
-                    array.len(),
-                    array.validity()
-                )
-            })
-        };
-    }
-
+    // TODO(ngates): avoid using sliced_*
     dict_encode_offsets_codes!(array.bytes().len(), array.offsets().len(), |$O, $C| {
         dict_encode_typed_varbin::<$O, $C, _, Vec<u8>>(
             array.dtype().clone(),
@@ -197,6 +199,7 @@ pub fn dict_encode_varbin(array: &VarBinArray) -> (PrimitiveArray, VarBinArray) 
     })
 }
 
+#[allow(dead_code)]
 fn bytes_at_primitive<'a, T: NativePType + AsPrimitive<usize>>(
     offsets: &'a [T],
     bytes: &'a [u8],
@@ -207,6 +210,7 @@ fn bytes_at_primitive<'a, T: NativePType + AsPrimitive<usize>>(
     &bytes[begin..end]
 }
 
+#[allow(dead_code)]
 fn bytes_at<'a>(offsets: &'a dyn Array, bytes: &'a [u8], idx: usize) -> &'a [u8] {
     let start: usize = scalar_at(offsets, idx).unwrap().try_into().unwrap();
     let stop: usize = scalar_at(offsets, idx + 1).unwrap().try_into().unwrap();

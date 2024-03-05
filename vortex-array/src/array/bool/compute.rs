@@ -1,13 +1,21 @@
 use crate::array::bool::BoolArray;
-use crate::array::{Array, ArrayRef};
+use crate::array::downcast::DowncastArrayBuiltin;
+use crate::array::{Array, ArrayRef, CloneOptionalArray};
+use crate::compute::as_contiguous::{as_contiguous, AsContiguousFn};
 use crate::compute::cast::{cast_bool, CastBoolFn};
 use crate::compute::fill::FillForwardFn;
 use crate::compute::scalar_at::ScalarAtFn;
 use crate::compute::ArrayCompute;
 use crate::error::VortexResult;
 use crate::scalar::{NullableScalar, Scalar, ScalarRef};
+use arrow::buffer::BooleanBuffer;
+use itertools::Itertools;
 
 impl ArrayCompute for BoolArray {
+    fn as_contiguous(&self) -> Option<&dyn AsContiguousFn> {
+        Some(self)
+    }
+
     fn cast_bool(&self) -> Option<&dyn CastBoolFn> {
         Some(self)
     }
@@ -18,6 +26,38 @@ impl ArrayCompute for BoolArray {
 
     fn scalar_at(&self) -> Option<&dyn ScalarAtFn> {
         Some(self)
+    }
+}
+
+impl AsContiguousFn for BoolArray {
+    fn as_contiguous(&self, arrays: Vec<ArrayRef>) -> VortexResult<ArrayRef> {
+        // TODO(ngates): implement a HasValidity trait to avoid this duplicate code.
+        let validity = if arrays.iter().all(|a| a.as_bool().validity().is_none()) {
+            None
+        } else {
+            Some(as_contiguous(
+                arrays
+                    .iter()
+                    .map(|a| {
+                        a.as_bool()
+                            .validity()
+                            .clone_optional()
+                            .unwrap_or_else(|| BoolArray::from(vec![true; a.len()]).boxed())
+                    })
+                    .collect_vec(),
+            )?)
+        };
+
+        Ok(BoolArray::new(
+            BooleanBuffer::from(
+                arrays
+                    .iter()
+                    .flat_map(|a| a.as_bool().buffer().iter())
+                    .collect::<Vec<bool>>(),
+            ),
+            validity,
+        )
+        .boxed())
     }
 }
 

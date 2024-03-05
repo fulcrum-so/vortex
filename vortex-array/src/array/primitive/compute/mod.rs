@@ -1,16 +1,21 @@
 use crate::array::primitive::PrimitiveArray;
+use crate::compute::as_contiguous::AsContiguousFn;
 use crate::compute::cast::CastPrimitiveFn;
 use crate::compute::fill::FillForwardFn;
 use crate::compute::patch::PatchFn;
 use crate::compute::scalar_at::ScalarAtFn;
 use crate::compute::ArrayCompute;
 
+mod as_contiguous;
 mod cast;
 mod fill;
 mod patch;
 mod scalar_at;
 
 impl ArrayCompute for PrimitiveArray {
+    fn as_contiguous(&self) -> Option<&dyn AsContiguousFn> {
+        Some(self)
+    }
     fn cast_primitive(&self) -> Option<&dyn CastPrimitiveFn> {
         Some(self)
     }

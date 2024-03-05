@@ -11,7 +11,8 @@ impl EncodingCompression for ChunkedEncoding {
         array: &dyn Array,
         _config: &CompressConfig,
     ) -> Option<&'static Compressor> {
-        if array.encoding().id() == &Self::ID {
+        let encoding = array.encoding().id();
+        if encoding == &Self::ID {
             Some(&(chunked_compressor as Compressor))
         } else {
             None

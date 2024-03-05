@@ -1,3 +1,4 @@
+use crate::compute::as_contiguous::AsContiguousFn;
 use cast::{CastBoolFn, CastPrimitiveFn};
 use fill::FillForwardFn;
 use patch::PatchFn;
@@ -15,6 +16,10 @@ pub mod search_sorted;
 pub mod take;
 
 pub trait ArrayCompute {
+    fn as_contiguous(&self) -> Option<&dyn AsContiguousFn> {
+        None
+    }
+
     fn cast_bool(&self) -> Option<&dyn CastBoolFn> {
         None
     }

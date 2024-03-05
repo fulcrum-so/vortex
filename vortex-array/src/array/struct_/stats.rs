@@ -4,6 +4,6 @@ use crate::stats::{Stat, StatsCompute, StatsSet};
 
 impl StatsCompute for StructArray {
     fn compute(&self, _stat: &Stat) -> VortexResult<StatsSet> {
-        todo!()
+        Ok(StatsSet::default())
     }
 }

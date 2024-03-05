@@ -95,16 +95,15 @@ impl<'a> CompressCtx<'a> {
             return dyn_clone::clone_box(arr);
         }
 
-        let encoding = like.unwrap_or(arr).encoding();
-        if self.options.is_enabled(encoding.id()) {
-            encoding
+        if let Some(l) = like {
+            l.encoding()
                 .compression()
-                .and_then(|compression| compression.compressor(arr, self.options))
-                .map(|compressor| compressor(arr, like, self.clone()))
+                .and_then(|c| c.compressor(arr, self.options))
+                .map(|compressor| compressor(arr, Some(l), self.clone()))
+                // TODO(ngates): wh
                 .unwrap_or_else(|| dyn_clone::clone_box(arr))
         } else {
-            debug!("Skipping {}: disabled", encoding.id());
-            dyn_clone::clone_box(arr)
+            sampled_compression(arr, self.clone())
         }
     }
 
@@ -135,7 +134,7 @@ pub fn sampled_compression(array: &dyn Array, ctx: CompressCtx) -> ArrayRef {
     let candidate_compressors: Vec<&Compressor> = ENCODINGS
         .iter()
         // TODO(robert): Avoid own encoding to avoid infinite recursion
-        .filter(|encoding| encoding.id().name() != array.encoding().id().name())
+        // .filter(|encoding| encoding.id().name() != array.encoding().id().name())
         .filter(|encoding| ctx.options().is_enabled(encoding.id()))
         .filter_map(|encoding| encoding.compression())
         .filter_map(|compression| compression.compressor(array, ctx.options()))

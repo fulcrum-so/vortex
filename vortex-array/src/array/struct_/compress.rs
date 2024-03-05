@@ -12,7 +12,8 @@ impl EncodingCompression for StructEncoding {
         array: &dyn Array,
         _config: &CompressConfig,
     ) -> Option<&'static Compressor> {
-        if array.encoding().id() == &Self::ID {
+        let encoding = array.encoding().id();
+        if encoding == &Self::ID {
             Some(&(struct_compressor as Compressor))
         } else {
             None

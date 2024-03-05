@@ -7,17 +7,19 @@ use crate::compress::{
 impl EncodingCompression for BoolEncoding {
     fn compressor(
         &self,
-        array: &dyn Array,
+        _array: &dyn Array,
         _config: &CompressConfig,
     ) -> Option<&'static Compressor> {
-        if array.encoding().id() == &BoolEncoding::ID {
-            Some(&(bool_compressor as Compressor))
-        } else {
-            None
-        }
+        None
+        // if array.encoding().id() == &BoolEncoding::ID {
+        //     Some(&(bool_compressor as Compressor))
+        // } else {
+        //     None
+        // }
     }
 }
 
+#[allow(dead_code)]
 fn bool_compressor(array: &dyn Array, _like: Option<&dyn Array>, ctx: CompressCtx) -> ArrayRef {
     sampled_compression(array, ctx)
 }

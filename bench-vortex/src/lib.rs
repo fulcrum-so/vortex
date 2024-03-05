@@ -48,17 +48,17 @@ mod test {
     use std::collections::HashSet;
     use std::fs::create_dir_all;
     use std::fs::File;
+    use std::ops::Deref;
     use std::path::Path;
 
     use arrow_array::RecordBatchReader;
     use log::LevelFilter;
     use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
+    use parquet::arrow::ProjectionMask;
     use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
 
-    use vortex::array::chunked::ChunkedArray;
-    use vortex::array::{Array, ArrayRef};
+    use vortex::array::ArrayRef;
     use vortex::compress::{CompressConfig, CompressCtx};
-    use vortex::dtype::DType;
     use vortex::error::{VortexError, VortexResult};
 
     use crate::enumerate_arrays;
@@ -97,22 +97,27 @@ mod test {
 
         let file = File::open(download_taxi_data()).unwrap();
         let builder = ParquetRecordBatchReaderBuilder::try_new(file).unwrap();
-        let reader = builder.with_batch_size(128_000).build().unwrap();
+        let mask = ProjectionMask::roots(builder.parquet_schema(), [6]);
+        let reader = builder
+            .with_projection(mask)
+            .with_batch_size(200_000_000)
+            .build()
+            .unwrap();
 
-        let schema = reader.schema();
-        let dtype: DType = schema.try_into().unwrap();
+        let _ = reader.schema();
+        // let dtype: DType = schema.try_into().unwrap();
         let chunks = reader
             .map(|batch_result| batch_result.map_err(VortexError::from))
             .map(|batch| batch.map(|b| b.into()))
             .collect::<VortexResult<Vec<ArrayRef>>>()
             .unwrap();
-        let chunked = ChunkedArray::new(chunks, dtype);
-        println!(
-            "{} rows in {} chunks",
-            chunked.len(),
-            chunked.chunks().len()
-        );
-        let array = chunked.boxed();
+        // let chunked = ChunkedArray::new(chunks, dtype);
+        // println!(
+        //     "{} rows in {} chunks",
+        //     chunked.len(),
+        //     chunked.chunks().len()
+        // );
+        let array = chunks[0].deref();
         let cfg = CompressConfig::new(
             HashSet::from_iter(enumerate_arrays().iter().map(|e| (*e).id())),
             HashSet::default(),

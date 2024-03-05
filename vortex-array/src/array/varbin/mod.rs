@@ -5,11 +5,11 @@ use std::sync::{Arc, RwLock};
 use arrow::array::{make_array, Array as ArrowArray, ArrayData, AsArray};
 use arrow::buffer::NullBuffer;
 use arrow::datatypes::UInt8Type;
+use itertools::Itertools;
 use linkme::distributed_slice;
-use num_traits::{AsPrimitive, FromPrimitive, Unsigned};
+use num_traits::{FromPrimitive, Unsigned};
 
 use crate::array::bool::BoolArray;
-use crate::array::downcast::DowncastArrayBuiltin;
 use crate::array::primitive::PrimitiveArray;
 use crate::array::{
     check_slice_bounds, check_validity_buffer, Array, ArrayRef, ArrowIterator, Encoding,
@@ -17,12 +17,12 @@ use crate::array::{
 };
 use crate::arrow::CombineChunks;
 use crate::compress::EncodingCompression;
+use crate::compute::cast::cast_primitive;
 use crate::compute::scalar_at::scalar_at;
 use crate::dtype::{DType, IntWidth, Nullability, Signedness};
 use crate::error::{VortexError, VortexResult};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
-use crate::match_each_native_ptype;
-use crate::ptype::NativePType;
+use crate::ptype::{NativePType, PType};
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsSet};
 
@@ -100,12 +100,30 @@ impl VarBinArray {
 
     #[inline]
     pub fn offsets(&self) -> &dyn Array {
+        // FIXME(ngates): given our zero-copy slicing, this is kind of a useless array...
         self.offsets.as_ref()
+    }
+
+    pub fn sliced_offsets(&self) -> VortexResult<ArrayRef> {
+        let first_offset: i64 = scalar_at(self.offsets(), 0)?.try_into()?;
+        let offsets = cast_primitive(self.offsets(), &PType::I64)?
+            .typed_data::<i64>()
+            .iter()
+            .map(|o| o - first_offset)
+            .collect_vec();
+        Ok(PrimitiveArray::from_vec(offsets).boxed())
     }
 
     #[inline]
     pub fn bytes(&self) -> &dyn Array {
+        // FIXME(ngates): given our zero-copy slicing, this is kind of a useless array...
         self.bytes.as_ref()
+    }
+
+    pub fn sliced_bytes(&self) -> VortexResult<ArrayRef> {
+        let first_offset: usize = scalar_at(self.offsets(), 0)?.try_into()?;
+        let last_offset: usize = scalar_at(self.offsets(), self.offsets().len() - 1)?.try_into()?;
+        self.bytes().slice(first_offset, last_offset)
     }
 
     #[inline]
@@ -182,17 +200,12 @@ impl VarBinArray {
     pub fn bytes_at(&self, index: usize) -> VortexResult<Vec<u8>> {
         // check_index_bounds(self, index)?;
 
-        let (start, end): (usize, usize) = if let Some(p) = self.offsets.maybe_primitive() {
-            match_each_native_ptype!(p.ptype(), |$P| {
-                let buf = p.buffer().typed_data::<$P>();
-                (buf[index].as_(), buf[index + 1].as_())
-            })
-        } else {
-            (
-                scalar_at(self.offsets(), index)?.try_into()?,
-                scalar_at(self.offsets(), index + 1)?.try_into()?,
-            )
-        };
+        let (start, end): (usize, usize) = (
+            scalar_at(self.offsets(), index)?.try_into()?,
+            scalar_at(self.offsets(), index + 1)?.try_into()?,
+        );
+        let byte_len = self.bytes().len();
+        print!("start: {}, end: {}, byte_len: {}", start, end, byte_len);
         let sliced = self.bytes().slice(start, end)?;
         let arr_ref = sliced.iter_arrow().combine_chunks();
         Ok(arr_ref.as_primitive::<UInt8Type>().values().to_vec())

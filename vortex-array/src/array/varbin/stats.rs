@@ -1,10 +1,6 @@
-use std::cmp::Ordering;
-use std::collections::HashMap;
-
 use crate::array::varbin::VarBinArray;
 use crate::array::varbinview::VarBinViewArray;
 use crate::array::Array;
-use crate::dtype::DType;
 use crate::error::VortexResult;
 use crate::stats::{Stat, StatsCompute, StatsSet};
 
@@ -17,52 +13,56 @@ where
     T: BinaryArray + Array,
 {
     fn compute(&self, _stat: &Stat) -> VortexResult<StatsSet> {
-        let mut min = vec![0xFF];
-        let mut max = vec![0x00];
-        let mut is_constant = true;
-        let mut is_sorted = true;
-        let mut last_value = vec![0x00];
-        let mut runs: usize = 0;
-        for i in 0..self.len() {
-            let next_val = self.bytes_at(i).unwrap();
-            if next_val < min {
-                min = next_val.clone();
-            }
-            if next_val > max {
-                max = next_val.clone();
-            }
-            match next_val.cmp(&last_value) {
-                Ordering::Less => is_sorted = false,
-                Ordering::Equal => continue,
-                Ordering::Greater => {}
-            }
-            is_constant = false;
-            last_value = next_val;
-            runs += 1;
-        }
-
-        Ok(StatsSet::from(HashMap::from([
-            (
-                Stat::Min,
-                if matches!(self.dtype(), DType::Utf8(_)) {
-                    unsafe { String::from_utf8_unchecked(min.to_vec()) }.into()
-                } else {
-                    min.into()
-                },
-            ),
-            (
-                Stat::Max,
-                if matches!(self.dtype(), DType::Utf8(_)) {
-                    unsafe { String::from_utf8_unchecked(max.to_vec()) }.into()
-                } else {
-                    max.into()
-                },
-            ),
-            (Stat::RunCount, runs.into()),
-            (Stat::IsSorted, is_sorted.into()),
-            (Stat::IsConstant, is_constant.into()),
-        ])))
+        Ok(StatsSet::default())
     }
+    //
+    // fn old_compute(&self, _stat: &Stat) -> VortexResult<StatsSet> {
+    //     let mut min = vec![0xFF];
+    //     let mut max = vec![0x00];
+    //     let mut is_constant = true;
+    //     let mut is_sorted = true;
+    //     let mut last_value = vec![0x00];
+    //     let mut runs: usize = 0;
+    //     for i in 0..self.len() {
+    //         let next_val = self.bytes_at(i).unwrap();
+    //         if next_val < min {
+    //             min = next_val.clone();
+    //         }
+    //         if next_val > max {
+    //             max = next_val.clone();
+    //         }
+    //         match next_val.cmp(&last_value) {
+    //             Ordering::Less => is_sorted = false,
+    //             Ordering::Equal => continue,
+    //             Ordering::Greater => {}
+    //         }
+    //         is_constant = false;
+    //         last_value = next_val;
+    //         runs += 1;
+    //     }
+    //
+    //     Ok(StatsSet::from(HashMap::from([
+    //         (
+    //             Stat::Min,
+    //             if matches!(self.dtype(), DType::Utf8(_)) {
+    //                 unsafe { String::from_utf8_unchecked(min.to_vec()) }.into()
+    //             } else {
+    //                 min.into()
+    //             },
+    //         ),
+    //         (
+    //             Stat::Max,
+    //             if matches!(self.dtype(), DType::Utf8(_)) {
+    //                 unsafe { String::from_utf8_unchecked(max.to_vec()) }.into()
+    //             } else {
+    //                 max.into()
+    //             },
+    //         ),
+    //         (Stat::RunCount, runs.into()),
+    //         (Stat::IsSorted, is_sorted.into()),
+    //         (Stat::IsConstant, is_constant.into()),
+    //     ])))
+    // }
 }
 
 impl BinaryArray for VarBinArray {

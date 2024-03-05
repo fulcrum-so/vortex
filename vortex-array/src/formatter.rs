@@ -1,7 +1,5 @@
 use std::fmt::Formatter;
 
-use humansize::{format_size, DECIMAL};
-
 use crate::array::Array;
 
 pub trait ArrayDisplay {
@@ -33,7 +31,8 @@ impl<'a, 'b: 'a> ArrayFormatter<'a, 'b> {
             array.encoding().id(),
             array.dtype(),
             array.len(),
-            format_size(array.nbytes(), DECIMAL),
+            // format_size(array.nbytes(), DECIMAL),
+            array.nbytes(),
             100f64 * array.nbytes() as f64 / self.total_size as f64
         ))?;
         ArrayDisplay::fmt(array, self)
