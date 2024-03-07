@@ -32,7 +32,7 @@ impl EncodingCompression for ALPEncoding {
         &self,
         array: &dyn Array,
         like: Option<&dyn Array>,
-        ctx: CompressCtx,
+        ctx: &CompressCtx,
     ) -> VortexResult<ArrayRef> {
         let like_alp = like.map(|like_array| like_array.as_alp());
 
@@ -40,12 +40,9 @@ impl EncodingCompression for ALPEncoding {
         let parray = array.as_primitive();
 
         let (exponents, encoded, patches) = match parray.ptype() {
-            PType::F32 => {
-                encode_to_array(parray.typed_data::<f32>(), like_alp.map(|a| a.exponents()))
-            }
-            PType::F64 => {
-                encode_to_array(parray.typed_data::<f64>(), like_alp.map(|a| a.exponents()))
-            }
+            // TODO(ngates): reuse exponents from like?
+            PType::F32 => encode_to_array(parray.typed_data::<f32>(), None),
+            PType::F64 => encode_to_array(parray.typed_data::<f64>(), None),
             _ => panic!("Unsupported ptype"),
         };
 

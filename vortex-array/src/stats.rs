@@ -4,15 +4,15 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 
 use crate::dtype::DType;
-use itertools::Itertools;
 
 use crate::error::{VortexError, VortexResult};
 use crate::ptype::NativePType;
-use crate::scalar::{ListScalarVec, ScalarRef};
+use crate::scalar::ScalarRef;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Stat {
     BitWidthFreq,
+    TZFreq,
     IsConstant,
     IsSorted,
     IsStrictSorted,
@@ -58,7 +58,7 @@ impl StatsSet {
         self.merge_is_sorted(other);
         self.merge_true_count(other);
         self.merge_null_count(other);
-        self.merge_bit_width_freq(other);
+        // self.merge_bit_width_freq(other);
         self.merge_run_count(other);
 
         self
@@ -154,36 +154,6 @@ impl StatsSet {
             }
             Entry::Vacant(e) => {
                 if let Some(min) = other.0.get(stat) {
-                    e.insert(min.clone());
-                }
-            }
-        }
-    }
-
-    fn merge_bit_width_freq(&mut self, other: &Self) {
-        match self.0.entry(Stat::BitWidthFreq) {
-            Entry::Occupied(mut e) => {
-                if let Some(other_value) = other
-                    .get_as::<ListScalarVec<u64>>(&Stat::BitWidthFreq)
-                    .unwrap()
-                {
-                    // TODO(robert): Avoid the copy here. We could e.get_mut() but need to figure out casting
-                    let self_value: ListScalarVec<u64> = e.get().as_ref().try_into().unwrap();
-                    e.insert(
-                        ListScalarVec(
-                            self_value
-                                .0
-                                .iter()
-                                .zip_eq(other_value.0.iter())
-                                .map(|(s, o)| *s + *o)
-                                .collect::<Vec<_>>(),
-                        )
-                        .into(),
-                    );
-                }
-            }
-            Entry::Vacant(e) => {
-                if let Some(min) = other.0.get(&Stat::BitWidthFreq) {
                     e.insert(min.clone());
                 }
             }

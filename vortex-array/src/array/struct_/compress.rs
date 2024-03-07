@@ -19,7 +19,7 @@ impl EncodingCompression for StructEncoding {
         &self,
         array: &dyn Array,
         like: Option<&dyn Array>,
-        ctx: CompressCtx,
+        ctx: &CompressCtx,
     ) -> VortexResult<ArrayRef> {
         let struct_array = array.as_struct();
         let struct_like = like.map(|like_array| like_array.as_struct());

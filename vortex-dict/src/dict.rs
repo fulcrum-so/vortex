@@ -116,7 +116,7 @@ impl DictEncoding {
 }
 
 impl Encoding for DictEncoding {
-    fn id(&self) -> &EncodingId {
+    fn id(&self) -> &'static EncodingId {
         &Self::ID
     }
 

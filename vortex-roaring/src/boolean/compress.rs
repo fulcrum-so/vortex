@@ -37,7 +37,7 @@ impl EncodingCompression for RoaringBoolEncoding {
         &self,
         array: &dyn Array,
         _like: Option<&dyn Array>,
-        _ctx: CompressCtx,
+        _ctx: &CompressCtx,
     ) -> VortexResult<ArrayRef> {
         Ok(roaring_encode(array.as_bool()).boxed())
     }

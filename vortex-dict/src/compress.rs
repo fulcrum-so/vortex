@@ -33,7 +33,6 @@ impl EncodingCompression for DictEncoding {
             ArrayKind::from(array),
             ArrayKind::Primitive(_) | ArrayKind::VarBin(_)
         ) {
-            debug!("Skipping Dict: not primitive or varbin");
             return None;
         };
 
@@ -55,27 +54,26 @@ impl EncodingCompression for DictEncoding {
         &self,
         array: &dyn Array,
         like: Option<&dyn Array>,
-        ctx: CompressCtx,
+        ctx: &CompressCtx,
     ) -> VortexResult<ArrayRef> {
         let dict_like = like.map(|like_arr| like_arr.as_dict());
+
+        // Exclude dict encoding from the next level
+        let ctx = ctx.next_level().excluding(&DictEncoding::ID);
 
         let (codes, dict) = match ArrayKind::from(array) {
             ArrayKind::Primitive(p) => {
                 let (codes, dict) = dict_encode_primitive(p);
                 (
-                    ctx.next_level()
-                        .compress(codes.as_ref(), dict_like.map(|dict| dict.codes()))?,
-                    ctx.next_level()
-                        .compress(dict.as_ref(), dict_like.map(|dict| dict.dict()))?,
+                    ctx.compress(codes.as_ref(), dict_like.map(|dict| dict.codes()))?,
+                    ctx.compress(dict.as_ref(), dict_like.map(|dict| dict.dict()))?,
                 )
             }
             ArrayKind::VarBin(vb) => {
                 let (codes, dict) = dict_encode_varbin(vb);
                 (
-                    ctx.next_level()
-                        .compress(codes.as_ref(), dict_like.map(|dict| dict.codes()))?,
-                    ctx.next_level()
-                        .compress(dict.as_ref(), dict_like.map(|dict| dict.dict()))?,
+                    ctx.compress(codes.as_ref(), dict_like.map(|dict| dict.codes()))?,
+                    ctx.compress(dict.as_ref(), dict_like.map(|dict| dict.dict()))?,
                 )
             }
 

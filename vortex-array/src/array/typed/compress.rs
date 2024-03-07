@@ -17,7 +17,7 @@ impl EncodingCompression for TypedEncoding {
         &self,
         array: &dyn Array,
         like: Option<&dyn Array>,
-        ctx: CompressCtx,
+        ctx: &CompressCtx,
     ) -> VortexResult<ArrayRef> {
         let typed_array = array.as_typed();
         let typed_like = like.map(|like_array| like_array.as_typed());

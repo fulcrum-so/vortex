@@ -3,7 +3,7 @@ use std::panic::RefUnwindSafe;
 
 use arrow::datatypes::ArrowNativeType;
 use half::f16;
-use num_traits::NumCast;
+use num_traits::{Num, NumCast};
 
 use crate::dtype::{DType, FloatWidth, IntWidth, Signedness};
 use crate::error::{VortexError, VortexResult};
@@ -35,6 +35,7 @@ pub trait NativePType:
     + Default
     + ArrowNativeType
     + RefUnwindSafe
+    + Num
     + NumCast
     + Into<ScalarRef>
     + TryFrom<ScalarRef, Error = VortexError>

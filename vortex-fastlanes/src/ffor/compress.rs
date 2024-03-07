@@ -1,5 +1,5 @@
 use arrayref::array_ref;
-use log::debug;
+use itertools::Itertools;
 
 use fastlanez_sys::TryBitPack;
 use vortex::array::downcast::DowncastArrayBuiltin;
@@ -13,9 +13,9 @@ use vortex::ptype::{NativePType, PType};
 use vortex::scalar::ListScalarVec;
 use vortex::stats::Stat;
 
-use crate::{BitPackedArray, BitPackedEncoding};
+use crate::{FFoRArray, FFoREncoding};
 
-impl EncodingCompression for BitPackedEncoding {
+impl EncodingCompression for FFoREncoding {
     fn can_compress(
         &self,
         array: &dyn Array,
@@ -31,24 +31,6 @@ impl EncodingCompression for BitPackedEncoding {
             return None;
         }
 
-        // // Check that the min == zero. Otherwise, we can assume that FoR will run first.
-        // if parray.stats().get_or_compute_cast::<i64>(&Stat::Min)? != 0 {
-        //     debug!("Skipping BitPacking: min != 0");
-        //     return None;
-        // }
-
-        let bit_width_freq = parray
-            .stats()
-            .get_or_compute_as::<ListScalarVec<usize>>(&Stat::BitWidthFreq)?
-            .0;
-        let bit_width = best_bit_width(parray.ptype(), &bit_width_freq);
-
-        // Check that the bit width is less than the type's bit width
-        if bit_width == parray.ptype().bit_width() {
-            debug!("Skipping BitPacking: best == current bit width");
-            return None;
-        }
-
         Some(self)
     }
 
@@ -58,26 +40,62 @@ impl EncodingCompression for BitPackedEncoding {
         like: Option<&dyn Array>,
         ctx: &CompressCtx,
     ) -> VortexResult<ArrayRef> {
-        let parray = array.as_primitive();
+        let mut parray = array.as_primitive().clone();
+
+        let tz_freq = parray
+            .stats()
+            .get_or_compute_as::<ListScalarVec<usize>>(&Stat::TZFreq)
+            .unwrap()
+            .0;
+        let _right_shift = tz_freq
+            .iter()
+            .enumerate()
+            .find_or_first(|(_, &v)| v > 0)
+            .map(|(i, _)| i)
+            .unwrap_or(0);
+
+        // TODO(ngates): adjust bit width freq for reference value.
         let bit_width_freq = parray
             .stats()
             .get_or_compute_as::<ListScalarVec<usize>>(&Stat::BitWidthFreq)
             .unwrap()
             .0;
+        let like_bp = like.map(|l| l.as_any().downcast_ref::<FFoRArray>().unwrap());
+        let mut bit_width = best_bit_width(parray.ptype(), &bit_width_freq);
+        let _num_exceptions = count_exceptions(bit_width, &bit_width_freq);
 
-        let like_bp = like.map(|l| l.as_any().downcast_ref::<BitPackedArray>().unwrap());
-        //
-        // let bit_width = like_bp
-        //     .map(|bp| bp.bit_width())
-        //     .unwrap_or_else(|| best_bit_width(parray.ptype(), &bit_width_freq));
-        let bit_width = best_bit_width(parray.ptype(), &bit_width_freq);
-        let num_exceptions = count_exceptions(bit_width, &bit_width_freq);
+        let _str = match_each_integer_ptype!(parray.ptype(), |$T| format!("{:?}", parray.typed_data::<$T>()));
+        let min = parray
+            .stats()
+            .get_or_compute_cast::<i64>(&Stat::Min)
+            .unwrap_or(0);
+        let reference = (min != 0).then(|| parray.stats().get_or_compute(&Stat::Min).unwrap());
+
+        if min != 0 {
+            let bit_width_change = min.trailing_zeros() as i8;
+            if bit_width as i8 - bit_width_change >= 0 {
+                bit_width = (bit_width as i8 - bit_width_change) as usize;
+            }
+
+            parray = match_each_integer_ptype!(parray.ptype(), |$T| PrimitiveArray::from(
+                parray
+                    .typed_data::<$T>()
+                    .iter()
+                    .map(|&v| v - min as $T)
+                    .collect_vec(),
+            ));
+        }
+
+        if bit_width == parray.ptype().bit_width() {
+            // Can't do anything
+            return Ok(parray.clone().boxed());
+        }
 
         // If we pack into zero bits, then we have an empty byte array.
         let packed = if bit_width == 0 {
             PrimitiveArray::from(Vec::<u8>::new()).boxed()
         } else {
-            bitpack(parray, bit_width)
+            bitpack(&parray, bit_width)
         };
 
         let validity = parray
@@ -88,48 +106,32 @@ impl EncodingCompression for BitPackedEncoding {
             })
             .transpose()?;
 
-        let patches = if num_exceptions > 0 {
-            Some(ctx.next_level().compress(
-                bitpack_patches(parray, bit_width, num_exceptions).as_ref(),
-                like_bp.and_then(|bp| bp.patches()),
-            )?)
+        // FIXME(ngates): num_exceptions is wrong
+        let patches = bitpack_patches(&parray, bit_width, parray.len());
+        let patches = if patches.len() > 0 {
+            Some(
+                ctx.next_level()
+                    .compress(patches.as_ref(), like_bp.and_then(|bp| bp.patches()))?,
+            )
         } else {
             None
         };
 
-        Ok(BitPackedArray::try_new(
+        let bit_shift = 0;
+        let _len = parray.len();
+
+        Ok(FFoRArray::try_new(
             packed,
             validity,
             patches,
             bit_width,
+            bit_shift,
+            reference,
             parray.dtype().clone(),
             parray.len(),
         )
         .unwrap()
         .boxed())
-    }
-
-    fn estimate_ratio(
-        &self,
-        array: &dyn Array,
-        _sample: &dyn Array,
-        _compressed_sample: &dyn Array,
-    ) -> f32 {
-        let parray = array.as_primitive();
-        let bit_width_freq = parray
-            .stats()
-            .get_or_compute_as::<ListScalarVec<usize>>(&Stat::BitWidthFreq)
-            .unwrap()
-            .0;
-
-        let bit_width = best_bit_width(parray.ptype(), &bit_width_freq);
-        let num_exceptions = count_exceptions(bit_width, &bit_width_freq);
-        let bytes_per_exception = parray.ptype().byte_width() + 4;
-
-        let compressed_size =
-            (((bit_width * array.len()) + 7) / 8) + (num_exceptions * bytes_per_exception);
-
-        compressed_size as f32 / array.nbytes() as f32
     }
 }
 
@@ -158,6 +160,9 @@ fn bitpack_primitive<T: NativePType + TryBitPack>(array: &[T], bit_width: usize)
     (0..num_chunks - 1).for_each(|i| {
         let start_elem = i * 1024;
         let chunk: &[T; 1024] = array_ref![array, start_elem, 1024];
+
+        // TODO(ngates): shift out the any trailing zeros
+
         TryBitPack::try_bitpack_into(chunk, bit_width, &mut output).unwrap();
     });
 
@@ -215,6 +220,10 @@ fn best_bit_width(ptype: &PType, bit_width_freq: &[usize]) -> usize {
             best_cost = cost;
             best_width = bit_width;
         }
+    }
+
+    if count_exceptions(best_width, bit_width_freq) > 0 {
+        print!("");
     }
 
     best_width

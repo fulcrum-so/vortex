@@ -39,7 +39,7 @@ impl EncodingCompression for ZigZagEncoding {
         &self,
         array: &dyn Array,
         like: Option<&dyn Array>,
-        ctx: CompressCtx,
+        ctx: &CompressCtx,
     ) -> VortexResult<ArrayRef> {
         let zigzag_like = like.map(|like_arr| like_arr.as_zigzag());
         let encoded = match ArrayKind::from(array) {

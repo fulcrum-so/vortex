@@ -39,7 +39,7 @@ impl EncodingCompression for DeltaEncoding {
         &self,
         array: &dyn Array,
         like: Option<&dyn Array>,
-        ctx: CompressCtx,
+        ctx: &CompressCtx,
     ) -> VortexResult<ArrayRef> {
         let parray = array.as_primitive();
         let like_delta = like.map(|l| l.as_any().downcast_ref::<DeltaArray>().unwrap());

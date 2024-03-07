@@ -23,7 +23,6 @@ impl EncodingCompression for RoaringIntEncoding {
     ) -> Option<&dyn EncodingCompression> {
         // Only support primitive enc arrays
         if array.encoding().id() != &PrimitiveEncoding::ID {
-            debug!("Skipping roaring int, not primitive");
             return None;
         }
 
@@ -55,7 +54,7 @@ impl EncodingCompression for RoaringIntEncoding {
         &self,
         array: &dyn Array,
         _like: Option<&dyn Array>,
-        _ctx: CompressCtx,
+        _ctx: &CompressCtx,
     ) -> VortexResult<ArrayRef> {
         Ok(roaring_encode(array.as_primitive()).boxed())
     }

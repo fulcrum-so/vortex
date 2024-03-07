@@ -17,7 +17,7 @@ impl EncodingCompression for SparseEncoding {
         &self,
         array: &dyn Array,
         like: Option<&dyn Array>,
-        ctx: CompressCtx,
+        ctx: &CompressCtx,
     ) -> VortexResult<ArrayRef> {
         let sparse_array = array.as_sparse();
         let sparse_like = like.map(|la| la.as_sparse());

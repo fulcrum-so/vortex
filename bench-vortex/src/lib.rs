@@ -6,6 +6,7 @@ use parquet::arrow::ProjectionMask;
 use std::collections::HashSet;
 use std::fs::{create_dir_all, File};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use vortex::array::bool::BoolEncoding;
 use vortex::array::chunked::{ChunkedArray, ChunkedEncoding};
 use vortex::array::constant::ConstantEncoding;
@@ -44,8 +45,9 @@ pub fn enumerate_arrays() -> Vec<&'static dyn Encoding> {
         &ALPEncoding,
         &DictEncoding,
         &BitPackedEncoding,
-        &DeltaEncoding,
         &FoREncoding,
+        &DeltaEncoding,
+        // &FFoREncoding,
         &REEEncoding,
         &RoaringBoolEncoding,
         // &RoaringIntEncoding,
@@ -76,10 +78,16 @@ pub fn download_taxi_data() -> PathBuf {
 pub fn compress_taxi_data() -> ArrayRef {
     let file = File::open(download_taxi_data()).unwrap();
     let builder = ParquetRecordBatchReaderBuilder::try_new(file).unwrap();
-    let _mask = ProjectionMask::roots(builder.parquet_schema(), [10]);
+    let mask = ProjectionMask::roots(builder.parquet_schema(), [16]);
+    let _no_datetime_mask = ProjectionMask::roots(
+        builder.parquet_schema(),
+        [0, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+    );
     let reader = builder
-        // .with_projection(mask)
+        .with_projection(mask)
+        //.with_projection(no_datetime_mask)
         .with_batch_size(65_536)
+        // .with_batch_size(5_000_000)
         //.with_limit(100_000)
         .build()
         .unwrap();
@@ -90,12 +98,14 @@ pub fn compress_taxi_data() -> ArrayRef {
         HashSet::default(),
     );
     println!("Compression config {cfg:?}");
-    let ctx = CompressCtx::new(&cfg);
+    let ctx = CompressCtx::new(Arc::new(cfg));
 
     let schema = reader.schema();
     let mut uncompressed_size = 0;
     let chunks = reader
         .into_iter()
+        //.skip(39)
+        //.take(1)
         .map(|batch_result| batch_result.unwrap())
         .map(ArrayRef::from)
         .map(|array| {
@@ -148,7 +158,7 @@ mod test {
 
     #[test]
     fn compression_ratio() {
-        setup_logger(LevelFilter::Info);
+        setup_logger(LevelFilter::Debug);
         _ = compress_taxi_data();
     }
 }

@@ -36,7 +36,7 @@ impl EncodingCompression for REEEncoding {
         &self,
         array: &dyn Array,
         like: Option<&dyn Array>,
-        ctx: CompressCtx,
+        ctx: &CompressCtx,
     ) -> VortexResult<ArrayRef> {
         let ree_like = like.map(|like_arr| like_arr.as_ree());
         let primitive_array = array.as_primitive();
