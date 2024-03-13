@@ -1,0 +1,22 @@
+[package]
+name = "vortex-dtype"
+version = { workspace = true }
+description = "Data types for Vortex"
+homepage = { workspace = true }
+repository = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+keywords = { workspace = true }
+include = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+
+[lints]
+workspace = true
+
+[dependencies]
+itertools = "0.12.1"
+num-traits = "0.2.18"
+
+[dev-dependencies]
+simplelog = { version = "0.12.1", features = ["paris"] }

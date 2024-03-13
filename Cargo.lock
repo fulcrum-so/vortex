@@ -426,12 +426,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ea184aa71bb362a1157c896979544cc23974e08fd265f29ea96b59f0b4a555b"
 
 [[package]]
-name = "bytemuck"
-version = "1.14.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2ef034f05691a48569bd920a96c81b9d91bbad1ab5ac7c4616c1f6ef36cb79f"
-
-[[package]]
 name = "byteorder"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2001,16 +1995,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "roaring"
-version = "0.10.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1c77081a55300e016cb86f2864415b7518741879db925b8d488a0ee0d2da6bf"
-dependencies = [
- "bytemuck",
- "byteorder",
-]
-
-[[package]]
 name = "rustc-demangle"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2585,9 +2569,9 @@ dependencies = [
  "once_cell",
  "rand",
  "rayon",
- "roaring",
  "thiserror",
  "vortex-alloc",
+ "vortex-dtype",
 ]
 
 [[package]]
@@ -2604,6 +2588,15 @@ dependencies = [
  "rand",
  "simplelog",
  "vortex-array",
+]
+
+[[package]]
+name = "vortex-dtype"
+version = "0.1.0"
+dependencies = [
+ "itertools 0.12.1",
+ "num-traits",
+ "simplelog",
 ]
 
 [[package]]

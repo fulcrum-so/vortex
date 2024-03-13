@@ -1,7 +1,6 @@
+use itertools::Itertools;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
-
-use itertools::Itertools;
 
 use DType::*;
 
