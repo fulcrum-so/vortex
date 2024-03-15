@@ -1,0 +1,30 @@
+[package]
+name = "vortex-arrow"
+version = { workspace = true }
+description = "Vortex interop with Apache Arrow"
+homepage = { workspace = true }
+repository = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+keywords = { workspace = true }
+include = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+
+[lib]
+name = "vortex"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+arrow-array = { version = "50.0.0" }
+arrow-buffer = { version = "50.0.0" }
+arrow-schema = { version = "50.0.0" }
+arrow-data = { version = "50.0.0" }
+arrow-cast = { version = "50.0.0" }
+arrow-select = { version = "50.0.0" }
+dyn-clone = "1.0.16"
+itertools = "0.12.1"
+vortex-array = { path = "../vortex-array" }

@@ -20,6 +20,7 @@ use super::{
     EncodingId, EncodingRef, ENCODINGS,
 };
 
+mod arrow_;
 mod compute;
 mod serde;
 mod stats;

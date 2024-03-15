@@ -2591,6 +2591,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "vortex-arrow"
+version = "0.1.0"
+dependencies = [
+ "arrow-array",
+ "arrow-buffer",
+ "arrow-cast",
+ "arrow-data",
+ "arrow-schema",
+ "arrow-select",
+ "dyn-clone",
+ "itertools 0.12.1",
+ "vortex-array",
+]
+
+[[package]]
 name = "vortex-dict"
 version = "0.1.0"
 dependencies = [

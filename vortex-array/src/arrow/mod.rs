@@ -1,18 +1,55 @@
-use arrow_array::array::ArrayRef;
+use arrow_array::array::ArrayRef as ArrowArrayRef;
+use arrow_schema::DataType;
 use arrow_select::concat::concat;
 use itertools::Itertools;
 
-use crate::array::ArrowIterator;
+use crate::array::{Array, ArrowIterator};
 
 pub mod aligned_iter;
 pub mod convert;
 
+pub trait TryIntoArrow: 'static {
+    fn arrow_array(&self) -> VortexResult<ArrowArrayRef>;
+    fn arrow_dtype(&self) -> VortexResult<DataType>;
+}
+
+struct Wrap<T>(T);
+
+trait ViaImpl {
+    fn foo(&self) -> Option<&dyn TryIntoArrow>;
+}
+impl<T: TryIntoArrow> ViaImpl for &Wrap<T> {
+    fn foo(&self) -> Option<&dyn TryIntoArrow> {
+        Some(&self.0)
+    }
+}
+
+trait ViaAny {
+    fn foo(&self) -> Option<&dyn TryIntoArrow>;
+}
+impl<T> ViaAny for Wrap<T> {
+    fn foo(&self) -> Option<&dyn TryIntoArrow> {
+        None
+    }
+}
+
+macro_rules! _as_try_into_arrow {
+    ($e:expr) => {
+        (&&&Wrap($e)).foo()
+    };
+}
+
+pub fn as_try_into_arrow(array: &dyn Array) -> Option<&dyn TryIntoArrow> {
+    // TODO(ngates): match macro that downcasts to all discovered encodings.
+    _as_try_into_arrow!(array)
+}
+
 pub trait CombineChunks {
-    fn combine_chunks(self) -> ArrayRef;
+    fn combine_chunks(self) -> ArrowArrayRef;
 }
 
 impl CombineChunks for Box<ArrowIterator> {
-    fn combine_chunks(self) -> ArrayRef {
+    fn combine_chunks(self) -> ArrowArrayRef {
         let chunks = self.collect_vec();
         let chunk_refs = chunks.iter().map(|a| a.as_ref()).collect_vec();
         concat(&chunk_refs).unwrap()
@@ -45,4 +82,5 @@ macro_rules! match_arrow_numeric_type {
     })
 }
 
+use crate::error::VortexResult;
 pub use match_arrow_numeric_type;
