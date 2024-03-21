@@ -18,6 +18,7 @@ workspace = true
 arrow-array = "50.0.0"
 vortex-alp = { path = "../vortex-alp" }
 vortex-array = { path = "../vortex-array" }
+vortex-datetime = { path = "../vortex-datetime" }
 vortex-dict = { path = "../vortex-dict" }
 vortex-fastlanes = { path = "../vortex-fastlanes" }
 vortex-ree = { path = "../vortex-ree" }

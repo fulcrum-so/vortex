@@ -1,0 +1,13 @@
+[package]
+name = "vortex-datetime"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+vortex-array = { "path" = "../vortex-array" }
+vortex-schema = { "path" = "../vortex-schema" }
+linkme = "0.3.22"
+log = "0.4.20"

@@ -29,6 +29,11 @@ impl LocalDateTime {
     pub fn new(time_unit: TimeUnit) -> Self {
         Self { time_unit }
     }
+
+    #[inline]
+    pub fn time_unit(&self) -> TimeUnit {
+        self.time_unit
+    }
 }
 
 impl Display for LocalDateTime {

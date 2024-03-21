@@ -6,6 +6,7 @@ members = [
     "vortex-alloc",
     "vortex-alp",
     "vortex-array",
+    "vortex-datetime",
     "vortex-dict",
     "vortex-fastlanes",
     "vortex-flatbuffers",

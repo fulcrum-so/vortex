@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use arrow_array::RecordBatchReader;
 use itertools::Itertools;
-use log::info;
+use log::{info, warn};
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use parquet::arrow::ProjectionMask;
 
@@ -24,6 +24,7 @@ use vortex::arrow::FromArrowType;
 use vortex::compress::{CompressConfig, CompressCtx};
 use vortex::formatter::display_tree;
 use vortex_alp::ALPEncoding;
+use vortex_datetime::DateTimeEncoding;
 use vortex_dict::DictEncoding;
 use vortex_fastlanes::{BitPackedEncoding, FoREncoding};
 use vortex_ree::REEEncoding;
@@ -48,6 +49,7 @@ pub fn enumerate_arrays() -> Vec<&'static dyn Encoding> {
         &DictEncoding,
         &BitPackedEncoding,
         &FoREncoding,
+        &DateTimeEncoding,
         // &DeltaEncoding,
         // &FFoREncoding,
         &REEEncoding,
@@ -121,7 +123,7 @@ pub fn compress_taxi_data() -> ArrayRef {
     let dtype = DType::from_arrow(schema.clone());
     let compressed = ChunkedArray::new(chunks.clone(), dtype).boxed();
 
-    info!("Compressed array {}", display_tree(compressed.as_ref()));
+    warn!("Compressed array {}", display_tree(compressed.as_ref()));
 
     let mut field_bytes = vec![0; schema.fields().len()];
     for chunk in chunks {
