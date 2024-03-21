@@ -2708,6 +2708,7 @@ dependencies = [
  "parquet2",
  "vortex-array",
  "vortex-flatbuffers",
+ "vortex-schema",
 ]
 
 [[package]]

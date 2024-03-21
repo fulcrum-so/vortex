@@ -42,9 +42,7 @@ pub type ArrayRef = Box<dyn Array>;
 ///
 /// This differs from Apache Arrow where logical and physical are combined in
 /// the data type, e.g. LargeString, RunEndEncoded.
-pub trait Array:
-    ArrayDisplay + ArrayCompute + Debug + Send + Sync + dyn_clone::DynClone + 'static
-{
+pub trait Array: ArrayDisplay + ArrayCompute + Debug + Send + Sync + dyn_clone::DynClone {
     /// Converts itself to a reference of [`Any`], which enables downcasting to concrete types.
     fn as_any(&self) -> &dyn Any;
     /// Move an owned array to `ArrayRef`
@@ -108,7 +106,7 @@ pub fn check_validity_buffer(
             return Err(VortexError::InvalidArgument(
                 format!(
                     "Validity buffer {} has incorrect length {}, expected {}",
-                    v,
+                    v.clone(),
                     v.len(),
                     expected_len
                 )

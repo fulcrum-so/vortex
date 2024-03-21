@@ -1,10 +1,24 @@
-use crate::fb::Flat;
-use arrow_buffer::Buffer;
-use flatbuffers::{Follow, Verifiable};
+use std::any::Any;
+use std::fmt::{Debug, Formatter};
 use std::io::Read;
 use std::sync::Arc;
-use vortex::array::{EncodingId, ENCODINGS};
+
+use arrow_buffer::Buffer;
+use flatbuffers::{root, Follow, Verifiable};
+
+use vortex::array::ArrayRef;
+use vortex::compute::patch::PatchFn;
+use vortex::compute::scalar_at::{scalar_at, ScalarAtFn};
+use vortex::compute::take::TakeFn;
+use vortex::compute::ArrayCompute;
+use vortex::error::VortexResult;
+use vortex::formatter::{ArrayDisplay, ArrayFormatter};
+use vortex::scalar::Scalar;
+use vortex::stats::Stats;
 use vortex_flatbuffers::column::Array;
+use vortex_schema::DType;
+
+use crate::fb::Flat;
 
 mod fb;
 
@@ -40,57 +54,98 @@ struct ColumnReader {}
 // well as the correct number of buffers.
 
 trait ArrayTrait {
-    fn encoding_id(&self) -> EncodingId;
-
     fn len(&self) -> usize;
 }
 
+trait ArrayCompute {}
+
+trait WithCompute {
+    fn with_compute<T, F>(&self, closure: F) -> T
+    where
+        F: FnOnce(&dyn ArrayCompute) -> T;
+}
+
+trait Encoding: Sync {
+    fn compute(&self, array_data: &ArrayData) -> Box<dyn ArrayCompute>;
+}
+
+type EncodingRef = &'static dyn Encoding;
+
+#[derive(Clone)]
 struct ReaderCtx {
     dtype: DType,
+    encodings: Vec<EncodingRef>,
 }
 
+#[derive(Clone)]
 struct ArrayData<'a> {
-    ctx: Arc<ArrayDataCtx>,
-    encoding: Flat<'a, Array<'a>>,
+    ctx: Arc<ReaderCtx>,
+    metadata: Array<'a>,
     buffers: Arc<[Buffer]>,
-}
-
-// Is this an array? I guess so?
-
-impl<'a> ArrayTrait for ArrayData<'a> {
-    fn encoding_id(&self) -> EncodingId {
-        ENCODINGS.iter()
-            .find(|e| e.id().name() == self.encoding.as_typed().encoding_id())
-        todo!()
-    }
-
-    fn len(&self) -> usize {
-        todo!()
-    }
-}
-
-// Then we want to run a scan over this thing...
-
-// Say we have some DictArray and we want to scan it.
-struct DictArray {
-    keys: ArrayData,
-    values: ArrayData,
+    encoding: EncodingRef,
 }
 
 impl<'a> ArrayData<'a> {
-    fn child(&self, i: usize) -> Option<ArrayData<'a>> {
-        if let Some(children) = self.encoding.as_typed().children() {
-            let num_buffers_before: i16 =
-                children.iter().map(|child| child.nbuffers()).take(i).sum();
-            let child = children.get(i);
-            let child_buffers = self.buffers[num_buffers_before as usize..][..child.nbuffers()];
-
-            Some(ArrayData {
-                encoding: child.bytes(),
-                buffers: Arc::from(child_buffers),
-            })
+    fn new(ctx: Arc<ReaderCtx>, metadata: Array<'a>, buffers: Arc<[Buffer]>) -> Self {
+        Self {
+            ctx,
+            metadata,
+            buffers,
+            encoding: ctx.encodings[0],
         }
-        self.encoding.as_typed().children().map(|c| c.get(i))
+    }
+
+    fn with_child<T, F>(&self, _child_idx: usize, closure: F) -> T
+    where
+        F: FnOnce(ArrayData<'a>) -> T,
+    {
+        // TODO(ngates): construct the child
+        let child = self.clone();
+        closure(child)
+    }
+
+    fn as_array(&self) -> ArrayRef {
+        todo!()
+    }
+}
+
+impl<'a> ArrayDisplay for ArrayData<'a> {
+    fn fmt(&self, fmt: &'_ mut ArrayFormatter) -> std::fmt::Result {
+        todo!()
+    }
+}
+
+impl<'a> WithCompute for ArrayData<'a> {
+    fn with_compute<T, F>(&self, closure: F) -> T
+    where
+        F: FnOnce(&dyn ArrayCompute) -> T,
+    {
+        let array_compute = self.encoding.compute(self);
+        closure(array_compute.as_ref())
+    }
+}
+
+impl<'a> ArrayCompute for ArrayData<'a> {}
+
+// Say we have some DictArray and we want to scan it.
+struct DictArrayData<'a>(ArrayData<'a>);
+
+impl<'a> DictArrayData<'a> {
+    fn with_codes<T>(&self, closure: impl FnOnce(ArrayData<'a>) -> T) -> T {
+        self.0.with_child(0, closure)
+    }
+
+    fn with_values<T>(&self, closure: impl FnOnce(ArrayData<'a>) -> T) -> T {
+        self.0.with_child(1, closure)
+    }
+}
+
+impl<'a> ScalarAtFn for DictArrayData<'a> {
+    fn scalar_at(&self, index: usize) -> VortexResult<Scalar> {
+        let code: usize = self
+            .with_codes(|codes| scalar_at(&codes, index))?
+            .try_into()?;
+        self.with_values(|values| scalar_at(&values, code))
     }
 }
 
@@ -102,7 +157,7 @@ mod test {
 
     use crate::fb::Flat;
 
-    fn write_column<'a>() -> Flat<'a, Column<'a>> {
+    fn write_column<'a>() -> Flat<Column<'a>> {
         let mut fb = FlatBufferBuilder::new();
         let col = Column::create(
             &mut fb,

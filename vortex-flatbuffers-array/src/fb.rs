@@ -7,12 +7,12 @@ use std::convert::TryFrom;
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]
-pub struct Flat<'a, F> {
+pub struct Flat<F> {
     buffer: Buffer,
-    phantom: PhantomData<&'a F>,
+    phantom: PhantomData<F>,
 }
 
-impl<'a, F> Flat<'a, F>
+impl<'a, F> Flat<F>
 where
     F: Follow<'a>,
     F: Verifiable,
@@ -42,7 +42,7 @@ where
         unsafe { root_unchecked::<F>(self.buffer.as_slice()) }
     }
 
-    pub fn follow<T>(&'a self, follower: F) -> Flat<'a, T>
+    pub fn follow<T>(&'a self, follower: F) -> Flat<T>
     where
         F: FnOnce() -> T,
     {
@@ -53,7 +53,7 @@ where
     }
 }
 
-impl<'a, F> TryFrom<Buffer> for Flat<'a, F>
+impl<'a, F> TryFrom<Buffer> for Flat<F>
 where
     F: Follow<'a>,
     F: Verifiable,

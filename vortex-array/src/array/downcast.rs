@@ -69,9 +69,9 @@ pub trait DowncastArrayBuiltin: private::Sealed {
     }
 }
 
-impl private::Sealed for dyn Array {}
+impl private::Sealed for dyn Array + '_ {}
 
-impl DowncastArrayBuiltin for dyn Array {
+impl DowncastArrayBuiltin for dyn Array + '_ {
     fn maybe_primitive(&self) -> Option<&PrimitiveArray> {
         self.as_any().downcast_ref()
     }

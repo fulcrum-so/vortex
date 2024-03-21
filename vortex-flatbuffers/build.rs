@@ -41,7 +41,7 @@ fn main() {
         .status()
         .expect("Failed to execute flatc")
         .success();
-    assert_eq!(exit, true, "flatc failed");
+    assert!(exit, "flatc failed");
 }
 
 fn rerun_if_changed(path: &Path) {

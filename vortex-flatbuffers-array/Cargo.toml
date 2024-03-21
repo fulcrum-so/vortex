@@ -19,5 +19,5 @@ arrow-buffer = "51.0.0"
 flatbuffers = "23.5.26"
 parquet2 = "0.17.2"
 vortex-array = { path = "../vortex-array" }
-vortex-dtype = { path = "../vortex-dtype" }
 vortex-flatbuffers = { path = "../vortex-flatbuffers" }
+vortex-schema = { path = "../vortex-schema" }

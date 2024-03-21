@@ -5,7 +5,7 @@ use crate::array::{Array, ArrayRef};
 use crate::error::VortexResult;
 use crate::serde::{ArraySerde, EncodingSerde, ReadCtx, WriteCtx};
 
-impl ArraySerde for BoolArray {
+impl<'a> ArraySerde for &'a BoolArray {
     fn write(&self, ctx: &mut WriteCtx) -> VortexResult<()> {
         if let Some(v) = self.validity() {
             ctx.write(v.as_ref())?;

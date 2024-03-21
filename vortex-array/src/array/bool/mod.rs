@@ -65,8 +65,8 @@ impl BoolArray {
     }
 
     #[inline]
-    pub fn validity(&self) -> Option<&dyn Array> {
-        self.validity.as_deref()
+    pub fn validity(&self) -> Option<&ArrayRef> {
+        self.validity.as_ref()
     }
 }
 
@@ -136,7 +136,7 @@ impl Array for BoolArray {
     }
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
-        Some(self)
+        Some(&self)
     }
 }
 

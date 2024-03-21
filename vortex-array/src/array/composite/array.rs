@@ -14,9 +14,7 @@ use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::{ArraySerde, BytesSerde, EncodingSerde};
 use crate::stats::{Stats, StatsCompute, StatsSet};
 
-pub trait CompositeMetadata:
-    'static + Debug + Display + Send + Sync + Sized + Clone + BytesSerde
-{
+pub trait CompositeMetadata: Debug + Display + Send + Sync + Sized + Clone + BytesSerde {
     fn id(&self) -> CompositeID;
 }
 
