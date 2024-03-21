@@ -1,0 +1,21 @@
+namespace Vortex.Primitive;
+
+enum PType : byte {
+    I8,
+    U8,
+    I16,
+    U16,
+    I32,
+    U32,
+    I64,
+    U64,
+    F16,
+    F32,
+    F64,
+}
+
+table PrimitiveMeta {
+    ptype: PType;
+}
+
+root_type PrimitiveMeta;

@@ -1,0 +1,9 @@
+namespace Vortex.REE;
+
+table REEMeta {
+    len:long;
+    ends: [byte];
+    values: [byte];
+}
+
+root_type REEMeta;

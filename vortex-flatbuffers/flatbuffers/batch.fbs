@@ -1,0 +1,28 @@
+// BatchMessage:
+//   * length - long
+//   * columns - list<Column{byte_offset}>
+
+// MessageColumn:
+//   * stats: list<Statistic> // Non-pruning statistics, e.g. IsSorted.
+//   * array: Array
+//   * buffer_lens: [long] // Byte lengths (or offsets) of each of the buffers of the column.
+//
+// Array:
+//   * encoding_id: short (the encoding ID as defined in the capabilities)
+//   * metadata: [byte]
+//   * nbuffers: short // The number of buffers consumed by this encoding (and all its children)
+
+// MessageColumn Buffers (written immediately after the MessageColumn):
+
+namespace Vortex.Batch;
+
+table Batch {
+    length: long;
+    columns: [ColumnOffset];
+}
+
+struct ColumnOffset {
+    byte_offset: long;
+}
+
+root_type Batch;

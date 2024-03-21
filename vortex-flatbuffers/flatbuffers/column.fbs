@@ -1,0 +1,14 @@
+namespace Vortex.Column;
+
+table Column {
+    array: Array;
+    buffer_lens: [long];
+}
+
+table Array {
+    encoding_id: short;
+    metadata: [byte];
+    nbuffers: short;
+}
+
+root_type Column;

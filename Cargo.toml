@@ -11,7 +11,7 @@ members = [
     "vortex-flatbuffers",
     "vortex-ree",
     "vortex-roaring",
-    "vortex-zigzag",
+    "vortex-zigzag", "vortex-flatbuffers-array",
 ]
 resolver = "2"
 

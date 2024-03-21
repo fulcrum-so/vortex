@@ -1,0 +1,22 @@
+[package]
+name = "vortex-flatbuffers-array"
+version = { workspace = true }
+description = "Vortex arrays implemented using Flatbuffers"
+homepage = { workspace = true }
+repository = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+keywords = { workspace = true }
+include = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+
+[lints]
+workspace = true
+
+[dependencies]
+arrow-buffer = "51.0.0"
+flatbuffers = "23.5.26"
+parquet2 = "0.17.2"
+vortex-array = { path = "../vortex-array" }
+vortex-flatbuffers = { path = "../vortex-flatbuffers" }
