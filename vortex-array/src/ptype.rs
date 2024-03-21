@@ -1,11 +1,13 @@
-use arrow_buffer::ArrowNativeType;
 use std::fmt::{Debug, Display, Formatter};
 use std::panic::RefUnwindSafe;
 
+use arrow_buffer::ArrowNativeType;
 use half::f16;
 use num_traits::{Num, NumCast};
 
-use crate::dtype::{DType, FloatWidth, IntWidth, Signedness};
+use vortex_schema::DType::*;
+use vortex_schema::{DType, FloatWidth, IntWidth};
+
 use crate::error::{VortexError, VortexResult};
 use crate::scalar::{PScalar, Scalar};
 
@@ -155,7 +157,7 @@ impl TryFrom<&DType> for PType {
     type Error = VortexError;
 
     fn try_from(value: &DType) -> VortexResult<Self> {
-        use Signedness::*;
+        use vortex_schema::Signedness::*;
         match value {
             DType::Int(w, s, _) => match w {
                 IntWidth::Unknown => match s {
@@ -193,6 +195,48 @@ impl TryFrom<&DType> for PType {
             _ => Err(VortexError::InvalidArgument(
                 format!("Cannot convert DType {} into PType", value.clone()).into(),
             )),
+        }
+    }
+}
+
+impl From<PType> for &DType {
+    fn from(item: PType) -> Self {
+        use vortex_schema::Nullability::*;
+        use vortex_schema::Signedness::*;
+
+        match item {
+            PType::I8 => &Int(IntWidth::_8, Signed, NonNullable),
+            PType::I16 => &Int(IntWidth::_16, Signed, NonNullable),
+            PType::I32 => &Int(IntWidth::_32, Signed, NonNullable),
+            PType::I64 => &Int(IntWidth::_64, Signed, NonNullable),
+            PType::U8 => &Int(IntWidth::_8, Unsigned, NonNullable),
+            PType::U16 => &Int(IntWidth::_16, Unsigned, NonNullable),
+            PType::U32 => &Int(IntWidth::_32, Unsigned, NonNullable),
+            PType::U64 => &Int(IntWidth::_64, Unsigned, NonNullable),
+            PType::F16 => &Float(FloatWidth::_16, NonNullable),
+            PType::F32 => &Float(FloatWidth::_32, NonNullable),
+            PType::F64 => &Float(FloatWidth::_64, NonNullable),
+        }
+    }
+}
+
+impl From<PType> for DType {
+    fn from(item: PType) -> Self {
+        use vortex_schema::Nullability::*;
+        use vortex_schema::Signedness::*;
+
+        match item {
+            PType::I8 => Int(IntWidth::_8, Signed, NonNullable),
+            PType::I16 => Int(IntWidth::_16, Signed, NonNullable),
+            PType::I32 => Int(IntWidth::_32, Signed, NonNullable),
+            PType::I64 => Int(IntWidth::_64, Signed, NonNullable),
+            PType::U8 => Int(IntWidth::_8, Unsigned, NonNullable),
+            PType::U16 => Int(IntWidth::_16, Unsigned, NonNullable),
+            PType::U32 => Int(IntWidth::_32, Unsigned, NonNullable),
+            PType::U64 => Int(IntWidth::_64, Unsigned, NonNullable),
+            PType::F16 => Float(FloatWidth::_16, NonNullable),
+            PType::F32 => Float(FloatWidth::_32, NonNullable),
+            PType::F64 => Float(FloatWidth::_64, NonNullable),
         }
     }
 }

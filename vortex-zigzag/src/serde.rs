@@ -1,7 +1,7 @@
 use vortex::array::{Array, ArrayRef};
-use vortex::dtype::{DType, Signedness};
 use vortex::error::{VortexError, VortexResult};
 use vortex::serde::{ArraySerde, EncodingSerde, ReadCtx, WriteCtx};
+use vortex_schema::{DType, Signedness};
 
 use crate::{ZigZagArray, ZigZagEncoding};
 

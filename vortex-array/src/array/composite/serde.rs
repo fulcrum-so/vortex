@@ -1,9 +1,11 @@
+use std::sync::Arc;
+
+use vortex_schema::DType;
+
 use crate::array::composite::{CompositeArray, CompositeEncoding};
 use crate::array::{Array, ArrayRef};
-use crate::dtype::DType;
 use crate::error::VortexResult;
 use crate::serde::{ArraySerde, EncodingSerde, ReadCtx, WriteCtx};
-use std::sync::Arc;
 
 impl ArraySerde for CompositeArray {
     fn write(&self, ctx: &mut WriteCtx) -> VortexResult<()> {

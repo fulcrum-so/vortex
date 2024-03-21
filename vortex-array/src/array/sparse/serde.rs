@@ -1,9 +1,9 @@
 use std::io;
 use std::io::ErrorKind;
+use vortex_schema::DType;
 
 use crate::array::sparse::{SparseArray, SparseEncoding};
 use crate::array::{Array, ArrayRef};
-use crate::dtype::DType;
 use crate::error::VortexResult;
 use crate::serde::{ArraySerde, EncodingSerde, ReadCtx, WriteCtx};
 

@@ -4,8 +4,9 @@ use std::sync::{Arc, RwLock};
 use arrow_buffer::buffer::BooleanBuffer;
 use linkme::distributed_slice;
 
+use vortex_schema::{DType, Nullability};
+
 use crate::compute::scalar_at::scalar_at;
-use crate::dtype::{DType, Nullability};
 use crate::error::VortexResult;
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::{ArraySerde, EncodingSerde};

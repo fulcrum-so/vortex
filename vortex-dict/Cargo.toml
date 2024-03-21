@@ -14,6 +14,7 @@ rust-version = { workspace = true }
 [dependencies]
 ahash = "0.8.7"
 vortex-array = { path = "../vortex-array" }
+vortex-schema = { path = "../vortex-schema" }
 half = { version = "2.3.1", features = ["std", "num-traits"] }
 hashbrown = "0.14.3"
 linkme = "0.3.22"

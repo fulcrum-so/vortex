@@ -1,16 +1,17 @@
 use std::sync::Arc;
 
 use arrow_array::RecordBatch;
-use arrow_schema::{DataType, Field, SchemaRef, TimeUnit as ArrowTimeUnit};
+use arrow_schema::TimeUnit as ArrowTimeUnit;
+use arrow_schema::{DataType, Field, SchemaRef};
 use itertools::Itertools;
+use vortex_schema::{DType, FloatWidth, IntWidth, Nullability};
 
 use crate::array::struct_::StructArray;
 use crate::array::{Array, ArrayRef};
+use crate::arrow::FromArrowType;
 use crate::compute::cast::cast;
 use crate::datetime::{LocalDateTimeExtension, TimeUnit};
-use crate::dtype::DType::*;
-use crate::dtype::{DType, FloatWidth, IntWidth, Nullability};
-use crate::encode::FromArrow;
+use crate::encode::FromArrowArray;
 use crate::error::{VortexError, VortexResult};
 use crate::ptype::PType;
 
@@ -33,30 +34,11 @@ impl From<RecordBatch> for ArrayRef {
                     // The dtype of the child arrays infer their nullability from the array itself.
                     // In case the schema says something different, we cast into the schema's dtype.
                     let vortex_array = ArrayRef::from_arrow(array.clone(), field.is_nullable());
-                    cast(vortex_array.as_ref(), &field.as_ref().into()).unwrap()
+                    cast(vortex_array.as_ref(), &DType::from_arrow(field.as_ref())).unwrap()
                 })
                 .collect(),
         )
         .boxed()
-    }
-}
-
-impl TryFrom<SchemaRef> for DType {
-    type Error = VortexError;
-
-    fn try_from(value: SchemaRef) -> VortexResult<Self> {
-        Ok(Struct(
-            value
-                .fields()
-                .iter()
-                .map(|f| Arc::new(f.name().clone()))
-                .collect(),
-            value
-                .fields()
-                .iter()
-                .map(|f| f.as_ref().into())
-                .collect_vec(),
-        ))
     }
 }
 
@@ -87,9 +69,27 @@ impl TryFrom<&DataType> for PType {
     }
 }
 
-impl From<&Field> for DType {
-    fn from(field: &Field) -> Self {
-        use crate::dtype::Signedness::*;
+impl FromArrowType<SchemaRef> for DType {
+    fn from_arrow(value: SchemaRef) -> Self {
+        DType::Struct(
+            value
+                .fields()
+                .iter()
+                .map(|f| Arc::new(f.name().clone()))
+                .collect(),
+            value
+                .fields()
+                .iter()
+                .map(|f| DType::from_arrow(f.as_ref()))
+                .collect_vec(),
+        )
+    }
+}
+
+impl FromArrowType<&Field> for DType {
+    fn from_arrow(field: &Field) -> Self {
+        use vortex_schema::DType::*;
+        use vortex_schema::Signedness::*;
 
         let nullability: Nullability = field.is_nullable().into();
 
@@ -109,7 +109,6 @@ impl From<&Field> for DType {
             DataType::Float64 => Float(FloatWidth::_64, nullability),
             DataType::Utf8 | DataType::LargeUtf8 => Utf8(nullability),
             DataType::Binary | DataType::LargeBinary => Binary(nullability),
-            // TODO(robert): what to do about this timezone?
             DataType::Timestamp(_u, tz) => match tz {
                 None => LocalDateTimeExtension::dtype(nullability),
                 Some(_) => unimplemented!("Timezone not yet supported"),
@@ -119,11 +118,13 @@ impl From<&Field> for DType {
             // DataType::Time32(u) => localtime(u.into(), IntWidth::_32, nullability),
             // DataType::Time64(u) => localtime(u.into(), IntWidth::_64, nullability),
             DataType::List(e) | DataType::LargeList(e) => {
-                List(Box::new(e.as_ref().into()), nullability)
+                List(Box::new(DType::from_arrow(e.as_ref())), nullability)
             }
             DataType::Struct(f) => Struct(
                 f.iter().map(|f| Arc::new(f.name().clone())).collect(),
-                f.iter().map(|f| f.as_ref().into()).collect_vec(),
+                f.iter()
+                    .map(|f| DType::from_arrow(f.as_ref()))
+                    .collect_vec(),
             ),
             DataType::Decimal128(p, s) | DataType::Decimal256(p, s) => Decimal(*p, *s, nullability),
             _ => unimplemented!("Arrow data type not yet supported: {:?}", field.data_type()),

@@ -2,6 +2,7 @@ use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
 
 use linkme::distributed_slice;
+use vortex_schema::{DType, Nullability};
 
 use crate::array::bool::{BoolArray, BoolEncoding};
 use crate::array::chunked::{ChunkedArray, ChunkedEncoding};
@@ -15,7 +16,6 @@ use crate::array::varbin::{VarBinArray, VarBinEncoding};
 use crate::array::varbinview::{VarBinViewArray, VarBinViewEncoding};
 use crate::compress::EncodingCompression;
 use crate::compute::ArrayCompute;
-use crate::dtype::{DType, Nullability};
 use crate::error::{VortexError, VortexResult};
 use crate::formatter::ArrayDisplay;
 use crate::serde::{ArraySerde, EncodingSerde};

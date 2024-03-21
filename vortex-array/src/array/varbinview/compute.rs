@@ -2,9 +2,9 @@ use crate::array::varbinview::VarBinViewArray;
 use crate::array::Array;
 use crate::compute::scalar_at::ScalarAtFn;
 use crate::compute::ArrayCompute;
-use crate::dtype::DType;
 use crate::error::VortexResult;
 use crate::scalar::Scalar;
+use vortex_schema::DType;
 
 impl ArrayCompute for VarBinViewArray {
     fn scalar_at(&self) -> Option<&dyn ScalarAtFn> {

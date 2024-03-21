@@ -10,6 +10,7 @@ use crate::accessor::ArrayAccessor;
 use allocator_api2::alloc::Allocator;
 use arrow_buffer::buffer::{Buffer, ScalarBuffer};
 use linkme::distributed_slice;
+use vortex_schema::DType;
 
 use crate::array::bool::BoolArray;
 use crate::array::{
@@ -17,7 +18,6 @@ use crate::array::{
     ENCODINGS,
 };
 use crate::compute::scalar_at::scalar_at;
-use crate::dtype::DType;
 use crate::error::VortexResult;
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::iterator::ArrayIter;
@@ -310,7 +310,7 @@ impl ArrayDisplay for PrimitiveArray {
 
 #[cfg(test)]
 mod test {
-    use crate::dtype::{IntWidth, Nullability, Signedness};
+    use vortex_schema::{IntWidth, Nullability, Signedness};
 
     use super::*;
 

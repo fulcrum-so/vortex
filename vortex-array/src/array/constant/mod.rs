@@ -2,11 +2,11 @@ use std::any::Any;
 use std::sync::{Arc, RwLock};
 
 use linkme::distributed_slice;
+use vortex_schema::DType;
 
 use crate::array::{
     check_slice_bounds, Array, ArrayRef, Encoding, EncodingId, EncodingRef, ENCODINGS,
 };
-use crate::dtype::DType;
 use crate::error::VortexResult;
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::scalar::Scalar;

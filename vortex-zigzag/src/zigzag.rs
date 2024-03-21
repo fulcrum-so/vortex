@@ -3,11 +3,11 @@ use std::sync::{Arc, RwLock};
 
 use vortex::array::{Array, ArrayKind, ArrayRef, Encoding, EncodingId, EncodingRef};
 use vortex::compress::EncodingCompression;
-use vortex::dtype::{DType, Signedness};
 use vortex::error::{VortexError, VortexResult};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stats, StatsSet};
+use vortex_schema::{DType, Signedness};
 
 use crate::compress::zigzag_encode;
 

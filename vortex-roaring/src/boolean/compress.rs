@@ -4,9 +4,9 @@ use vortex::array::bool::{BoolArray, BoolEncoding};
 use vortex::array::downcast::DowncastArrayBuiltin;
 use vortex::array::{Array, ArrayRef};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
-use vortex::dtype::DType;
-use vortex::dtype::Nullability::NonNullable;
 use vortex::error::VortexResult;
+use vortex_schema::DType;
+use vortex_schema::Nullability::NonNullable;
 
 use crate::boolean::{RoaringBoolArray, RoaringBoolEncoding};
 

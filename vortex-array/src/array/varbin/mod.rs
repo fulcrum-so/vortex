@@ -3,6 +3,7 @@ use std::sync::{Arc, RwLock};
 
 use linkme::distributed_slice;
 use num_traits::{FromPrimitive, Unsigned};
+use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 
 use crate::array::bool::BoolArray;
 use crate::array::downcast::DowncastArrayBuiltin;
@@ -15,7 +16,6 @@ use crate::array::{
 use crate::compress::EncodingCompression;
 use crate::compute::flatten::flatten_primitive;
 use crate::compute::scalar_at::scalar_at;
-use crate::dtype::{DType, IntWidth, Nullability, Signedness};
 use crate::error::{VortexError, VortexResult};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::ptype::NativePType;
@@ -370,7 +370,7 @@ mod test {
     use crate::array::varbin::VarBinArray;
     use crate::array::Array;
     use crate::compute::scalar_at::scalar_at;
-    use crate::dtype::{DType, Nullability};
+    use vortex_schema::{DType, Nullability};
 
     fn binary_array() -> VarBinArray {
         let values = PrimitiveArray::from(

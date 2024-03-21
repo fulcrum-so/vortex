@@ -4,10 +4,9 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use crate::array::composite::CompositeID;
 use DType::*;
 
-use crate::ptype::PType;
+use crate::CompositeID;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum Nullability {
@@ -223,48 +222,6 @@ impl Display for DType {
             ),
             List(c, n) => write!(f, "list({}){}", c, n),
             Composite(id, n) => write!(f, "<{}>{}", id, n),
-        }
-    }
-}
-
-impl From<PType> for &DType {
-    fn from(item: PType) -> Self {
-        use Nullability::*;
-        use Signedness::*;
-
-        match item {
-            PType::I8 => &Int(IntWidth::_8, Signed, NonNullable),
-            PType::I16 => &Int(IntWidth::_16, Signed, NonNullable),
-            PType::I32 => &Int(IntWidth::_32, Signed, NonNullable),
-            PType::I64 => &Int(IntWidth::_64, Signed, NonNullable),
-            PType::U8 => &Int(IntWidth::_8, Unsigned, NonNullable),
-            PType::U16 => &Int(IntWidth::_16, Unsigned, NonNullable),
-            PType::U32 => &Int(IntWidth::_32, Unsigned, NonNullable),
-            PType::U64 => &Int(IntWidth::_64, Unsigned, NonNullable),
-            PType::F16 => &Float(FloatWidth::_16, NonNullable),
-            PType::F32 => &Float(FloatWidth::_32, NonNullable),
-            PType::F64 => &Float(FloatWidth::_64, NonNullable),
-        }
-    }
-}
-
-impl From<PType> for DType {
-    fn from(item: PType) -> Self {
-        use Nullability::*;
-        use Signedness::*;
-
-        match item {
-            PType::I8 => Int(IntWidth::_8, Signed, NonNullable),
-            PType::I16 => Int(IntWidth::_16, Signed, NonNullable),
-            PType::I32 => Int(IntWidth::_32, Signed, NonNullable),
-            PType::I64 => Int(IntWidth::_64, Signed, NonNullable),
-            PType::U8 => Int(IntWidth::_8, Unsigned, NonNullable),
-            PType::U16 => Int(IntWidth::_16, Unsigned, NonNullable),
-            PType::U32 => Int(IntWidth::_32, Unsigned, NonNullable),
-            PType::U64 => Int(IntWidth::_64, Unsigned, NonNullable),
-            PType::F16 => Float(FloatWidth::_16, NonNullable),
-            PType::F32 => Float(FloatWidth::_32, NonNullable),
-            PType::F64 => Float(FloatWidth::_64, NonNullable),
         }
     }
 }

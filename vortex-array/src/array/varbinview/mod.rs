@@ -3,6 +3,7 @@ use std::mem;
 use std::sync::{Arc, RwLock};
 
 use linkme::distributed_slice;
+use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 
 use crate::array::{
     check_slice_bounds, check_validity_buffer, Array, ArrayRef, Encoding, EncodingId, EncodingRef,
@@ -10,7 +11,6 @@ use crate::array::{
 };
 use crate::compute::flatten::flatten_primitive;
 use crate::compute::scalar_at::scalar_at;
-use crate::dtype::{DType, IntWidth, Nullability, Signedness};
 use crate::error::{VortexError, VortexResult};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::{ArraySerde, EncodingSerde};

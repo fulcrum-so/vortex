@@ -1,6 +1,6 @@
 use crate::array::{Array, ArrayRef};
-use crate::dtype::DType;
 use crate::error::{VortexError, VortexResult};
+use vortex_schema::DType;
 
 pub trait CastFn {
     fn cast(&self, dtype: &DType) -> VortexResult<ArrayRef>;

@@ -6,7 +6,6 @@ pub mod accessor;
 pub mod compress;
 pub mod compute;
 pub mod datetime;
-pub mod dtype;
 pub mod encode;
 pub mod error;
 pub mod formatter;

@@ -21,6 +21,8 @@ use arrow_buffer::buffer::{NullBuffer, OffsetBuffer};
 use arrow_buffer::Buffer;
 use arrow_schema::{DataType, TimeUnit};
 
+use vortex_schema::DType;
+
 use crate::array::bool::BoolArray;
 use crate::array::constant::ConstantArray;
 use crate::array::primitive::PrimitiveArray;
@@ -28,11 +30,10 @@ use crate::array::struct_::StructArray;
 use crate::array::varbin::VarBinArray;
 use crate::array::{Array, ArrayRef};
 use crate::datetime::{LocalDateTime, LocalDateTimeArray};
-use crate::dtype::DType;
 use crate::ptype::PType;
 use crate::scalar::NullScalar;
 
-pub trait FromArrow<A> {
+pub trait FromArrowArray<A> {
     fn from_arrow(array: A, nullable: bool) -> Self;
 }
 
@@ -55,7 +56,7 @@ impl<O: OffsetSizeTrait> From<&OffsetBuffer<O>> for ArrayRef {
     }
 }
 
-impl<T: ArrowPrimitiveType> FromArrow<&ArrowPrimitiveArray<T>> for ArrayRef {
+impl<T: ArrowPrimitiveType> FromArrowArray<&ArrowPrimitiveArray<T>> for ArrayRef {
     fn from_arrow(value: &ArrowPrimitiveArray<T>, nullable: bool) -> Self {
         let ptype: PType = (&T::DATA_TYPE).try_into().unwrap();
         let arr = PrimitiveArray::new(
@@ -89,7 +90,7 @@ impl<T: ArrowPrimitiveType> FromArrow<&ArrowPrimitiveArray<T>> for ArrayRef {
     }
 }
 
-impl<T: ByteArrayType> FromArrow<&GenericByteArray<T>> for ArrayRef {
+impl<T: ByteArrayType> FromArrowArray<&GenericByteArray<T>> for ArrayRef {
     fn from_arrow(value: &GenericByteArray<T>, nullable: bool) -> Self {
         let dtype = match T::DATA_TYPE {
             DataType::Binary | DataType::LargeBinary => DType::Binary(nullable.into()),
@@ -106,7 +107,7 @@ impl<T: ByteArrayType> FromArrow<&GenericByteArray<T>> for ArrayRef {
     }
 }
 
-impl FromArrow<&ArrowBooleanArray> for ArrayRef {
+impl FromArrowArray<&ArrowBooleanArray> for ArrayRef {
     fn from_arrow(value: &ArrowBooleanArray, nullable: bool) -> Self {
         BoolArray::new(
             value.values().to_owned(),
@@ -116,7 +117,7 @@ impl FromArrow<&ArrowBooleanArray> for ArrayRef {
     }
 }
 
-impl FromArrow<&ArrowStructArray> for ArrayRef {
+impl FromArrowArray<&ArrowStructArray> for ArrayRef {
     fn from_arrow(value: &ArrowStructArray, nullable: bool) -> Self {
         // TODO(ngates): how should we deal with Arrow "logical nulls"?
         assert!(!nullable);
@@ -138,7 +139,7 @@ impl FromArrow<&ArrowStructArray> for ArrayRef {
     }
 }
 
-impl FromArrow<&ArrowNullArray> for ArrayRef {
+impl FromArrowArray<&ArrowNullArray> for ArrayRef {
     fn from_arrow(value: &ArrowNullArray, nullable: bool) -> Self {
         assert!(nullable);
         ConstantArray::new(NullScalar::new().into(), value.len()).boxed()
@@ -158,7 +159,7 @@ fn nulls(nulls: Option<&NullBuffer>, nullable: bool, len: usize) -> Option<Array
     }
 }
 
-impl FromArrow<ArrowArrayRef> for ArrayRef {
+impl FromArrowArray<ArrowArrayRef> for ArrayRef {
     fn from_arrow(array: ArrowArrayRef, nullable: bool) -> Self {
         match array.data_type() {
             DataType::Boolean => ArrayRef::from_arrow(array.as_boolean(), nullable),

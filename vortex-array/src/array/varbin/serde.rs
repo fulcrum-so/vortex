@@ -31,9 +31,10 @@ impl EncodingSerde for VarBinEncoding {
 
 #[cfg(test)]
 mod test {
+    use vortex_schema::{DType, Nullability};
+
     use crate::array::downcast::DowncastArrayBuiltin;
     use crate::array::varbin::VarBinArray;
-    use crate::dtype::{DType, Nullability};
     use crate::serde::test::roundtrip_array;
 
     #[test]

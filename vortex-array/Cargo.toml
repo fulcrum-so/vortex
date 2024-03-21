@@ -20,6 +20,7 @@ workspace = true
 
 [dependencies]
 allocator-api2 = "0.2.16"
+vortex-schema = { path = "../vortex-schema" }
 arrow-array = { version = "50.0.0" }
 arrow-buffer = { version = "50.0.0" }
 arrow-schema = { version = "50.0.0" }

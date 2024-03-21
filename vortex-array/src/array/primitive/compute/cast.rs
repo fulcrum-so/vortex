@@ -2,10 +2,10 @@ use crate::array::primitive::PrimitiveArray;
 use crate::array::CloneOptionalArray;
 use crate::array::{Array, ArrayRef};
 use crate::compute::cast::CastFn;
-use crate::dtype::DType;
 use crate::error::{VortexError, VortexResult};
 use crate::match_each_native_ptype;
 use crate::ptype::{NativePType, PType};
+use vortex_schema::DType;
 
 impl CastFn for PrimitiveArray {
     fn cast(&self, dtype: &DType) -> VortexResult<ArrayRef> {

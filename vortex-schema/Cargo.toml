@@ -1,7 +1,7 @@
 [package]
-name = "vortex-fastlanes"
+name = "vortex-schema"
 version = { workspace = true }
-description = "Vortex fastlanes arrays arrays"
+description = "Vortex schema"
 homepage = { workspace = true }
 repository = { workspace = true }
 authors = { workspace = true }
@@ -11,14 +11,16 @@ include = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }
 
-[lints]
-workspace = true
+[lib]
+name = "vortex_schema"
+path = "src/lib.rs"
 
 [dependencies]
-arrayref = "0.3.7"
-fastlanez-sys = { path = "../fastlanez-sys" }
+arrow-schema = "50.0.0"
 itertools = "0.12.1"
-linkme = "0.3.22"
-num-traits = "0.2.18"
-vortex-array = { path = "../vortex-array" }
-vortex-schema = { path = "../vortex-schema" }
+leb128 = "0.2.5"
+num_enum = "0.7.2"
+thiserror = "1.0.58"
+
+[lints]
+workspace = true

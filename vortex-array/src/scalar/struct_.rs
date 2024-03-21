@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use crate::dtype::DType;
+use vortex_schema::DType;
+
 use crate::error::{VortexError, VortexResult};
 use crate::scalar::Scalar;
 

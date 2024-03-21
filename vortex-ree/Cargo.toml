@@ -13,6 +13,7 @@ rust-version = { workspace = true }
 
 [dependencies]
 vortex-array = { path = "../vortex-array" }
+vortex-schema = { path = "../vortex-schema" }
 arrow-array = "50.0.0"
 arrow-buffer = "50.0.0"
 linkme = "0.3.22"

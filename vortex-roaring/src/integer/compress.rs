@@ -6,12 +6,12 @@ use vortex::array::downcast::DowncastArrayBuiltin;
 use vortex::array::primitive::{PrimitiveArray, PrimitiveEncoding};
 use vortex::array::{Array, ArrayRef};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
-use vortex::dtype::DType;
-use vortex::dtype::Nullability::NonNullable;
-use vortex::dtype::Signedness::Unsigned;
 use vortex::error::VortexResult;
 use vortex::ptype::{NativePType, PType};
 use vortex::stats::Stat;
+use vortex_schema::DType;
+use vortex_schema::Nullability::NonNullable;
+use vortex_schema::Signedness::Unsigned;
 
 use crate::{RoaringIntArray, RoaringIntEncoding};
 

@@ -16,6 +16,7 @@ workspace = true
 
 [dependencies]
 vortex-array = { path = "../vortex-array" }
+vortex-schema = { path = "../vortex-schema" }
 linkme = "0.3.22"
 itertools = "0.12.1"
 num-traits = "0.2.18"

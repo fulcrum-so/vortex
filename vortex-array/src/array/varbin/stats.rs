@@ -1,10 +1,10 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use vortex_schema::DType;
 
 use crate::array::varbin::VarBinArray;
 use crate::array::varbinview::VarBinViewArray;
 use crate::array::Array;
-use crate::dtype::DType;
 use crate::error::VortexResult;
 use crate::stats::{Stat, StatsCompute, StatsSet};
 
@@ -82,8 +82,8 @@ mod test {
     use crate::array::primitive::PrimitiveArray;
     use crate::array::varbin::VarBinArray;
     use crate::array::Array;
-    use crate::dtype::{DType, Nullability};
     use crate::stats::Stat;
+    use vortex_schema::{DType, Nullability};
 
     fn array(dtype: DType) -> VarBinArray {
         let values = PrimitiveArray::from(

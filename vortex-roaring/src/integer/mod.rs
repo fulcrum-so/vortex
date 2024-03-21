@@ -8,12 +8,12 @@ use vortex::array::{
     check_slice_bounds, Array, ArrayKind, ArrayRef, Encoding, EncodingId, EncodingRef,
 };
 use vortex::compress::EncodingCompression;
-use vortex::dtype::DType;
 use vortex::error::{VortexError, VortexResult};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::ptype::PType;
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stats, StatsSet};
+use vortex_schema::DType;
 
 mod compress;
 mod compute;

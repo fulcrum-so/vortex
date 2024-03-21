@@ -6,9 +6,9 @@ use arrow_array::{
     TimestampNanosecondArray, TimestampSecondArray,
 };
 
-use crate::array::composite::CompositeID;
-use crate::array::composite::{composite_impl, TypedCompositeArray};
+use vortex_schema::CompositeID;
 
+use crate::array::composite::{composite_impl, TypedCompositeArray};
 use crate::arrow::wrappers::as_nulls;
 use crate::compute::as_arrow::AsArrowArray;
 use crate::compute::cast::cast;

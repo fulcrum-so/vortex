@@ -31,8 +31,8 @@ mod test {
     use crate::array::downcast::DowncastArrayBuiltin;
     use crate::array::primitive::PrimitiveArray;
     use crate::array::Array;
-    use crate::dtype::{DType, IntWidth, Nullability, Signedness};
     use crate::serde::test::roundtrip_array;
+    use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 
     #[test]
     fn roundtrip() {

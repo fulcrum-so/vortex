@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use half::f16;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use vortex_schema::DType;
 
-use crate::dtype::DType;
 use crate::error::VortexResult;
 use crate::ptype::PType;
 use crate::scalar::composite::CompositeScalar;

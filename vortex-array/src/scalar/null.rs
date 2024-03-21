@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
+use vortex_schema::DType;
 
-use crate::dtype::DType;
 use crate::error::VortexResult;
 use crate::scalar::Scalar;
 

@@ -3,11 +3,11 @@ use std::sync::{Arc, RwLock};
 
 use itertools::Itertools;
 use linkme::distributed_slice;
+use vortex_schema::DType;
 
 use crate::array::{
     check_slice_bounds, Array, ArrayRef, Encoding, EncodingId, EncodingRef, ENCODINGS,
 };
-use crate::dtype::DType;
 use crate::error::{VortexError, VortexResult};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::{ArraySerde, EncodingSerde};
@@ -214,10 +214,10 @@ impl Encoding for ChunkedEncoding {
 #[cfg(test)]
 mod test {
     use crate::array::{Array, ArrayRef};
+    use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 
     use crate::array::chunked::ChunkedArray;
     use crate::compute::flatten::{flatten, flatten_primitive, FlattenedArray};
-    use crate::dtype::{DType, IntWidth, Nullability, Signedness};
     use crate::ptype::NativePType;
 
     fn chunked_array() -> ChunkedArray {

@@ -10,12 +10,12 @@ use vortex::array::varbin::{VarBinArray, VarBinEncoding};
 use vortex::array::{Array, ArrayKind, ArrayRef};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
 
-use vortex::dtype::DType;
 use vortex::error::VortexResult;
 use vortex::match_each_native_ptype;
 use vortex::ptype::NativePType;
 use vortex::scalar::AsBytes;
 use vortex::stats::Stat;
+use vortex_schema::DType;
 
 use crate::dict::{DictArray, DictEncoding};
 use crate::downcast::DowncastDict;

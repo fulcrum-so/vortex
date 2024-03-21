@@ -1,8 +1,8 @@
 use crate::alp::Exponents;
 use vortex::array::{Array, ArrayRef};
-use vortex::dtype::{DType, FloatWidth, Signedness};
 use vortex::error::{VortexError, VortexResult};
 use vortex::serde::{ArraySerde, EncodingSerde, ReadCtx, WriteCtx};
+use vortex_schema::{DType, FloatWidth, Signedness};
 
 use crate::ALPArray;
 use crate::ALPEncoding;

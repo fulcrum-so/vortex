@@ -1,14 +1,13 @@
-use leb128::read::Error;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::sync::Arc;
 
-use crate::array::composite::find_extension;
+use leb128::read::Error;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::dtype::DType::*;
 use crate::dtype::{DType, FloatWidth, IntWidth, Nullability, Signedness};
-use crate::error::{VortexError, VortexResult};
-use crate::serde::WriteCtx;
+use crate::error::{SchemaError, SchemaResult};
+use crate::CompositeID;
 
 pub struct DTypeReader<'a> {
     reader: &'a mut dyn Read,
@@ -19,34 +18,36 @@ impl<'a> DTypeReader<'a> {
         Self { reader }
     }
 
-    fn read_nbytes<const N: usize>(&mut self) -> VortexResult<[u8; N]> {
+    fn read_nbytes<const N: usize>(&mut self) -> SchemaResult<[u8; N]> {
         let mut bytes: [u8; N] = [0; N];
-        self.reader.read_exact(&mut bytes)?;
+        self.reader
+            .read_exact(&mut bytes)
+            .map_err(SchemaError::from)?;
         Ok(bytes)
     }
 
-    fn read_usize(&mut self) -> VortexResult<usize> {
+    fn read_usize(&mut self) -> SchemaResult<usize> {
         leb128::read::unsigned(self.reader)
             .map_err(|e| match e {
                 Error::IoError(io_err) => io_err.into(),
-                Error::Overflow => VortexError::InvalidArgument("overflow".into()),
+                Error::Overflow => SchemaError::InvalidArgument("overflow".into()),
             })
             .map(|u| u as usize)
     }
 
-    fn read_slice(&mut self) -> VortexResult<Vec<u8>> {
+    fn read_slice(&mut self) -> SchemaResult<Vec<u8>> {
         let len = self.read_usize()?;
         let mut slice = Vec::with_capacity(len);
         self.reader
             .take(len as u64)
             .read_to_end(&mut slice)
-            .map_err(VortexError::from)?;
+            .map_err(SchemaError::from)?;
         Ok(slice)
     }
 
-    pub fn read(&mut self) -> VortexResult<DType> {
+    pub fn read(&mut self, find_extension: fn(&str) -> Option<CompositeID>) -> SchemaResult<DType> {
         let dtype = DTypeTag::try_from(self.read_nbytes::<1>()?[0])
-            .map_err(|_| VortexError::InvalidArgument("Failed to parse dtype tag".into()))?;
+            .map_err(|_| SchemaError::InvalidArgument("Failed to parse dtype tag".into()))?;
         match dtype {
             DTypeTag::Null => Ok(Null),
             DTypeTag::Bool => Ok(Bool(self.read_nullability()?)),
@@ -75,7 +76,7 @@ impl<'a> DTypeReader<'a> {
             }
             DTypeTag::List => {
                 let nullability = self.read_nullability()?;
-                Ok(List(Box::new(self.read()?), nullability))
+                Ok(List(Box::new(self.read(find_extension)?), nullability))
             }
             DTypeTag::Struct => {
                 let field_num = self.read_usize()?;
@@ -87,58 +88,57 @@ impl<'a> DTypeReader<'a> {
 
                 let mut fields = Vec::with_capacity(field_num);
                 for _ in 0..field_num {
-                    fields.push(self.read()?);
+                    fields.push(self.read(find_extension)?);
                 }
                 Ok(Struct(names, fields))
             }
             DTypeTag::Composite => {
                 let nullability = self.read_nullability()?;
                 let id = unsafe { String::from_utf8_unchecked(self.read_slice()?) };
-                let extension = find_extension(id.as_str()).ok_or(VortexError::InvalidArgument(
-                    "Failed to find extension".into(),
-                ))?;
-                Ok(Composite(extension.id(), nullability))
+                let extension_id = find_extension(id.as_str()).ok_or(
+                    SchemaError::InvalidArgument("Failed to find extension".into()),
+                )?;
+                Ok(Composite(extension_id, nullability))
             }
         }
     }
 
-    fn read_signedness(&mut self) -> VortexResult<Signedness> {
+    fn read_signedness(&mut self) -> SchemaResult<Signedness> {
         SignednessTag::try_from(self.read_nbytes::<1>()?[0])
-            .map_err(|_| VortexError::InvalidArgument("Failed to parse signedness tag".into()))
+            .map_err(|_| SchemaError::InvalidArgument("Failed to parse signedness tag".into()))
             .map(Signedness::from)
     }
 
-    fn read_nullability(&mut self) -> VortexResult<Nullability> {
+    fn read_nullability(&mut self) -> SchemaResult<Nullability> {
         NullabilityTag::try_from(self.read_nbytes::<1>()?[0])
-            .map_err(|_| VortexError::InvalidArgument("Failed to parse nullability tag".into()))
+            .map_err(|_| SchemaError::InvalidArgument("Failed to parse nullability tag".into()))
             .map(Nullability::from)
     }
 
-    fn read_int_width(&mut self) -> VortexResult<IntWidth> {
+    fn read_int_width(&mut self) -> SchemaResult<IntWidth> {
         IntWidthTag::try_from(self.read_nbytes::<1>()?[0])
-            .map_err(|_| VortexError::InvalidArgument("Failed to parse int width tag".into()))
+            .map_err(|_| SchemaError::InvalidArgument("Failed to parse int width tag".into()))
             .map(IntWidth::from)
     }
 
-    fn read_float_width(&mut self) -> VortexResult<FloatWidth> {
+    fn read_float_width(&mut self) -> SchemaResult<FloatWidth> {
         FloatWidthTag::try_from(self.read_nbytes::<1>()?[0])
-            .map_err(|_| VortexError::InvalidArgument("Failed to parse float width tag".into()))
+            .map_err(|_| SchemaError::InvalidArgument("Failed to parse float width tag".into()))
             .map(FloatWidth::from)
     }
 }
 
-pub struct DTypeWriter<'a, 'b> {
-    writer: &'b mut WriteCtx<'a>,
+pub struct DTypeWriter<'a> {
+    writer: &'a mut dyn Write,
 }
 
-impl<'a, 'b> DTypeWriter<'a, 'b> {
-    pub fn new(writer: &'b mut WriteCtx<'a>) -> Self {
+impl<'a> DTypeWriter<'a> {
+    pub fn new(writer: &'a mut dyn Write) -> Self {
         Self { writer }
     }
 
-    pub fn write(&mut self, dtype: &DType) -> VortexResult<()> {
-        self.writer
-            .write_fixed_slice([DTypeTag::from(dtype).into()])?;
+    pub fn write(&mut self, dtype: &DType) -> SchemaResult<()> {
+        self.write_fixed_slice([DTypeTag::from(dtype).into()])?;
         match dtype {
             Null => {}
             Bool(n) => self.write_nullability(*n)?,
@@ -149,7 +149,7 @@ impl<'a, 'b> DTypeWriter<'a, 'b> {
             }
             Decimal(p, w, n) => {
                 self.write_nullability(*n)?;
-                self.writer.write_fixed_slice([*p, *w as u8])?
+                self.write_fixed_slice([*p, *w as u8])?
             }
             Float(w, n) => {
                 self.write_nullability(*n)?;
@@ -158,9 +158,9 @@ impl<'a, 'b> DTypeWriter<'a, 'b> {
             Utf8(n) => self.write_nullability(*n)?,
             Binary(n) => self.write_nullability(*n)?,
             Struct(ns, fs) => {
-                self.writer.write_usize(ns.len())?;
+                self.write_usize(ns.len())?;
                 for name in ns {
-                    self.writer.write_slice(name.as_bytes())?;
+                    self.write_slice(name.as_bytes())?;
                 }
                 for field in fs {
                     self.write(field)?
@@ -172,31 +172,42 @@ impl<'a, 'b> DTypeWriter<'a, 'b> {
             }
             Composite(id, n) => {
                 self.write_nullability(*n)?;
-                self.writer.write_slice(id.0.as_bytes())?;
+                self.write_slice(id.0.as_bytes())?;
             }
         }
 
         Ok(())
     }
 
-    fn write_signedness(&mut self, signedness: Signedness) -> VortexResult<()> {
-        self.writer
-            .write_fixed_slice([SignednessTag::from(signedness).into()])
+    fn write_usize(&mut self, u: usize) -> SchemaResult<()> {
+        leb128::write::unsigned(self.writer, u as u64)
+            .map_err(|_| SchemaError::InvalidArgument("Failed to write leb128 usize".into()))
+            .map(|_| ())
     }
 
-    fn write_nullability(&mut self, nullability: Nullability) -> VortexResult<()> {
-        self.writer
-            .write_fixed_slice([NullabilityTag::from(nullability).into()])
+    fn write_fixed_slice<const N: usize>(&mut self, slice: [u8; N]) -> SchemaResult<()> {
+        self.writer.write_all(&slice).map_err(|e| e.into())
     }
 
-    fn write_int_width(&mut self, int_width: IntWidth) -> VortexResult<()> {
-        self.writer
-            .write_fixed_slice([IntWidthTag::from(int_width).into()])
+    fn write_slice(&mut self, slice: &[u8]) -> SchemaResult<()> {
+        self.write_usize(slice.len())?;
+        self.writer.write_all(slice).map_err(|e| e.into())
     }
 
-    fn write_float_width(&mut self, float_width: FloatWidth) -> VortexResult<()> {
-        self.writer
-            .write_fixed_slice([FloatWidthTag::from(float_width).into()])
+    fn write_signedness(&mut self, signedness: Signedness) -> SchemaResult<()> {
+        self.write_fixed_slice([SignednessTag::from(signedness).into()])
+    }
+
+    fn write_nullability(&mut self, nullability: Nullability) -> SchemaResult<()> {
+        self.write_fixed_slice([NullabilityTag::from(nullability).into()])
+    }
+
+    fn write_int_width(&mut self, int_width: IntWidth) -> SchemaResult<()> {
+        self.write_fixed_slice([IntWidthTag::from(int_width).into()])
+    }
+
+    fn write_float_width(&mut self, float_width: FloatWidth) -> SchemaResult<()> {
+        self.write_fixed_slice([FloatWidthTag::from(float_width).into()])
     }
 }
 
@@ -366,16 +377,17 @@ mod test {
     use crate::dtype::IntWidth::_64;
     use crate::dtype::Nullability::NonNullable;
     use crate::dtype::Signedness::Unsigned;
-    use crate::serde::{DTypeReader, WriteCtx};
+    use crate::serde::{DTypeReader, DTypeWriter};
 
     #[test]
     fn roundtrip() {
         let mut buffer: Vec<u8> = Vec::new();
         let dtype = Int(_64, Unsigned, NonNullable);
-        let mut ctx = WriteCtx::new(&mut buffer);
-        ctx.dtype(&dtype).unwrap();
+        DTypeWriter::new(&mut buffer).write(&dtype).unwrap();
         assert_eq!(buffer, [0x02, 0x01, 0x04, 0x01]);
-        let read_dtype = DTypeReader::new(&mut buffer.as_slice()).read().unwrap();
+        let read_dtype = DTypeReader::new(&mut buffer.as_slice())
+            .read(|_| panic!("no composite types"))
+            .unwrap();
         assert_eq!(dtype, read_dtype);
     }
 }

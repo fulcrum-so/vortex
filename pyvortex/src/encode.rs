@@ -6,14 +6,13 @@ use arrow::record_batch::RecordBatchReader;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
+use crate::array::PyArray;
+use crate::vortex_arrow::map_arrow_err;
 use vortex::array::chunked::ChunkedArray;
 use vortex::array::{Array, ArrayRef};
-use vortex::dtype::DType;
-use vortex::encode::FromArrow;
-
-use crate::array::PyArray;
-use crate::error::PyVortexError;
-use crate::vortex_arrow::map_arrow_err;
+use vortex::arrow::FromArrowType;
+use vortex::encode::FromArrowArray;
+use vortex_schema::DType;
 
 /// The main entry point for creating enc arrays from other Python objects.
 ///
@@ -41,11 +40,11 @@ pub fn encode(obj: &PyAny) -> PyResult<Py<PyArray>> {
         let dtype: DType = obj
             .getattr("type")
             .and_then(DataType::from_pyarrow)
-            .map(|dt| (&Field::new("_", dt, false)).into())?;
+            .map(|dt| DType::from_arrow(&Field::new("_", dt, false)))?;
         PyArray::wrap(obj.py(), ChunkedArray::new(encoded_chunks, dtype).boxed())
     } else if obj.is_instance(table)? {
         let array_stream = ArrowArrayStreamReader::from_pyarrow(obj)?;
-        let dtype = DType::try_from(array_stream.schema()).map_err(PyVortexError::map_err)?;
+        let dtype = DType::from_arrow(array_stream.schema());
         let chunks = array_stream
             .into_iter()
             .map(|b| b.map(ArrayRef::from).map_err(map_arrow_err))

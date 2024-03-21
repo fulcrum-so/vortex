@@ -8,11 +8,11 @@ use vortex::array::{
 use vortex::compress::EncodingCompression;
 use vortex::compute;
 use vortex::compute::search_sorted::SearchSortedSide;
-use vortex::dtype::DType;
 use vortex::error::{VortexError, VortexResult};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stat, Stats, StatsCompute, StatsSet};
+use vortex_schema::DType;
 
 use crate::compress::ree_encode;
 
@@ -220,7 +220,7 @@ mod test {
     use vortex::array::Array;
     use vortex::compute::flatten::flatten_primitive;
     use vortex::compute::scalar_at::scalar_at;
-    use vortex::dtype::{DType, IntWidth, Nullability, Signedness};
+    use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 
     use crate::REEArray;
 

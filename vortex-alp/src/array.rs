@@ -4,11 +4,11 @@ use std::sync::{Arc, RwLock};
 use crate::alp::Exponents;
 use vortex::array::{Array, ArrayKind, ArrayRef, Encoding, EncodingId, EncodingRef};
 use vortex::compress::EncodingCompression;
-use vortex::dtype::{DType, IntWidth, Signedness};
 use vortex::error::{VortexError, VortexResult};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stats, StatsSet};
+use vortex_schema::{DType, IntWidth, Signedness};
 
 use crate::compress::alp_encode;
 

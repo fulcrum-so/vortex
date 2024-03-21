@@ -2,7 +2,7 @@ use log::debug;
 use pyo3::prelude::*;
 
 use dtype::PyDType;
-use vortex::dtype::DType;
+use vortex_schema::DType;
 
 use crate::array::*;
 use crate::compress::PyCompressConfig;

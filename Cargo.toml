@@ -3,15 +3,17 @@ members = [
     "bench-vortex",
     "fastlanez-sys",
     "pyvortex",
-    "vortex-array",
     "vortex-alloc",
     "vortex-alp",
+    "vortex-array",
     "vortex-dict",
     "vortex-fastlanes",
     "vortex-flatbuffers",
+    "vortex-flatbuffers-array",
     "vortex-ree",
     "vortex-roaring",
-    "vortex-zigzag", "vortex-flatbuffers-array",
+    "vortex-schema",
+    "vortex-zigzag",
 ]
 resolver = "2"
 

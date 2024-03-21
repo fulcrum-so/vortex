@@ -40,8 +40,8 @@ mod test {
     use crate::array::primitive::PrimitiveArray;
     use crate::array::varbinview::{BinaryView, Inlined, Ref, VarBinViewArray};
     use crate::array::Array;
-    use crate::dtype::{DType, Nullability};
     use crate::serde::test::roundtrip_array;
+    use vortex_schema::{DType, Nullability};
 
     fn binary_array() -> VarBinViewArray {
         let values = PrimitiveArray::from("hello world this is a long string".as_bytes().to_vec());
