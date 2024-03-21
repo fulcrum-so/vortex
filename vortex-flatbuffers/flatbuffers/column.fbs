@@ -9,6 +9,7 @@ table Array {
     encoding_id: short;
     metadata: [byte];
     nbuffers: short;
+    children: [Array];
 }
 
 root_type Column;

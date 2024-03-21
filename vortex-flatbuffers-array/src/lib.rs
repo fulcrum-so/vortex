@@ -1,6 +1,12 @@
+use crate::fb::Flat;
+use arrow_buffer::Buffer;
+use flatbuffers::{Follow, Verifiable};
 use std::io::Read;
+use std::sync::Arc;
+use vortex::array::{EncodingId, ENCODINGS};
+use vortex_flatbuffers::column::Array;
 
-use flatbuffers::Follow;
+mod fb;
 
 // Serialized Form
 //
@@ -28,18 +34,94 @@ use flatbuffers::Follow;
 
 // MessageColumn Buffers (written immediately after the MessageColumn):
 
-struct Reader<R: Read> {
-    read: R,
+struct ColumnReader {}
+
+// From the wire, we read an Array message (which holds the encodings for the entire column) as
+// well as the correct number of buffers.
+
+trait ArrayTrait {
+    fn encoding_id(&self) -> EncodingId;
+
+    fn len(&self) -> usize;
 }
 
-impl<R: Read> Reader<R> {
-    pub fn new(read: R) -> Self {
-        Self { read }
+struct ReaderCtx {
+    dtype: DType,
+}
+
+struct ArrayData<'a> {
+    ctx: Arc<ArrayDataCtx>,
+    encoding: Flat<'a, Array<'a>>,
+    buffers: Arc<[Buffer]>,
+}
+
+// Is this an array? I guess so?
+
+impl<'a> ArrayTrait for ArrayData<'a> {
+    fn encoding_id(&self) -> EncodingId {
+        ENCODINGS.iter()
+            .find(|e| e.id().name() == self.encoding.as_typed().encoding_id())
+        todo!()
+    }
+
+    fn len(&self) -> usize {
+        todo!()
+    }
+}
+
+// Then we want to run a scan over this thing...
+
+// Say we have some DictArray and we want to scan it.
+struct DictArray {
+    keys: ArrayData,
+    values: ArrayData,
+}
+
+impl<'a> ArrayData<'a> {
+    fn child(&self, i: usize) -> Option<ArrayData<'a>> {
+        if let Some(children) = self.encoding.as_typed().children() {
+            let num_buffers_before: i16 =
+                children.iter().map(|child| child.nbuffers()).take(i).sum();
+            let child = children.get(i);
+            let child_buffers = self.buffers[num_buffers_before as usize..][..child.nbuffers()];
+
+            Some(ArrayData {
+                encoding: child.bytes(),
+                buffers: Arc::from(child_buffers),
+            })
+        }
+        self.encoding.as_typed().children().map(|c| c.get(i))
     }
 }
 
 #[cfg(test)]
 mod test {
+    use flatbuffers::FlatBufferBuilder;
+
+    use vortex_flatbuffers::column::{Column, ColumnArgs};
+
+    use crate::fb::Flat;
+
+    fn write_column<'a>() -> Flat<'a, Column<'a>> {
+        let mut fb = FlatBufferBuilder::new();
+        let col = Column::create(
+            &mut fb,
+            &ColumnArgs {
+                array: None,
+                buffer_lens: None,
+            },
+        );
+        Flat::<Column>::from_root(fb, col)
+    }
+
     #[test]
-    pub fn test_something() {}
+    pub fn test_something() {
+        let col_buf = write_column();
+        println!("Buffer {:?}", col_buf);
+        let col: Flat<Column> = col_buf.try_into().unwrap();
+        println!("Col {:?}", col);
+
+        let c = col.as_typed();
+        println!("C {:?}", c);
+    }
 }
