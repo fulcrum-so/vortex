@@ -14,9 +14,9 @@ pub trait DowncastREE: private::Sealed {
     }
 }
 
-impl private::Sealed for dyn Array {}
+impl private::Sealed for dyn Array + '_ {}
 
-impl DowncastREE for dyn Array {
+impl DowncastREE for dyn Array + '_ {
     fn maybe_ree(&self) -> Option<&REEArray> {
         self.as_any().downcast_ref()
     }

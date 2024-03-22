@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::sync::{Arc, RwLock};
 
 use itertools::Itertools;
@@ -13,6 +12,7 @@ use crate::compute::flatten::flatten_primitive;
 use crate::compute::search_sorted::{search_sorted, SearchSortedSide};
 use crate::error::{VortexError, VortexResult};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
+use crate::impl_array;
 use crate::ptype::PType;
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsCompute, StatsSet};
@@ -67,13 +67,13 @@ impl SparseArray {
     }
 
     #[inline]
-    pub fn values(&self) -> &dyn Array {
-        self.values.as_ref()
+    pub fn values(&self) -> &ArrayRef {
+        &self.values
     }
 
     #[inline]
-    pub fn indices(&self) -> &dyn Array {
-        self.indices.as_ref()
+    pub fn indices(&self) -> &ArrayRef {
+        &self.indices
     }
 
     /// Return indices as a vector of usize with the indices_offset applied.
@@ -88,20 +88,7 @@ impl SparseArray {
 }
 
 impl Array for SparseArray {
-    #[inline]
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    #[inline]
-    fn boxed(self) -> ArrayRef {
-        Box::new(self)
-    }
-
-    #[inline]
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
+    impl_array!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -137,7 +124,7 @@ impl Array for SparseArray {
             len: stop - start,
             stats: Arc::new(RwLock::new(StatsSet::new())),
         }
-        .boxed())
+        .into_array())
     }
 
     #[inline]
@@ -156,12 +143,6 @@ impl Array for SparseArray {
 }
 
 impl StatsCompute for SparseArray {}
-
-impl<'arr> AsRef<(dyn Array + 'arr)> for SparseArray {
-    fn as_ref(&self) -> &(dyn Array + 'arr) {
-        self
-    }
-}
 
 impl ArrayDisplay for SparseArray {
     fn fmt(&self, f: &mut ArrayFormatter) -> std::fmt::Result {
@@ -201,13 +182,18 @@ mod test {
 
     use crate::array::sparse::SparseArray;
     use crate::array::Array;
+    use crate::array::IntoArray;
     use crate::compute::flatten::flatten_primitive;
     use crate::compute::scalar_at::scalar_at;
     use crate::error::VortexError;
 
     fn sparse_array() -> SparseArray {
         // merged array: [null, null, 100, null, null, 200, null, null, 300, null]
-        SparseArray::new(vec![2u64, 5, 8].into(), vec![100i32, 200, 300].into(), 10)
+        SparseArray::new(
+            vec![2u64, 5, 8].into_array(),
+            vec![100i32, 200, 300].into_array(),
+            10,
+        )
     }
 
     fn assert_sparse_array(sparse: &dyn Array, values: &[Option<i32>]) {
@@ -221,7 +207,7 @@ mod test {
     #[test]
     pub fn iter() {
         assert_sparse_array(
-            sparse_array().as_ref(),
+            &sparse_array(),
             &[
                 None,
                 None,
@@ -261,11 +247,11 @@ mod test {
     #[test]
     pub fn test_scalar_at() {
         assert_eq!(
-            usize::try_from(scalar_at(sparse_array().as_ref(), 2).unwrap()).unwrap(),
+            usize::try_from(scalar_at(&sparse_array(), 2).unwrap()).unwrap(),
             100
         );
         assert_eq!(
-            scalar_at(sparse_array().as_ref(), 10).err().unwrap(),
+            scalar_at(&sparse_array(), 10).err().unwrap(),
             VortexError::OutOfBounds(10, 0, 10)
         );
     }

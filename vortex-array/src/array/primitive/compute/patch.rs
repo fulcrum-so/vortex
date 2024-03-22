@@ -3,7 +3,7 @@ use itertools::Itertools;
 use crate::array::downcast::DowncastArrayBuiltin;
 use crate::array::primitive::PrimitiveArray;
 use crate::array::sparse::{SparseArray, SparseEncoding};
-use crate::array::{Array, ArrayRef, CloneOptionalArray};
+use crate::array::{Array, ArrayRef};
 use crate::compute::patch::PatchFn;
 use crate::error::{VortexError, VortexResult};
 use crate::{compute, match_each_native_ptype};
@@ -36,7 +36,7 @@ fn patch_with_sparse(array: &PrimitiveArray, patch: &SparseArray) -> VortexResul
         Ok(PrimitiveArray::from_nullable(
             values,
             // TODO(ngates): if patch values has null, we need to patch into the validity buffer
-            array.validity().clone_optional(),
-        ).boxed())
+            array.validity().cloned(),
+        ).into_array())
     })
 }

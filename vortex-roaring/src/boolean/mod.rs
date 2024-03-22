@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::sync::{Arc, RwLock};
 
 use croaring::{Bitmap, Native};
@@ -10,6 +9,7 @@ use vortex::array::{
 use vortex::compress::EncodingCompression;
 use vortex::error::{VortexError, VortexResult};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
+use vortex::impl_array;
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stats, StatsSet};
 use vortex_schema::DType;
@@ -49,20 +49,7 @@ impl RoaringBoolArray {
 }
 
 impl Array for RoaringBoolArray {
-    #[inline]
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    #[inline]
-    fn boxed(self) -> ArrayRef {
-        Box::new(self)
-    }
-
-    #[inline]
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
+    impl_array!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -94,7 +81,7 @@ impl Array for RoaringBoolArray {
             length: stop - start,
             stats: Arc::new(RwLock::new(StatsSet::new())),
         }
-        .boxed())
+        .into_array())
     }
 
     #[inline]
@@ -110,12 +97,6 @@ impl Array for RoaringBoolArray {
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
         Some(self)
-    }
-}
-
-impl<'arr> AsRef<(dyn Array + 'arr)> for RoaringBoolArray {
-    fn as_ref(&self) -> &(dyn Array + 'arr) {
-        self
     }
 }
 
@@ -175,10 +156,10 @@ mod test {
         let truthy: Scalar = true.into();
         let falsy: Scalar = false.into();
 
-        assert_eq!(scalar_at(array.as_ref(), 0)?, truthy);
-        assert_eq!(scalar_at(array.as_ref(), 1)?, falsy);
-        assert_eq!(scalar_at(array.as_ref(), 2)?, truthy);
-        assert_eq!(scalar_at(array.as_ref(), 3)?, truthy);
+        assert_eq!(scalar_at(&array, 0)?, truthy);
+        assert_eq!(scalar_at(&array, 1)?, falsy);
+        assert_eq!(scalar_at(&array, 2)?, truthy);
+        assert_eq!(scalar_at(&array, 3)?, truthy);
 
         Ok(())
     }

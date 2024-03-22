@@ -24,12 +24,12 @@ pub enum FlattenedArray {
 impl FlattenedArray {
     pub fn into_array(self) -> ArrayRef {
         match self {
-            FlattenedArray::Bool(array) => array.boxed(),
-            FlattenedArray::Chunked(array) => array.boxed(),
-            FlattenedArray::Composite(array) => array.boxed(),
-            FlattenedArray::Primitive(array) => array.boxed(),
-            FlattenedArray::Struct(array) => array.boxed(),
-            FlattenedArray::VarBin(array) => array.boxed(),
+            FlattenedArray::Bool(array) => array.into_array(),
+            FlattenedArray::Chunked(array) => array.into_array(),
+            FlattenedArray::Composite(array) => array.into_array(),
+            FlattenedArray::Primitive(array) => array.into_array(),
+            FlattenedArray::Struct(array) => array.into_array(),
+            FlattenedArray::VarBin(array) => array.into_array(),
         }
     }
 }

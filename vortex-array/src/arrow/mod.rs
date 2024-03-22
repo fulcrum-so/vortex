@@ -1,4 +1,5 @@
 pub mod dtypes;
+mod recordbatch;
 pub mod wrappers;
 
 pub trait FromArrowType<T>: Sized {

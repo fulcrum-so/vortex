@@ -32,6 +32,6 @@ impl EncodingCompression for SparseEncoding {
                 .compress(sparse_array.values(), sparse_like.map(|sa| sa.values()))?,
             sparse_array.len(),
         )
-        .boxed())
+        .into_array())
     }
 }

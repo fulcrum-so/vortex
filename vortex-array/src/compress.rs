@@ -156,9 +156,9 @@ impl CompressCtx {
 
     // We don't take a reference to self to force the caller to think about whether to use
     // an auxilliary ctx.
-    pub fn compress(self, arr: &dyn Array, like: Option<&dyn Array>) -> VortexResult<ArrayRef> {
+    pub fn compress(self, arr: &dyn Array, like: Option<&ArrayRef>) -> VortexResult<ArrayRef> {
         if arr.is_empty() {
-            return Ok(dyn_clone::clone_box(arr));
+            return Ok(arr.to_array());
         }
 
         // Attempt to compress using the "like" array, otherwise fall back to sampled compression
@@ -188,26 +188,27 @@ impl CompressCtx {
                 let compressed_chunks: VortexResult<Vec<ArrayRef>> = chunked
                     .chunks()
                     .iter()
-                    .map(|chunk| self.compress_array(chunk.as_ref()))
+                    .map(|chunk| self.compress_array(chunk))
                     .collect();
-                Ok(ChunkedArray::new(compressed_chunks?, chunked.dtype().clone()).boxed())
+                Ok(ChunkedArray::new(compressed_chunks?, chunked.dtype().clone()).into_array())
             }
             ArrayKind::Constant(constant) => {
                 // Not much better we can do than constant!
-                Ok(constant.clone().boxed())
+                Ok(constant.clone().into_array())
             }
             ArrayKind::Struct(strct) => {
                 // For struct arrays, we compress each field individually
                 let compressed_fields: VortexResult<Vec<ArrayRef>> = strct
                     .fields()
                     .iter()
-                    .map(|field| self.compress_array(field.as_ref()))
+                    .map(|field| self.compress_array(field))
                     .collect();
-                Ok(StructArray::new(strct.names().clone(), compressed_fields?).boxed())
+                Ok(StructArray::new(strct.names().clone(), compressed_fields?).into_array())
             }
             _ => {
                 // Otherwise, we run sampled compression over pluggable encodings
-                Ok(sampled_compression(arr, self)?.unwrap_or_else(|| dyn_clone::clone_box(arr)))
+                let sampled = sampled_compression(arr, self)?;
+                Ok(sampled.unwrap_or_else(|| arr.to_array()))
             }
         }
     }
@@ -228,7 +229,7 @@ pub fn sampled_compression(array: &dyn Array, ctx: &CompressCtx) -> VortexResult
             .unwrap_or(false)
     {
         return Ok(Some(
-            ConstantArray::new(scalar_at(array, 0)?, array.len()).boxed(),
+            ConstantArray::new(scalar_at(array, 0)?, array.len()).into_array(),
         ));
     }
 
@@ -297,11 +298,10 @@ pub fn sampled_compression(array: &dyn Array, ctx: &CompressCtx) -> VortexResult
         .collect(),
     )?;
 
-    find_best_compression(candidates, sample.as_ref(), ctx)?
+    find_best_compression(candidates, &sample, ctx)?
         .map(|(compression, best)| {
             info!("{} compressing array {} like {}", ctx, array, best);
-            ctx.for_encoding(compression)
-                .compress(array, Some(best.as_ref()))
+            ctx.for_encoding(compression).compress(array, Some(&best))
         })
         .transpose()
 }

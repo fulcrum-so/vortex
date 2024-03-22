@@ -25,7 +25,7 @@ impl EncodingSerde for SparseEncoding {
         let values = ctx.read()?;
         Ok(SparseArray::new_with_offset(indices, values, len, offset)
             .map_err(|e| io::Error::new(ErrorKind::InvalidData, e))?
-            .boxed())
+            .into_array())
     }
 }
 
@@ -35,17 +35,18 @@ mod test {
     use crate::array::primitive::PrimitiveArray;
     use crate::array::sparse::SparseArray;
     use crate::array::Array;
+    use crate::array::IntoArray;
     use crate::serde::test::roundtrip_array;
 
     #[test]
     fn roundtrip() {
         let arr = SparseArray::new(
-            vec![7u64, 37, 71, 97].into(),
-            PrimitiveArray::from_iter(vec![Some(0), None, Some(2), Some(42)]).boxed(),
+            vec![7u64, 37, 71, 97].into_array(),
+            PrimitiveArray::from_iter(vec![Some(0), None, Some(2), Some(42)]).into_array(),
             100,
         );
 
-        let read_arr = roundtrip_array(arr.as_ref()).unwrap();
+        let read_arr = roundtrip_array(&arr).unwrap();
 
         assert_eq!(
             arr.indices().as_primitive().buffer().typed_data::<u8>(),

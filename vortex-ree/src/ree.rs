@@ -1,17 +1,16 @@
-use std::any::Any;
 use std::sync::{Arc, RwLock};
 
 use vortex::array::{
-    check_slice_bounds, check_validity_buffer, Array, ArrayKind, ArrayRef, CloneOptionalArray,
-    Encoding, EncodingId, EncodingRef,
+    check_slice_bounds, check_validity_buffer, Array, ArrayKind, ArrayRef, Encoding, EncodingId,
+    EncodingRef,
 };
 use vortex::compress::EncodingCompression;
-use vortex::compute;
 use vortex::compute::search_sorted::SearchSortedSide;
 use vortex::error::{VortexError, VortexResult};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stat, Stats, StatsCompute, StatsSet};
+use vortex::{compute, impl_array};
 use vortex_schema::DType;
 
 use crate::compress::ree_encode;
@@ -42,7 +41,7 @@ impl REEArray {
         validity: Option<ArrayRef>,
         length: usize,
     ) -> VortexResult<Self> {
-        check_validity_buffer(validity.as_deref(), length)?;
+        check_validity_buffer(validity.as_ref(), length)?;
 
         if !ends
             .stats()
@@ -76,12 +75,12 @@ impl REEArray {
             ArrayKind::Primitive(p) => {
                 let (ends, values) = ree_encode(p);
                 Ok(REEArray::new(
-                    ends.boxed(),
-                    values.boxed(),
-                    p.validity().clone_optional(),
+                    ends.into_array(),
+                    values.into_array(),
+                    p.validity().cloned(),
                     p.len(),
                 )
-                .boxed())
+                .into_array())
             }
             _ => Err(VortexError::InvalidEncoding(array.encoding().id().clone())),
         }
@@ -93,36 +92,23 @@ impl REEArray {
     }
 
     #[inline]
-    pub fn ends(&self) -> &dyn Array {
-        self.ends.as_ref()
+    pub fn ends(&self) -> &ArrayRef {
+        &self.ends
     }
 
     #[inline]
-    pub fn values(&self) -> &dyn Array {
-        self.values.as_ref()
+    pub fn values(&self) -> &ArrayRef {
+        &self.values
     }
 
     #[inline]
-    pub fn validity(&self) -> Option<&dyn Array> {
-        self.validity.as_deref()
+    pub fn validity(&self) -> Option<&ArrayRef> {
+        self.validity.as_ref()
     }
 }
 
 impl Array for REEArray {
-    #[inline]
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    #[inline]
-    fn boxed(self) -> ArrayRef {
-        Box::new(self)
-    }
-
-    #[inline]
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
+    impl_array!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -152,15 +138,14 @@ impl Array for REEArray {
             ends: self.ends.slice(slice_begin, slice_end + 1)?,
             values: self.values.slice(slice_begin, slice_end + 1)?,
             validity: self
-                .validity
-                .as_ref()
+                .validity()
                 .map(|v| v.slice(slice_begin, slice_end + 1))
                 .transpose()?,
             offset: start,
             length: stop - start,
             stats: Arc::new(RwLock::new(StatsSet::new())),
         }
-        .boxed())
+        .into_array())
     }
 
     #[inline]
@@ -180,12 +165,6 @@ impl Array for REEArray {
 }
 
 impl StatsCompute for REEArray {}
-
-impl<'arr> AsRef<(dyn Array + 'arr)> for REEArray {
-    fn as_ref(&self) -> &(dyn Array + 'arr) {
-        self
-    }
-}
 
 #[derive(Debug)]
 pub struct REEEncoding;
@@ -218,6 +197,7 @@ impl ArrayDisplay for REEArray {
 #[cfg(test)]
 mod test {
     use vortex::array::Array;
+    use vortex::array::IntoArray;
     use vortex::compute::flatten::flatten_primitive;
     use vortex::compute::scalar_at::scalar_at;
     use vortex_schema::{DType, IntWidth, Nullability, Signedness};
@@ -226,7 +206,12 @@ mod test {
 
     #[test]
     fn new() {
-        let arr = REEArray::new(vec![2u32, 5, 10].into(), vec![1i32, 2, 3].into(), None, 10);
+        let arr = REEArray::new(
+            vec![2u32, 5, 10].into_array(),
+            vec![1i32, 2, 3].into_array(),
+            None,
+            10,
+        );
         assert_eq!(arr.len(), 10);
         assert_eq!(
             arr.dtype(),
@@ -236,17 +221,22 @@ mod test {
         // 0, 1 => 1
         // 2, 3, 4 => 2
         // 5, 6, 7, 8, 9 => 3
-        assert_eq!(scalar_at(arr.as_ref(), 0).unwrap().try_into(), Ok(1));
-        assert_eq!(scalar_at(arr.as_ref(), 2).unwrap().try_into(), Ok(2));
-        assert_eq!(scalar_at(arr.as_ref(), 5).unwrap().try_into(), Ok(3));
-        assert_eq!(scalar_at(arr.as_ref(), 9).unwrap().try_into(), Ok(3));
+        assert_eq!(scalar_at(&arr, 0).unwrap().try_into(), Ok(1));
+        assert_eq!(scalar_at(&arr, 2).unwrap().try_into(), Ok(2));
+        assert_eq!(scalar_at(&arr, 5).unwrap().try_into(), Ok(3));
+        assert_eq!(scalar_at(&arr, 9).unwrap().try_into(), Ok(3));
     }
 
     #[test]
     fn slice() {
-        let arr = REEArray::new(vec![2u32, 5, 10].into(), vec![1i32, 2, 3].into(), None, 10)
-            .slice(3, 8)
-            .unwrap();
+        let arr = REEArray::new(
+            vec![2u32, 5, 10].into_array(),
+            vec![1i32, 2, 3].into_array(),
+            None,
+            10,
+        )
+        .slice(3, 8)
+        .unwrap();
         assert_eq!(
             arr.dtype(),
             &DType::Int(IntWidth::_32, Signedness::Signed, Nullability::NonNullable)
@@ -254,16 +244,21 @@ mod test {
         assert_eq!(arr.len(), 5);
 
         assert_eq!(
-            flatten_primitive(arr.as_ref()).unwrap().typed_data::<i32>(),
+            flatten_primitive(&arr).unwrap().typed_data::<i32>(),
             vec![2, 2, 3, 3, 3]
         );
     }
 
     #[test]
     fn flatten() {
-        let arr = REEArray::new(vec![2u32, 5, 10].into(), vec![1i32, 2, 3].into(), None, 10);
+        let arr = REEArray::new(
+            vec![2u32, 5, 10].into_array(),
+            vec![1i32, 2, 3].into_array(),
+            None,
+            10,
+        );
         assert_eq!(
-            flatten_primitive(arr.as_ref()).unwrap().typed_data::<i32>(),
+            flatten_primitive(&arr).unwrap().typed_data::<i32>(),
             vec![1, 1, 2, 2, 2, 3, 3, 3, 3, 3]
         );
     }

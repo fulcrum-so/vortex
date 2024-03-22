@@ -3,7 +3,7 @@ use num_traits::PrimInt;
 
 use vortex::array::downcast::DowncastArrayBuiltin;
 use vortex::array::primitive::PrimitiveArray;
-use vortex::array::{Array, ArrayRef, CloneOptionalArray};
+use vortex::array::{Array, ArrayRef};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
 use vortex::compute::flatten::flatten_primitive;
 use vortex::error::VortexResult;
@@ -58,11 +58,11 @@ impl EncodingCompression for FoREncoding {
         // NOTE(ngates): we don't invoke next_level here since we know bit-packing is always
         //  worth trying.
         let compressed_child = ctx.named("for").excluding(&FoREncoding::ID).compress(
-            child.as_ref(),
+            &child,
             like.map(|l| l.as_any().downcast_ref::<FoRArray>().unwrap().encoded()),
         )?;
         let reference = parray.stats().get(&Stat::Min).unwrap();
-        Ok(FoRArray::try_new(compressed_child, reference, shift)?.boxed())
+        Ok(FoRArray::try_new(compressed_child, reference, shift)?.into_array())
     }
 }
 
@@ -102,7 +102,7 @@ pub fn decompress(array: &FoRArray) -> VortexResult<PrimitiveArray> {
         let reference: $T = array.reference().try_into()?;
         PrimitiveArray::from_nullable(
             decompress_primitive(encoded.typed_data::<$T>(), reference, shift),
-            encoded.validity().clone_optional(),
+            encoded.validity().cloned(),
         )
     }))
 }

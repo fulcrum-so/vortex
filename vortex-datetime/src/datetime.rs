@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::sync::{Arc, RwLock};
 
 use vortex::array::{Array, ArrayRef, Encoding, EncodingId};
@@ -6,6 +5,7 @@ use vortex::compress::EncodingCompression;
 use vortex::compute::ArrayCompute;
 use vortex::error::{VortexError, VortexResult};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
+use vortex::impl_array;
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stats, StatsCompute, StatsSet};
 use vortex_schema::DType;
@@ -60,33 +60,23 @@ impl DateTimeArray {
     }
 
     #[inline]
-    pub fn days(&self) -> &dyn Array {
-        self.days.as_ref()
+    pub fn days(&self) -> &ArrayRef {
+        &self.days
     }
 
     #[inline]
-    pub fn seconds(&self) -> &dyn Array {
-        self.seconds.as_ref()
+    pub fn seconds(&self) -> &ArrayRef {
+        &self.seconds
     }
 
     #[inline]
-    pub fn subsecond(&self) -> &dyn Array {
-        self.subsecond.as_ref()
+    pub fn subsecond(&self) -> &ArrayRef {
+        &self.subsecond
     }
 }
 
 impl Array for DateTimeArray {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn boxed(self) -> ArrayRef {
-        Box::new(self)
-    }
-
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
+    impl_array!();
 
     fn len(&self) -> usize {
         self.days.len()
@@ -115,7 +105,7 @@ impl Array for DateTimeArray {
                 .transpose()?,
             self.dtype.clone(),
         )
-        .boxed())
+        .into_array())
     }
 
     fn encoding(&self) -> &'static dyn Encoding {
@@ -134,12 +124,6 @@ impl Array for DateTimeArray {
 impl StatsCompute for DateTimeArray {}
 
 impl ArrayCompute for DateTimeArray {}
-
-impl<'arr> AsRef<(dyn Array + 'arr)> for DateTimeArray {
-    fn as_ref(&self) -> &(dyn Array + 'arr) {
-        self
-    }
-}
 
 impl ArrayDisplay for DateTimeArray {
     fn fmt(&self, f: &mut ArrayFormatter) -> std::fmt::Result {

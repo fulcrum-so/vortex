@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::sync::{Arc, RwLock};
 
 use croaring::{Bitmap, Native};
@@ -10,6 +9,7 @@ use vortex::array::{
 use vortex::compress::EncodingCompression;
 use vortex::error::{VortexError, VortexResult};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
+use vortex::impl_array;
 use vortex::ptype::PType;
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stats, StatsSet};
@@ -61,20 +61,7 @@ impl RoaringIntArray {
 }
 
 impl Array for RoaringIntArray {
-    #[inline]
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    #[inline]
-    fn boxed(self) -> ArrayRef {
-        Box::new(self)
-    }
-
-    #[inline]
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
+    impl_array!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -112,12 +99,6 @@ impl Array for RoaringIntArray {
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
         Some(self)
-    }
-}
-
-impl<'arr> AsRef<(dyn Array + 'arr)> for RoaringIntArray {
-    fn as_ref(&self) -> &(dyn Array + 'arr) {
-        self
     }
 }
 
@@ -159,10 +140,10 @@ mod test {
     #[test]
     pub fn test_scalar_at() -> VortexResult<()> {
         let ints = PrimitiveArray::from(vec![2u32, 12, 22, 32]);
-        let array = RoaringIntArray::encode(ints.as_ref())?;
+        let array = RoaringIntArray::encode(&ints)?;
 
-        assert_eq!(scalar_at(array.as_ref(), 0), Ok(2u32.into()));
-        assert_eq!(scalar_at(array.as_ref(), 1), Ok(12u32.into()));
+        assert_eq!(scalar_at(&array, 0), Ok(2u32.into()));
+        assert_eq!(scalar_at(&array, 1), Ok(12u32.into()));
 
         Ok(())
     }

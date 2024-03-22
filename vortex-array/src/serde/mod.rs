@@ -4,7 +4,7 @@ use std::io::{ErrorKind, Read, Write};
 use arrow_buffer::buffer::{Buffer, MutableBuffer};
 
 use vortex_schema::{
-    DType, DTypeReader, DTypeWriter, IntWidth, Nullability, SchemaError, Signedness,
+    DType, FbDeserialize, FbSerialize, IntWidth, Nullability, SchemaError, Signedness,
 };
 
 use crate::array::composite::find_extension_id;
@@ -82,12 +82,10 @@ impl<'a> ReadCtx<'a> {
 
     #[inline]
     pub fn dtype(&mut self) -> VortexResult<DType> {
-        DTypeReader::new(self.r)
-            .read(find_extension_id)
-            .map_err(|e| match e {
-                SchemaError::InvalidArgument(s) => VortexError::InvalidArgument(s),
-                SchemaError::IOError(io_err) => io_err.0.into(),
-            })
+        let dtype_bytes = self.read_slice()?;
+        DType::deserialize(&dtype_bytes, find_extension_id).map_err(|e| match e {
+            SchemaError::InvalidArgument(s) => VortexError::InvalidArgument(s),
+        })
     }
 
     pub fn ptype(&mut self) -> VortexResult<PType> {
@@ -182,10 +180,8 @@ impl<'a> WriteCtx<'a> {
     }
 
     pub fn dtype(&mut self, dtype: &DType) -> VortexResult<()> {
-        DTypeWriter::new(self.w).write(dtype).map_err(|e| match e {
-            SchemaError::InvalidArgument(s) => VortexError::InvalidArgument(s),
-            SchemaError::IOError(io_err) => io_err.0.into(),
-        })
+        let (bytes, head) = dtype.serialize();
+        self.write_slice(&bytes[head..])
     }
 
     pub fn ptype(&mut self, ptype: PType) -> VortexResult<()> {
@@ -231,7 +227,7 @@ impl<'a> WriteCtx<'a> {
             .map_err(|e| e.into())
     }
 
-    pub fn write_optional_array(&mut self, array: Option<&dyn Array>) -> VortexResult<()> {
+    pub fn write_optional_array(&mut self, array: Option<&ArrayRef>) -> VortexResult<()> {
         self.write_option_tag(array.is_some())?;
         if let Some(array) = array {
             self.write(array)

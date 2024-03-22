@@ -27,7 +27,7 @@ impl EncodingSerde for PrimitiveEncoding {
         let ptype =
             PType::try_from(ctx.schema()).map_err(|e| io::Error::new(ErrorKind::InvalidData, e))?;
         let (_, buf) = ctx.read_buffer(|len| len * ptype.byte_width())?;
-        Ok(PrimitiveArray::new(ptype, buf, validity).boxed())
+        Ok(PrimitiveArray::new(ptype, buf, validity).into_array())
     }
 }
 
@@ -40,7 +40,7 @@ mod test {
     #[test]
     fn roundtrip() {
         let arr = PrimitiveArray::from_iter(vec![Some(0), None, Some(2), Some(42)]);
-        let read_arr = roundtrip_array(arr.as_ref()).unwrap();
+        let read_arr = roundtrip_array(&arr).unwrap();
         assert_eq!(
             arr.buffer().typed_data::<i32>(),
             read_arr.as_primitive().buffer().typed_data::<i32>()

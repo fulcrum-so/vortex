@@ -28,7 +28,7 @@ impl EncodingSerde for REEEncoding {
         let ends_dtype = ctx.dtype()?;
         let ends = ctx.with_schema(&ends_dtype).read()?;
         let values = ctx.read()?;
-        Ok(REEArray::new(ends, values, validity, len).boxed())
+        Ok(REEArray::new(ends, values, validity, len).into_array())
     }
 }
 
@@ -36,6 +36,7 @@ impl EncodingSerde for REEEncoding {
 mod test {
 
     use vortex::array::downcast::DowncastArrayBuiltin;
+    use vortex::array::IntoArray;
     use vortex::array::{Array, ArrayRef};
     use vortex::error::VortexResult;
     use vortex::serde::{ReadCtx, WriteCtx};
@@ -55,12 +56,12 @@ mod test {
     #[test]
     fn roundtrip() {
         let arr = REEArray::new(
-            vec![0u8, 9, 20, 32, 49].into(),
-            vec![-7i64, -13, 17, 23].into(),
+            vec![0u8, 9, 20, 32, 49].into_array(),
+            vec![-7i64, -13, 17, 23].into_array(),
             None,
             49,
         );
-        let read_arr = roundtrip_array(arr.as_ref()).unwrap();
+        let read_arr = roundtrip_array(&arr).unwrap();
         let read_ree = read_arr.as_ree();
 
         assert_eq!(

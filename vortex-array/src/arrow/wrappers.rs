@@ -1,5 +1,5 @@
 use crate::array::primitive::PrimitiveArray;
-use crate::array::Array;
+use crate::array::{Array, ArrayRef};
 use crate::compute::flatten::flatten_bool;
 use crate::compute::scalar_at::scalar_at;
 use crate::error::VortexResult;
@@ -20,7 +20,7 @@ pub fn as_offset_buffer<T: NativePType + ArrowNativeType>(
     OffsetBuffer::new(as_scalar_buffer(array))
 }
 
-pub fn as_nulls(validity: Option<&dyn Array>) -> VortexResult<Option<NullBuffer>> {
+pub fn as_nulls(validity: Option<&ArrayRef>) -> VortexResult<Option<NullBuffer>> {
     if validity.is_none() {
         return Ok(None);
     }

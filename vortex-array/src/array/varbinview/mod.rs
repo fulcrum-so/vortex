@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::mem;
 use std::sync::{Arc, RwLock};
 
@@ -13,6 +12,7 @@ use crate::compute::flatten::flatten_primitive;
 use crate::compute::scalar_at::scalar_at;
 use crate::error::{VortexError, VortexResult};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
+use crate::impl_array;
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsSet};
 
@@ -121,7 +121,7 @@ impl VarBinViewArray {
             return Err(VortexError::InvalidDType(dtype));
         }
         let validity = validity.filter(|v| !v.is_empty());
-        check_validity_buffer(validity.as_deref(), views.len())?;
+        check_validity_buffer(validity.as_ref(), views.len())?;
 
         let dtype = if validity.is_some() && !dtype.is_nullable() {
             dtype.as_nullable()
@@ -164,8 +164,8 @@ impl VarBinViewArray {
     }
 
     #[inline]
-    pub fn views(&self) -> &dyn Array {
-        self.views.as_ref()
+    pub fn views(&self) -> &ArrayRef {
+        &self.views
     }
 
     #[inline]
@@ -174,8 +174,8 @@ impl VarBinViewArray {
     }
 
     #[inline]
-    pub fn validity(&self) -> Option<&dyn Array> {
-        self.validity.as_deref()
+    pub fn validity(&self) -> Option<&ArrayRef> {
+        self.validity.as_ref()
     }
 
     pub fn bytes_at(&self, index: usize) -> VortexResult<Vec<u8>> {
@@ -202,20 +202,7 @@ impl VarBinViewArray {
 }
 
 impl Array for VarBinViewArray {
-    #[inline]
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    #[inline]
-    fn boxed(self) -> ArrayRef {
-        Box::new(self)
-    }
-
-    #[inline]
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
+    impl_array!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -251,7 +238,7 @@ impl Array for VarBinViewArray {
                 .transpose()?,
             stats: Arc::new(RwLock::new(StatsSet::new())),
         }
-        .boxed())
+        .into_array())
     }
 
     #[inline]
@@ -265,12 +252,6 @@ impl Array for VarBinViewArray {
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
         Some(self)
-    }
-}
-
-impl<'arr> AsRef<(dyn Array + 'arr)> for VarBinViewArray {
-    fn as_ref(&self) -> &(dyn Array + 'arr) {
-        self
     }
 }
 
@@ -331,8 +312,8 @@ mod test {
         );
 
         VarBinViewArray::new(
-            view_arr.boxed(),
-            vec![values.boxed()],
+            view_arr.into_array(),
+            vec![values.into_array()],
             DType::Utf8(Nullability::NonNullable),
             None,
         )
@@ -342,9 +323,9 @@ mod test {
     pub fn varbin_view() {
         let binary_arr = binary_array();
         assert_eq!(binary_arr.len(), 2);
-        assert_eq!(scalar_at(binary_arr.as_ref(), 0), Ok("hello world".into()));
+        assert_eq!(scalar_at(&binary_arr, 0), Ok("hello world".into()));
         assert_eq!(
-            scalar_at(binary_arr.as_ref(), 1),
+            scalar_at(&binary_arr, 1),
             Ok("hello world this is a long string".into())
         )
     }
@@ -353,7 +334,7 @@ mod test {
     pub fn slice() {
         let binary_arr = binary_array().slice(1, 2).unwrap();
         assert_eq!(
-            scalar_at(binary_arr.as_ref(), 0),
+            scalar_at(&binary_arr, 0),
             Ok("hello world this is a long string".into())
         );
     }

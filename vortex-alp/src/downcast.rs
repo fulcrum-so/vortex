@@ -14,9 +14,9 @@ pub trait DowncastALP: private::Sealed {
     }
 }
 
-impl private::Sealed for dyn Array {}
+impl private::Sealed for dyn Array + '_ {}
 
-impl DowncastALP for dyn Array {
+impl DowncastALP for dyn Array + '_ {
     fn maybe_alp(&self) -> Option<&ALPArray> {
         self.as_any().downcast_ref()
     }

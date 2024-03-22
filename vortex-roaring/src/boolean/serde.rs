@@ -27,7 +27,7 @@ impl EncodingSerde for RoaringBoolEncoding {
                 .ok_or(io::Error::new(ErrorKind::InvalidData, "invalid bitmap"))?,
             len,
         )
-        .boxed())
+        .into_array())
     }
 }
 
@@ -42,7 +42,7 @@ mod test {
     #[test]
     fn roundtrip() {
         let arr = RoaringBoolArray::new(Bitmap::from_range(245..63000), 65536);
-        let read_arr = roundtrip_array(arr.as_ref()).unwrap();
+        let read_arr = roundtrip_array(&arr).unwrap();
 
         let read_roaring = read_arr.as_roaring_bool();
         assert_eq!(arr.bitmap(), read_roaring.bitmap());

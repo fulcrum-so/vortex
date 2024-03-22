@@ -60,10 +60,10 @@ impl EncodingCompression for DictEncoding {
                 (
                     ctx.auxiliary("codes")
                         .excluding(&DictEncoding::ID)
-                        .compress(codes.as_ref(), dict_like.map(|dict| dict.codes()))?,
+                        .compress(&codes, dict_like.map(|dict| dict.codes()))?,
                     ctx.named("values")
                         .excluding(&DictEncoding::ID)
-                        .compress(dict.as_ref(), dict_like.map(|dict| dict.dict()))?,
+                        .compress(&dict, dict_like.map(|dict| dict.dict()))?,
                 )
             }
             ArrayKind::VarBin(vb) => {
@@ -71,17 +71,17 @@ impl EncodingCompression for DictEncoding {
                 (
                     ctx.auxiliary("codes")
                         .excluding(&DictEncoding::ID)
-                        .compress(codes.as_ref(), dict_like.map(|dict| dict.codes()))?,
+                        .compress(&codes, dict_like.map(|dict| dict.codes()))?,
                     ctx.named("values")
                         .excluding(&DictEncoding::ID)
-                        .compress(dict.as_ref(), dict_like.map(|dict| dict.dict()))?,
+                        .compress(&dict, dict_like.map(|dict| dict.dict()))?,
                 )
             }
 
             _ => unreachable!("This array kind should have been filtered out"),
         };
 
-        Ok(DictArray::new(codes, dict).boxed())
+        Ok(DictArray::new(codes, dict).into_array())
     }
 }
 
@@ -191,8 +191,8 @@ where
     (
         PrimitiveArray::from(codes),
         VarBinArray::new(
-            PrimitiveArray::from(offsets).boxed(),
-            PrimitiveArray::from(bytes).boxed(),
+            PrimitiveArray::from(offsets).into_array(),
+            PrimitiveArray::from(bytes).into_array(),
             dtype,
             None,
         ),
@@ -233,8 +233,8 @@ mod test {
             codes.buffer().typed_data::<u64>(),
             &[0, 0, 1, 2, 2, 1, 2, 1]
         );
-        assert_eq!(scalar_at(values.as_ref(), 0), Ok(1.into()));
-        assert_eq!(scalar_at(values.as_ref(), 2), Ok(3.into()));
+        assert_eq!(scalar_at(&values, 0), Ok(1.into()));
+        assert_eq!(scalar_at(&values, 2), Ok(3.into()));
     }
 
     #[test]

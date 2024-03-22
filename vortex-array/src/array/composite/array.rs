@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::fmt::{Debug, Display};
 use std::sync::{Arc, RwLock};
 
@@ -11,6 +10,7 @@ use crate::compress::EncodingCompression;
 use crate::compute::ArrayCompute;
 use crate::error::VortexResult;
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
+use crate::impl_array;
 use crate::serde::{ArraySerde, BytesSerde, EncodingSerde};
 use crate::stats::{Stats, StatsCompute, StatsSet};
 
@@ -55,14 +55,14 @@ impl CompositeArray {
     }
 
     #[inline]
-    pub fn underlying(&self) -> &dyn Array {
-        self.underlying.as_ref()
+    pub fn underlying(&self) -> &ArrayRef {
+        &self.underlying
     }
 
     pub fn as_typed<M: CompositeMetadata>(&self) -> TypedCompositeArray<M> {
         TypedCompositeArray::new(
             M::deserialize(self.metadata().as_slice()).unwrap(),
-            dyn_clone::clone_box(self.underlying()),
+            self.underlying().clone(),
         )
     }
 
@@ -72,20 +72,7 @@ impl CompositeArray {
 }
 
 impl Array for CompositeArray {
-    #[inline]
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    #[inline]
-    fn boxed(self) -> ArrayRef {
-        Box::new(self)
-    }
-
-    #[inline]
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
+    impl_array!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -113,7 +100,7 @@ impl Array for CompositeArray {
             self.metadata.clone(),
             self.underlying.slice(start, stop)?,
         )
-        .boxed())
+        .into_array())
     }
 
     #[inline]
@@ -132,12 +119,6 @@ impl Array for CompositeArray {
 }
 
 impl StatsCompute for CompositeArray {}
-
-impl<'arr> AsRef<(dyn Array + 'arr)> for CompositeArray {
-    fn as_ref(&self) -> &(dyn Array + 'arr) {
-        self
-    }
-}
 
 impl ArrayDisplay for CompositeArray {
     fn fmt(&self, f: &mut ArrayFormatter) -> std::fmt::Result {

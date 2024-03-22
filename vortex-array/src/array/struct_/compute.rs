@@ -82,7 +82,7 @@ impl AsContiguousFn for StructArray {
                 .map(|field_arrays| as_contiguous(field_arrays.clone()))
                 .try_collect()?,
         )
-        .boxed())
+        .into_array())
     }
 }
 

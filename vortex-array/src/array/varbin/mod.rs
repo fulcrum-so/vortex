@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::sync::{Arc, RwLock};
 
 use linkme::distributed_slice;
@@ -18,6 +17,7 @@ use crate::compute::flatten::flatten_primitive;
 use crate::compute::scalar_at::scalar_at;
 use crate::error::{VortexError, VortexResult};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
+use crate::impl_array;
 use crate::ptype::NativePType;
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsSet};
@@ -71,7 +71,7 @@ impl VarBinArray {
         }
 
         let validity = validity.filter(|v| !v.is_empty());
-        check_validity_buffer(validity.as_deref(), offsets.len() - 1)?;
+        check_validity_buffer(validity.as_ref(), offsets.len() - 1)?;
 
         let dtype = if validity.is_some() && !dtype.is_nullable() {
             dtype.as_nullable()
@@ -96,8 +96,8 @@ impl VarBinArray {
     }
 
     #[inline]
-    pub fn offsets(&self) -> &dyn Array {
-        self.offsets.as_ref()
+    pub fn offsets(&self) -> &ArrayRef {
+        &self.offsets
     }
 
     pub fn first_offset<T: NativePType>(&self) -> VortexResult<T> {
@@ -107,8 +107,8 @@ impl VarBinArray {
     }
 
     #[inline]
-    pub fn bytes(&self) -> &dyn Array {
-        self.bytes.as_ref()
+    pub fn bytes(&self) -> &ArrayRef {
+        &self.bytes
     }
 
     pub fn sliced_bytes(&self) -> VortexResult<ArrayRef> {
@@ -118,8 +118,8 @@ impl VarBinArray {
     }
 
     #[inline]
-    pub fn validity(&self) -> Option<&dyn Array> {
-        self.validity.as_deref()
+    pub fn validity(&self) -> Option<&ArrayRef> {
+        self.validity.as_ref()
     }
 
     pub fn from_vec<T: AsRef<[u8]>>(vec: Vec<T>, dtype: DType) -> Self {
@@ -145,8 +145,8 @@ impl VarBinArray {
         }
 
         VarBinArray::new(
-            PrimitiveArray::from(offsets).boxed(),
-            PrimitiveArray::from(values).boxed(),
+            PrimitiveArray::from(offsets).into_array(),
+            PrimitiveArray::from(values).into_array(),
             dtype,
             None,
         )
@@ -174,8 +174,8 @@ impl VarBinArray {
             }
         }
 
-        let offsets_ref = PrimitiveArray::from(offsets).boxed();
-        let bytes_ref = PrimitiveArray::from(bytes).boxed();
+        let offsets_ref = PrimitiveArray::from(offsets).into_array();
+        let bytes_ref = PrimitiveArray::from(bytes).into_array();
         if validity.is_empty() {
             VarBinArray::new(offsets_ref, bytes_ref, dtype, None)
         } else {
@@ -183,7 +183,7 @@ impl VarBinArray {
                 offsets_ref,
                 bytes_ref,
                 dtype.as_nullable(),
-                Some(BoolArray::from(validity).boxed()),
+                Some(BoolArray::from(validity).into_array()),
             )
         }
     }
@@ -213,20 +213,7 @@ impl VarBinArray {
 }
 
 impl Array for VarBinArray {
-    #[inline]
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    #[inline]
-    fn boxed(self) -> ArrayRef {
-        Box::new(self)
-    }
-
-    #[inline]
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
+    impl_array!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -260,7 +247,7 @@ impl Array for VarBinArray {
                 .map(|v| v.slice(start, stop))
                 .transpose()?,
         )
-        .boxed())
+        .into_array())
     }
 
     #[inline]
@@ -275,12 +262,6 @@ impl Array for VarBinArray {
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
         Some(self)
-    }
-}
-
-impl<'arr> AsRef<(dyn Array + 'arr)> for VarBinArray {
-    fn as_ref(&self) -> &(dyn Array + 'arr) {
-        self
     }
 }
 
@@ -381,8 +362,8 @@ mod test {
         let offsets = PrimitiveArray::from(vec![0, 11, 44]);
 
         VarBinArray::new(
-            offsets.boxed(),
-            values.boxed(),
+            offsets.into_array(),
+            values.into_array(),
             DType::Utf8(Nullability::NonNullable),
             None,
         )
@@ -392,9 +373,9 @@ mod test {
     pub fn test_scalar_at() {
         let binary_arr = binary_array();
         assert_eq!(binary_arr.len(), 2);
-        assert_eq!(scalar_at(binary_arr.as_ref(), 0), Ok("hello world".into()));
+        assert_eq!(scalar_at(&binary_arr, 0), Ok("hello world".into()));
         assert_eq!(
-            scalar_at(binary_arr.as_ref(), 1),
+            scalar_at(&binary_arr, 1),
             Ok("hello world this is a long string".into())
         )
     }
@@ -403,7 +384,7 @@ mod test {
     pub fn slice() {
         let binary_arr = binary_array().slice(1, 2).unwrap();
         assert_eq!(
-            scalar_at(binary_arr.as_ref(), 0),
+            scalar_at(&binary_arr, 0),
             Ok("hello world this is a long string".into())
         );
     }

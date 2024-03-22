@@ -18,7 +18,7 @@ impl EncodingSerde for ZigZagEncoding {
             _ => return Err(VortexError::InvalidDType(ctx.schema().clone())),
         };
         let encoded = ctx.with_schema(&encoded_dtype).read()?;
-        Ok(ZigZagArray::new(encoded).boxed())
+        Ok(ZigZagArray::new(encoded).into_array())
     }
 }
 
@@ -45,7 +45,7 @@ mod test {
     #[test]
     fn roundtrip() {
         let arr = zigzag_encode(&PrimitiveArray::from(vec![-7i64, -13, 17, 23])).unwrap();
-        let read_arr = roundtrip_array(arr.as_ref()).unwrap();
+        let read_arr = roundtrip_array(&arr).unwrap();
 
         let read_zigzag = read_arr.as_zigzag();
         assert_eq!(

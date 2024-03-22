@@ -30,7 +30,7 @@ impl EncodingSerde for RoaringIntEncoding {
                 .ok_or(io::Error::new(ErrorKind::InvalidData, "invalid bitmap"))?,
             ptype,
         )
-        .boxed())
+        .into_array())
     }
 }
 
@@ -47,7 +47,7 @@ mod test {
     #[test]
     fn roundtrip() {
         let arr = RoaringIntArray::new(Bitmap::from_range(245..63000), PType::U32);
-        let read_arr = roundtrip_array(arr.as_ref()).unwrap();
+        let read_arr = roundtrip_array(&arr).unwrap();
         let read_roaring = read_arr.as_roaring_int();
         assert_eq!(arr.ptype(), read_roaring.ptype());
         assert_eq!(arr.bitmap(), read_roaring.bitmap());

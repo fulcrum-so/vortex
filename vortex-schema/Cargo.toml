@@ -18,9 +18,12 @@ path = "src/lib.rs"
 [dependencies]
 arrow-schema = "50.0.0"
 itertools = "0.12.1"
-leb128 = "0.2.5"
-num_enum = "0.7.2"
 thiserror = "1.0.58"
+flatbuffers = "23.5.26"
+
+[build-dependencies]
+flatc = "0.2.2"
+walkdir = "2.4.0"
 
 [lints]
 workspace = true

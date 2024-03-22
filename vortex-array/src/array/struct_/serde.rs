@@ -25,7 +25,7 @@ impl EncodingSerde for StructEncoding {
         let DType::Struct(names, _) = ctx.schema() else {
             return Err(VortexError::InvalidDType(ctx.schema().clone()));
         };
-        Ok(StructArray::new(names.clone(), fields).boxed())
+        Ok(StructArray::new(names.clone(), fields).into_array())
     }
 }
 
@@ -37,6 +37,7 @@ mod test {
     use crate::array::primitive::PrimitiveArray;
     use crate::array::struct_::StructArray;
     use crate::array::Array;
+    use crate::array::IntoArray;
     use crate::serde::test::roundtrip_array;
 
     #[test]
@@ -47,12 +48,12 @@ mod test {
                 Arc::new("nullable".to_string()),
             ],
             vec![
-                vec![7u8, 37, 71, 97].into(),
-                PrimitiveArray::from_iter(vec![Some(0), None, Some(2), Some(42)]).boxed(),
+                vec![7u8, 37, 71, 97].into_array(),
+                PrimitiveArray::from_iter(vec![Some(0), None, Some(2), Some(42)]).into_array(),
             ],
         );
 
-        let read_arr = roundtrip_array(arr.as_ref()).unwrap();
+        let read_arr = roundtrip_array(&arr).unwrap();
 
         assert_eq!(
             arr.fields()[0].as_primitive().buffer().typed_data::<u8>(),

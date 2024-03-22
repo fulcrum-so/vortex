@@ -14,9 +14,9 @@ pub trait DowncastZigzag: private::Sealed {
     }
 }
 
-impl private::Sealed for dyn Array {}
+impl private::Sealed for dyn Array + '_ {}
 
-impl DowncastZigzag for dyn Array {
+impl DowncastZigzag for dyn Array + '_ {
     fn maybe_zigzag(&self) -> Option<&ZigZagArray> {
         self.as_any().downcast_ref()
     }

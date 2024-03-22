@@ -1,393 +1,420 @@
-use std::io::{Read, Write};
 use std::sync::Arc;
 
-use leb128::read::Error;
-use num_enum::{IntoPrimitive, TryFromPrimitive};
+use flatbuffers::{FlatBufferBuilder, WIPOffset};
 
-use crate::dtype::DType::*;
-use crate::dtype::{DType, FloatWidth, IntWidth, Nullability, Signedness};
-use crate::error::{SchemaError, SchemaResult};
-use crate::CompositeID;
+use crate::generated::{
+    root_as_dtype, Bool, BoolArgs, Composite, CompositeArgs, Int, IntArgs, List, ListArgs, Null,
+    NullArgs, Struct_, Struct_Args, Type,
+};
+use crate::generated::{Binary, BinaryArgs, Signedness as FbSignedness};
+use crate::generated::{DType as FbDType, DTypeArgs};
+use crate::generated::{Decimal, DecimalArgs, FloatWidth as FbFloatWidth};
+use crate::generated::{Float, FloatArgs, IntWidth as FbIntWidth};
+use crate::generated::{Nullability as FbNullability, Utf8, Utf8Args};
+use crate::{
+    CompositeID, DType, FloatWidth, IntWidth, Nullability, SchemaError, SchemaResult, Signedness,
+};
 
-pub struct DTypeReader<'a> {
-    reader: &'a mut dyn Read,
+pub trait FbSerialize<'a> {
+    type OffsetType;
+
+    // Convert self to flatbuffer representation, returns written bytes and index of valid data
+    // If you want to serialize multiple objects you should prefer serialize_to_builder to reuse the allocated memory
+    fn serialize(&self) -> (Vec<u8>, usize) {
+        let mut fbb = FlatBufferBuilder::new();
+        let wip_dtype = self.serialize_to_builder(&mut fbb);
+        fbb.finish_minimal(wip_dtype);
+        fbb.collapse()
+    }
+
+    fn serialize_to_builder(&self, fbb: &mut FlatBufferBuilder<'a>) -> WIPOffset<Self::OffsetType>;
 }
 
-impl<'a> DTypeReader<'a> {
-    pub fn new(reader: &'a mut dyn Read) -> Self {
-        Self { reader }
-    }
+pub trait FbDeserialize<'a>: Sized {
+    type OffsetType;
 
-    fn read_nbytes<const N: usize>(&mut self) -> SchemaResult<[u8; N]> {
-        let mut bytes: [u8; N] = [0; N];
-        self.reader
-            .read_exact(&mut bytes)
-            .map_err(SchemaError::from)?;
-        Ok(bytes)
-    }
+    fn deserialize(bytes: &[u8], find_id: fn(&str) -> Option<CompositeID>) -> SchemaResult<Self>;
 
-    fn read_usize(&mut self) -> SchemaResult<usize> {
-        leb128::read::unsigned(self.reader)
-            .map_err(|e| match e {
-                Error::IoError(io_err) => io_err.into(),
-                Error::Overflow => SchemaError::InvalidArgument("overflow".into()),
+    fn convert_from_fb(
+        fb_type: Self::OffsetType,
+        find_id: fn(&str) -> Option<CompositeID>,
+    ) -> SchemaResult<Self>;
+}
+
+impl<'a> FbSerialize<'a> for DType {
+    type OffsetType = FbDType<'a>;
+
+    fn serialize_to_builder(&self, fbb: &mut FlatBufferBuilder<'a>) -> WIPOffset<Self::OffsetType> {
+        let (dtype_union, dtype_union_variant) = match self {
+            DType::Null => (Null::create(fbb, &NullArgs {}).as_union_value(), Type::Null),
+            DType::Bool(n) => (
+                Bool::create(
+                    fbb,
+                    &BoolArgs {
+                        nullability: n.into(),
+                    },
+                )
+                .as_union_value(),
+                Type::Bool,
+            ),
+            DType::Int(w, s, n) => (
+                Int::create(
+                    fbb,
+                    &IntArgs {
+                        width: w.into(),
+                        signedness: s.into(),
+                        nullability: n.into(),
+                    },
+                )
+                .as_union_value(),
+                Type::Int,
+            ),
+            DType::Decimal(p, s, n) => (
+                Decimal::create(
+                    fbb,
+                    &DecimalArgs {
+                        precision: *p,
+                        scale: *s,
+                        nullability: n.into(),
+                    },
+                )
+                .as_union_value(),
+                Type::Decimal,
+            ),
+            DType::Float(w, n) => (
+                Float::create(
+                    fbb,
+                    &FloatArgs {
+                        width: w.into(),
+                        nullability: n.into(),
+                    },
+                )
+                .as_union_value(),
+                Type::Float,
+            ),
+            DType::Utf8(n) => (
+                Utf8::create(
+                    fbb,
+                    &Utf8Args {
+                        nullability: n.into(),
+                    },
+                )
+                .as_union_value(),
+                Type::Utf8,
+            ),
+            DType::Binary(n) => (
+                Binary::create(
+                    fbb,
+                    &BinaryArgs {
+                        nullability: n.into(),
+                    },
+                )
+                .as_union_value(),
+                Type::Binary,
+            ),
+            DType::Struct(ns, fs) => {
+                let name_offsets = ns
+                    .iter()
+                    .map(|n| fbb.create_string(n.as_ref()))
+                    .collect::<Vec<_>>();
+                fbb.start_vector::<WIPOffset<&str>>(ns.len());
+                for name in name_offsets.iter().rev() {
+                    fbb.push(name);
+                }
+                let names_vector = fbb.end_vector(ns.len());
+
+                let dtype_offsets = fs
+                    .iter()
+                    .map(|f| f.serialize_to_builder(fbb))
+                    .collect::<Vec<_>>();
+                fbb.start_vector::<WIPOffset<FbDType>>(fs.len());
+                for doff in dtype_offsets.iter().rev() {
+                    fbb.push(doff);
+                }
+                let fields_vector = fbb.end_vector(fs.len());
+
+                (
+                    Struct_::create(
+                        fbb,
+                        &Struct_Args {
+                            names: Some(names_vector),
+                            fields: Some(fields_vector),
+                        },
+                    )
+                    .as_union_value(),
+                    Type::Struct_,
+                )
+            }
+            DType::List(e, n) => {
+                let fb_dtype = e.as_ref().serialize_to_builder(fbb);
+                (
+                    List::create(
+                        fbb,
+                        &ListArgs {
+                            element_type: Some(fb_dtype),
+                            nullability: n.into(),
+                        },
+                    )
+                    .as_union_value(),
+                    Type::List,
+                )
+            }
+            DType::Composite(id, n) => {
+                let id = fbb.create_string(id.0);
+                (
+                    Composite::create(
+                        fbb,
+                        &CompositeArgs {
+                            id: Some(id),
+                            nullability: n.into(),
+                        },
+                    )
+                    .as_union_value(),
+                    Type::Composite,
+                )
+            }
+        };
+
+        FbDType::create(
+            fbb,
+            &DTypeArgs {
+                type_type: dtype_union_variant,
+                type_: Some(dtype_union),
+            },
+        )
+    }
+}
+
+impl<'a> FbDeserialize<'a> for DType {
+    type OffsetType = FbDType<'a>;
+
+    fn deserialize(bytes: &[u8], find_id: fn(&str) -> Option<CompositeID>) -> SchemaResult<Self> {
+        root_as_dtype(bytes)
+            .map_err(|e| {
+                SchemaError::InvalidArgument(format!("Unable to read bytes as DType: {}", e).into())
             })
-            .map(|u| u as usize)
+            .and_then(|d| Self::convert_from_fb(d, find_id))
     }
 
-    fn read_slice(&mut self) -> SchemaResult<Vec<u8>> {
-        let len = self.read_usize()?;
-        let mut slice = Vec::with_capacity(len);
-        self.reader
-            .take(len as u64)
-            .read_to_end(&mut slice)
-            .map_err(SchemaError::from)?;
-        Ok(slice)
-    }
-
-    pub fn read(&mut self, find_extension: fn(&str) -> Option<CompositeID>) -> SchemaResult<DType> {
-        let dtype = DTypeTag::try_from(self.read_nbytes::<1>()?[0])
-            .map_err(|_| SchemaError::InvalidArgument("Failed to parse dtype tag".into()))?;
-        match dtype {
-            DTypeTag::Null => Ok(Null),
-            DTypeTag::Bool => Ok(Bool(self.read_nullability()?)),
-            DTypeTag::Int => {
-                let nullability = self.read_nullability()?;
-                Ok(Int(
-                    self.read_int_width()?,
-                    self.read_signedness()?,
-                    nullability,
+    fn convert_from_fb(
+        fb_type: Self::OffsetType,
+        find_id: fn(&str) -> Option<CompositeID>,
+    ) -> SchemaResult<Self> {
+        match fb_type.type_type() {
+            Type::Null => Ok(DType::Null),
+            Type::Bool => Ok(DType::Bool(
+                fb_type.type__as_bool().unwrap().nullability().try_into()?,
+            )),
+            Type::Int => {
+                let fb_int = fb_type.type__as_int().unwrap();
+                Ok(DType::Int(
+                    fb_int.width().try_into()?,
+                    fb_int.signedness().try_into()?,
+                    fb_int.nullability().try_into()?,
                 ))
             }
-            DTypeTag::Float => {
-                let nullability = self.read_nullability()?;
-                Ok(Float(self.read_float_width()?, nullability))
-            }
-            DTypeTag::Utf8 => Ok(Utf8(self.read_nullability()?)),
-            DTypeTag::Binary => Ok(Binary(self.read_nullability()?)),
-            DTypeTag::Decimal => {
-                let nullability = self.read_nullability()?;
-                let precision_scale: [u8; 2] = self.read_nbytes()?;
-                Ok(Decimal(
-                    precision_scale[0],
-                    precision_scale[1] as i8,
-                    nullability,
+            Type::Float => {
+                let fb_float = fb_type.type__as_float().unwrap();
+                Ok(DType::Float(
+                    fb_float.width().try_into()?,
+                    fb_float.nullability().try_into()?,
                 ))
             }
-            DTypeTag::List => {
-                let nullability = self.read_nullability()?;
-                Ok(List(Box::new(self.read(find_extension)?), nullability))
+            Type::Decimal => {
+                let fb_decimal = fb_type.type__as_decimal().unwrap();
+                Ok(DType::Decimal(
+                    fb_decimal.precision(),
+                    fb_decimal.scale(),
+                    fb_decimal.nullability().try_into()?,
+                ))
             }
-            DTypeTag::Struct => {
-                let field_num = self.read_usize()?;
-                let mut names = Vec::with_capacity(field_num);
-                for _ in 0..field_num {
-                    let name = unsafe { String::from_utf8_unchecked(self.read_slice()?) };
-                    names.push(Arc::new(name));
-                }
-
-                let mut fields = Vec::with_capacity(field_num);
-                for _ in 0..field_num {
-                    fields.push(self.read(find_extension)?);
-                }
-                Ok(Struct(names, fields))
+            Type::Binary => Ok(DType::Binary(
+                fb_type
+                    .type__as_binary()
+                    .unwrap()
+                    .nullability()
+                    .try_into()?,
+            )),
+            Type::Utf8 => Ok(DType::Utf8(
+                fb_type.type__as_utf_8().unwrap().nullability().try_into()?,
+            )),
+            Type::List => {
+                let fb_list = fb_type.type__as_list().unwrap();
+                let element_dtype =
+                    DType::convert_from_fb(fb_list.element_type().unwrap(), find_id)?;
+                Ok(DType::List(
+                    Box::new(element_dtype),
+                    fb_list.nullability().try_into()?,
+                ))
             }
-            DTypeTag::Composite => {
-                let nullability = self.read_nullability()?;
-                let id = unsafe { String::from_utf8_unchecked(self.read_slice()?) };
-                let extension_id = find_extension(id.as_str()).ok_or(
-                    SchemaError::InvalidArgument("Failed to find extension".into()),
-                )?;
-                Ok(Composite(extension_id, nullability))
+            Type::Struct_ => {
+                let fb_struct = fb_type.type__as_struct_().unwrap();
+                let names = fb_struct
+                    .names()
+                    .unwrap()
+                    .iter()
+                    .map(|n| Arc::new(n.to_string()))
+                    .collect::<Vec<_>>();
+                let fields: Vec<DType> = fb_struct
+                    .fields()
+                    .unwrap()
+                    .iter()
+                    .map(|f| DType::convert_from_fb(f, find_id))
+                    .collect::<SchemaResult<Vec<_>>>()?;
+                Ok(DType::Struct(names, fields))
             }
-        }
-    }
-
-    fn read_signedness(&mut self) -> SchemaResult<Signedness> {
-        SignednessTag::try_from(self.read_nbytes::<1>()?[0])
-            .map_err(|_| SchemaError::InvalidArgument("Failed to parse signedness tag".into()))
-            .map(Signedness::from)
-    }
-
-    fn read_nullability(&mut self) -> SchemaResult<Nullability> {
-        NullabilityTag::try_from(self.read_nbytes::<1>()?[0])
-            .map_err(|_| SchemaError::InvalidArgument("Failed to parse nullability tag".into()))
-            .map(Nullability::from)
-    }
-
-    fn read_int_width(&mut self) -> SchemaResult<IntWidth> {
-        IntWidthTag::try_from(self.read_nbytes::<1>()?[0])
-            .map_err(|_| SchemaError::InvalidArgument("Failed to parse int width tag".into()))
-            .map(IntWidth::from)
-    }
-
-    fn read_float_width(&mut self) -> SchemaResult<FloatWidth> {
-        FloatWidthTag::try_from(self.read_nbytes::<1>()?[0])
-            .map_err(|_| SchemaError::InvalidArgument("Failed to parse float width tag".into()))
-            .map(FloatWidth::from)
-    }
-}
-
-pub struct DTypeWriter<'a> {
-    writer: &'a mut dyn Write,
-}
-
-impl<'a> DTypeWriter<'a> {
-    pub fn new(writer: &'a mut dyn Write) -> Self {
-        Self { writer }
-    }
-
-    pub fn write(&mut self, dtype: &DType) -> SchemaResult<()> {
-        self.write_fixed_slice([DTypeTag::from(dtype).into()])?;
-        match dtype {
-            Null => {}
-            Bool(n) => self.write_nullability(*n)?,
-            Int(w, s, n) => {
-                self.write_nullability(*n)?;
-                self.write_int_width(*w)?;
-                self.write_signedness(*s)?
+            Type::Composite => {
+                let fb_composite = fb_type.type__as_composite().unwrap();
+                let id = find_id(fb_composite.id().unwrap()).ok_or_else(|| {
+                    SchemaError::InvalidArgument("Couldn't find composite id".into())
+                })?;
+                Ok(DType::Composite(id, fb_composite.nullability().try_into()?))
             }
-            Decimal(p, w, n) => {
-                self.write_nullability(*n)?;
-                self.write_fixed_slice([*p, *w as u8])?
-            }
-            Float(w, n) => {
-                self.write_nullability(*n)?;
-                self.write_float_width(*w)?
-            }
-            Utf8(n) => self.write_nullability(*n)?,
-            Binary(n) => self.write_nullability(*n)?,
-            Struct(ns, fs) => {
-                self.write_usize(ns.len())?;
-                for name in ns {
-                    self.write_slice(name.as_bytes())?;
-                }
-                for field in fs {
-                    self.write(field)?
-                }
-            }
-            List(e, n) => {
-                self.write_nullability(*n)?;
-                self.write(e.as_ref())?
-            }
-            Composite(id, n) => {
-                self.write_nullability(*n)?;
-                self.write_slice(id.0.as_bytes())?;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn write_usize(&mut self, u: usize) -> SchemaResult<()> {
-        leb128::write::unsigned(self.writer, u as u64)
-            .map_err(|_| SchemaError::InvalidArgument("Failed to write leb128 usize".into()))
-            .map(|_| ())
-    }
-
-    fn write_fixed_slice<const N: usize>(&mut self, slice: [u8; N]) -> SchemaResult<()> {
-        self.writer.write_all(&slice).map_err(|e| e.into())
-    }
-
-    fn write_slice(&mut self, slice: &[u8]) -> SchemaResult<()> {
-        self.write_usize(slice.len())?;
-        self.writer.write_all(slice).map_err(|e| e.into())
-    }
-
-    fn write_signedness(&mut self, signedness: Signedness) -> SchemaResult<()> {
-        self.write_fixed_slice([SignednessTag::from(signedness).into()])
-    }
-
-    fn write_nullability(&mut self, nullability: Nullability) -> SchemaResult<()> {
-        self.write_fixed_slice([NullabilityTag::from(nullability).into()])
-    }
-
-    fn write_int_width(&mut self, int_width: IntWidth) -> SchemaResult<()> {
-        self.write_fixed_slice([IntWidthTag::from(int_width).into()])
-    }
-
-    fn write_float_width(&mut self, float_width: FloatWidth) -> SchemaResult<()> {
-        self.write_fixed_slice([FloatWidthTag::from(float_width).into()])
-    }
-}
-
-#[derive(IntoPrimitive, TryFromPrimitive)]
-#[repr(u8)]
-enum DTypeTag {
-    Null,
-    Bool,
-    Int,
-    Float,
-    Utf8,
-    Binary,
-    Decimal,
-    List,
-    Struct,
-    Composite,
-}
-
-impl From<&DType> for DTypeTag {
-    fn from(value: &DType) -> Self {
-        match value {
-            Null => DTypeTag::Null,
-            Bool(_) => DTypeTag::Bool,
-            Int(_, _, _) => DTypeTag::Int,
-            Float(_, _) => DTypeTag::Float,
-            Utf8(_) => DTypeTag::Utf8,
-            Binary(_) => DTypeTag::Binary,
-            Decimal(_, _, _) => DTypeTag::Decimal,
-            List(_, _) => DTypeTag::List,
-            Struct(_, _) => DTypeTag::Struct,
-            Composite(_, _) => DTypeTag::Composite,
+            _ => Err(SchemaError::InvalidArgument("Unknown DType variant".into())),
         }
     }
 }
 
-#[derive(IntoPrimitive, TryFromPrimitive)]
-#[repr(u8)]
-enum NullabilityTag {
-    Nullable,
-    NonNullable,
-}
-
-impl From<Nullability> for NullabilityTag {
-    fn from(value: Nullability) -> Self {
-        use Nullability::*;
+impl From<&Nullability> for FbNullability {
+    fn from(value: &Nullability) -> Self {
         match value {
-            NonNullable => NullabilityTag::NonNullable,
-            Nullable => NullabilityTag::Nullable,
+            Nullability::NonNullable => FbNullability::NonNullable,
+            Nullability::Nullable => FbNullability::Nullable,
         }
     }
 }
 
-impl From<NullabilityTag> for Nullability {
-    fn from(value: NullabilityTag) -> Self {
-        use Nullability::*;
+impl TryFrom<FbNullability> for Nullability {
+    type Error = SchemaError;
+
+    fn try_from(value: FbNullability) -> SchemaResult<Self> {
         match value {
-            NullabilityTag::Nullable => Nullable,
-            NullabilityTag::NonNullable => NonNullable,
+            FbNullability::NonNullable => Ok(Nullability::NonNullable),
+            FbNullability::Nullable => Ok(Nullability::Nullable),
+            _ => Err(SchemaError::InvalidArgument(
+                "Unknown nullability value".into(),
+            )),
         }
     }
 }
 
-#[derive(IntoPrimitive, TryFromPrimitive)]
-#[repr(u8)]
-enum SignednessTag {
-    Unknown,
-    Unsigned,
-    Signed,
-}
-
-impl From<Signedness> for SignednessTag {
-    fn from(value: Signedness) -> Self {
-        use Signedness::*;
+impl From<&IntWidth> for FbIntWidth {
+    fn from(value: &IntWidth) -> Self {
         match value {
-            Unknown => SignednessTag::Unknown,
-            Unsigned => SignednessTag::Unsigned,
-            Signed => SignednessTag::Signed,
+            IntWidth::Unknown => FbIntWidth::Unknown,
+            IntWidth::_8 => FbIntWidth::_8,
+            IntWidth::_16 => FbIntWidth::_16,
+            IntWidth::_32 => FbIntWidth::_32,
+            IntWidth::_64 => FbIntWidth::_64,
         }
     }
 }
 
-impl From<SignednessTag> for Signedness {
-    fn from(value: SignednessTag) -> Self {
-        use Signedness::*;
+impl TryFrom<FbIntWidth> for IntWidth {
+    type Error = SchemaError;
+
+    fn try_from(value: FbIntWidth) -> SchemaResult<Self> {
         match value {
-            SignednessTag::Unknown => Unknown,
-            SignednessTag::Unsigned => Unsigned,
-            SignednessTag::Signed => Signed,
+            FbIntWidth::Unknown => Ok(IntWidth::Unknown),
+            FbIntWidth::_8 => Ok(IntWidth::_8),
+            FbIntWidth::_16 => Ok(IntWidth::_16),
+            FbIntWidth::_32 => Ok(IntWidth::_32),
+            FbIntWidth::_64 => Ok(IntWidth::_64),
+            _ => Err(SchemaError::InvalidArgument(
+                "Unknown IntWidth value".into(),
+            )),
         }
     }
 }
 
-#[derive(IntoPrimitive, TryFromPrimitive)]
-#[repr(u8)]
-enum FloatWidthTag {
-    Unknown,
-    _16,
-    _32,
-    _64,
-}
-
-#[allow(clippy::just_underscores_and_digits)]
-impl From<FloatWidth> for FloatWidthTag {
-    fn from(value: FloatWidth) -> Self {
-        use FloatWidth::*;
+impl From<&Signedness> for FbSignedness {
+    fn from(value: &Signedness) -> Self {
         match value {
-            Unknown => FloatWidthTag::Unknown,
-            _16 => FloatWidthTag::_16,
-            _32 => FloatWidthTag::_32,
-            _64 => FloatWidthTag::_64,
+            Signedness::Unknown => FbSignedness::Unknown,
+            Signedness::Unsigned => FbSignedness::Unsigned,
+            Signedness::Signed => FbSignedness::Signed,
         }
     }
 }
 
-impl From<FloatWidthTag> for FloatWidth {
-    fn from(value: FloatWidthTag) -> Self {
-        use FloatWidth::*;
+impl TryFrom<FbSignedness> for Signedness {
+    type Error = SchemaError;
+
+    fn try_from(value: FbSignedness) -> SchemaResult<Self> {
         match value {
-            FloatWidthTag::Unknown => Unknown,
-            FloatWidthTag::_16 => _16,
-            FloatWidthTag::_32 => _32,
-            FloatWidthTag::_64 => _64,
+            FbSignedness::Unknown => Ok(Signedness::Unknown),
+            FbSignedness::Unsigned => Ok(Signedness::Unsigned),
+            FbSignedness::Signed => Ok(Signedness::Signed),
+            _ => Err(SchemaError::InvalidArgument(
+                "Unknown Signedness value".into(),
+            )),
         }
     }
 }
 
-#[derive(IntoPrimitive, TryFromPrimitive)]
-#[repr(u8)]
-enum IntWidthTag {
-    Unknown,
-    _8,
-    _16,
-    _32,
-    _64,
-}
-
-#[allow(clippy::just_underscores_and_digits)]
-impl From<IntWidth> for IntWidthTag {
-    fn from(value: IntWidth) -> Self {
-        use IntWidth::*;
+impl From<&FloatWidth> for FbFloatWidth {
+    fn from(value: &FloatWidth) -> Self {
         match value {
-            Unknown => IntWidthTag::Unknown,
-            _8 => IntWidthTag::_8,
-            _16 => IntWidthTag::_16,
-            _32 => IntWidthTag::_32,
-            _64 => IntWidthTag::_64,
+            FloatWidth::Unknown => FbFloatWidth::Unknown,
+            FloatWidth::_16 => FbFloatWidth::_16,
+            FloatWidth::_32 => FbFloatWidth::_32,
+            FloatWidth::_64 => FbFloatWidth::_64,
         }
     }
 }
 
-impl From<IntWidthTag> for IntWidth {
-    fn from(value: IntWidthTag) -> Self {
-        use IntWidth::*;
+impl TryFrom<FbFloatWidth> for FloatWidth {
+    type Error = SchemaError;
+
+    fn try_from(value: FbFloatWidth) -> SchemaResult<Self> {
         match value {
-            IntWidthTag::Unknown => Unknown,
-            IntWidthTag::_8 => _8,
-            IntWidthTag::_16 => _16,
-            IntWidthTag::_32 => _32,
-            IntWidthTag::_64 => _64,
+            FbFloatWidth::Unknown => Ok(FloatWidth::Unknown),
+            FbFloatWidth::_16 => Ok(FloatWidth::_16),
+            FbFloatWidth::_32 => Ok(FloatWidth::_32),
+            FbFloatWidth::_64 => Ok(FloatWidth::_64),
+            _ => Err(SchemaError::InvalidArgument(
+                "Unknown IntWidth value".into(),
+            )),
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::dtype::DType::Int;
-    use crate::dtype::IntWidth::_64;
-    use crate::dtype::Nullability::NonNullable;
-    use crate::dtype::Signedness::Unsigned;
-    use crate::serde::{DTypeReader, DTypeWriter};
+    use std::sync::Arc;
+
+    use crate::{DType, FbDeserialize, FbSerialize, FloatWidth, IntWidth, Nullability, Signedness};
+
+    fn roundtrip_dtype(dtype: DType) {
+        let (bytes, head) = dtype.serialize();
+        let deserialized =
+            DType::deserialize(&bytes[head..], |_| panic!("no composite ids")).unwrap();
+        assert_eq!(dtype, deserialized);
+    }
 
     #[test]
     fn roundtrip() {
-        let mut buffer: Vec<u8> = Vec::new();
-        let dtype = Int(_64, Unsigned, NonNullable);
-        DTypeWriter::new(&mut buffer).write(&dtype).unwrap();
-        assert_eq!(buffer, [0x02, 0x01, 0x04, 0x01]);
-        let read_dtype = DTypeReader::new(&mut buffer.as_slice())
-            .read(|_| panic!("no composite types"))
-            .unwrap();
-        assert_eq!(dtype, read_dtype);
+        roundtrip_dtype(DType::Null);
+        roundtrip_dtype(DType::Bool(Nullability::NonNullable));
+        roundtrip_dtype(DType::Int(
+            IntWidth::_64,
+            Signedness::Unsigned,
+            Nullability::NonNullable,
+        ));
+        roundtrip_dtype(DType::Decimal(18, 9, Nullability::NonNullable));
+        roundtrip_dtype(DType::Float(FloatWidth::_64, Nullability::NonNullable));
+        roundtrip_dtype(DType::Binary(Nullability::NonNullable));
+        roundtrip_dtype(DType::Utf8(Nullability::NonNullable));
+        roundtrip_dtype(DType::List(
+            Box::new(DType::Float(FloatWidth::_32, Nullability::Nullable)),
+            Nullability::NonNullable,
+        ));
+        roundtrip_dtype(DType::Struct(
+            vec![Arc::new("strings".into()), Arc::new("ints".into())],
+            vec![
+                DType::Utf8(Nullability::NonNullable),
+                DType::Int(IntWidth::_16, Signedness::Unsigned, Nullability::Nullable),
+            ],
+        ))
     }
 }

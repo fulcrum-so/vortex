@@ -25,7 +25,7 @@ impl EncodingSerde for VarBinEncoding {
         let offsets_dtype = ctx.dtype()?;
         let offsets = ctx.with_schema(&offsets_dtype).read()?;
         let bytes = ctx.bytes().read()?;
-        Ok(VarBinArray::new(offsets, bytes, ctx.schema().clone(), validity).boxed())
+        Ok(VarBinArray::new(offsets, bytes, ctx.schema().clone(), validity).into_array())
     }
 }
 
@@ -44,7 +44,7 @@ mod test {
             DType::Utf8(Nullability::NonNullable),
         );
 
-        let read_arr = roundtrip_array(arr.as_ref()).unwrap();
+        let read_arr = roundtrip_array(&arr).unwrap();
 
         assert_eq!(
             arr.offsets().as_primitive().buffer().typed_data::<u32>(),

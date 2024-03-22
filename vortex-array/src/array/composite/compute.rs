@@ -51,14 +51,15 @@ impl AsContiguousFn for CompositeArray {
     fn as_contiguous(&self, arrays: Vec<ArrayRef>) -> VortexResult<ArrayRef> {
         let composites = arrays
             .iter()
-            .map(|array| dyn_clone::clone_box(array.as_composite().underlying()))
+            .map(|array| array.as_composite().underlying())
+            .cloned()
             .collect_vec();
         Ok(CompositeArray::new(
             self.id(),
             self.metadata().clone(),
             as_contiguous(composites)?,
         )
-        .boxed())
+        .into_array())
     }
 }
 

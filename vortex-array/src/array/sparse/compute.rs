@@ -36,19 +36,19 @@ impl AsContiguousFn for SparseArray {
                 arrays
                     .iter()
                     .map(|a| a.as_sparse().indices())
-                    .map(dyn_clone::clone_box)
+                    .cloned()
                     .collect_vec(),
             )?,
             as_contiguous(
                 arrays
                     .iter()
                     .map(|a| a.as_sparse().values())
-                    .map(dyn_clone::clone_box)
+                    .cloned()
                     .collect_vec(),
             )?,
             arrays.iter().map(|a| a.len()).sum(),
         )
-        .boxed())
+        .into_array())
     }
 }
 
@@ -77,7 +77,7 @@ impl FlattenFn for SparseArray {
 
                 Ok(FlattenedArray::Primitive(PrimitiveArray::from_nullable(
                     values,
-                    Some(validity.boxed()),
+                    Some(validity.into_array()),
                 )))
             })
         } else {

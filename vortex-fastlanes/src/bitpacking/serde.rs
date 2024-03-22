@@ -26,7 +26,7 @@ impl EncodingSerde for BitPackedEncoding {
         Ok(
             BitPackedArray::try_new(encoded, validity, patches, bit_width, dtype, len)
                 .unwrap()
-                .boxed(),
+                .into_array(),
         )
     }
 }

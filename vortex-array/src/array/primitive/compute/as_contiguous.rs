@@ -1,7 +1,7 @@
 use crate::array::bool::BoolArray;
 use crate::array::downcast::DowncastArrayBuiltin;
 use crate::array::primitive::PrimitiveArray;
-use crate::array::{Array, ArrayRef, CloneOptionalArray};
+use crate::array::{Array, ArrayRef};
 use crate::compute::as_contiguous::{as_contiguous, AsContiguousFn};
 use crate::error::{VortexError, VortexResult};
 use crate::match_each_native_ptype;
@@ -31,8 +31,8 @@ impl AsContiguousFn for PrimitiveArray {
                     .map(|a| {
                         a.as_primitive()
                             .validity()
-                            .clone_optional()
-                            .unwrap_or_else(|| BoolArray::from(vec![true; a.len()]).boxed())
+                            .cloned()
+                            .unwrap_or_else(|| BoolArray::from(vec![true; a.len()]).into_array())
                     })
                     .collect_vec(),
             )?)
@@ -42,7 +42,7 @@ impl AsContiguousFn for PrimitiveArray {
             PrimitiveArray::from_nullable_in(
                 native_primitive_as_contiguous(arrays.iter().map(|a| a.as_primitive().typed_data::<$P>()).collect()),
                 validity,
-            ).boxed()
+            ).into_array()
         }))
     }
 }

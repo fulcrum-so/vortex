@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::sync::{Arc, RwLock};
 
 use itertools::Itertools;
@@ -8,6 +7,7 @@ use vortex_schema::{DType, FieldNames};
 use crate::compress::EncodingCompression;
 use crate::error::VortexResult;
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
+use crate::impl_array;
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsCompute, StatsSet};
 
@@ -61,20 +61,7 @@ impl StructArray {
 }
 
 impl Array for StructArray {
-    #[inline]
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    #[inline]
-    fn boxed(self) -> ArrayRef {
-        Box::new(self)
-    }
-
-    #[inline]
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
+    impl_array!();
 
     fn len(&self) -> usize {
         self.fields.first().map_or(0, |a| a.len())
@@ -108,7 +95,7 @@ impl Array for StructArray {
             dtype: self.dtype.clone(),
             stats: Arc::new(RwLock::new(StatsSet::new())),
         }
-        .boxed())
+        .into_array())
     }
 
     #[inline]
@@ -122,12 +109,6 @@ impl Array for StructArray {
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
         Some(self)
-    }
-}
-
-impl<'arr> AsRef<(dyn Array + 'arr)> for StructArray {
-    fn as_ref(&self) -> &(dyn Array + 'arr) {
-        self
     }
 }
 

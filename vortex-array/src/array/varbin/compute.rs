@@ -10,7 +10,7 @@ use crate::array::bool::BoolArray;
 use crate::array::downcast::DowncastArrayBuiltin;
 use crate::array::primitive::PrimitiveArray;
 use crate::array::varbin::VarBinArray;
-use crate::array::{Array, ArrayRef, CloneOptionalArray};
+use crate::array::{Array, ArrayRef};
 use crate::arrow::wrappers::{as_nulls, as_offset_buffer};
 use crate::compute::as_arrow::AsArrowArray;
 use crate::compute::as_contiguous::{as_contiguous, AsContiguousFn};
@@ -55,8 +55,8 @@ impl AsContiguousFn for VarBinArray {
                 .map(|a| {
                     a.as_varbin()
                         .validity()
-                        .clone_optional()
-                        .unwrap_or_else(|| BoolArray::from(vec![true; a.len()]).boxed())
+                        .cloned()
+                        .unwrap_or_else(|| BoolArray::from(vec![true; a.len()]).into_array())
                 })
                 .collect_vec(),
         )?;
@@ -76,9 +76,9 @@ impl AsContiguousFn for VarBinArray {
             );
         }
 
-        let offsets_array = PrimitiveArray::from(offsets).boxed();
+        let offsets_array = PrimitiveArray::from(offsets).into_array();
 
-        Ok(VarBinArray::new(offsets_array, bytes, self.dtype.clone(), Some(validity)).boxed())
+        Ok(VarBinArray::new(offsets_array, bytes, self.dtype.clone(), Some(validity)).into_array())
     }
 }
 
@@ -89,8 +89,11 @@ impl AsArrowArray for VarBinArray {
         let offsets = match offsets.ptype() {
             &PType::I32 | &PType::I64 => offsets,
             // Unless it's u64, everything else can be converted into an i32.
-            &PType::U64 => flatten_primitive(cast(offsets.as_ref(), &PType::I64.into())?.as_ref())?,
-            _ => flatten_primitive(cast(offsets.as_ref(), &PType::I32.into())?.as_ref())?,
+            // FIXME(ngates): do not copy offsets again
+            &PType::U64 => {
+                flatten_primitive(cast(&offsets.to_array(), &PType::I64.into())?.as_ref())?
+            }
+            _ => flatten_primitive(cast(&offsets.to_array(), &PType::I32.into())?.as_ref())?,
         };
         let nulls = as_nulls(offsets.validity())?;
 

@@ -1,10 +1,10 @@
-use std::any::Any;
 use std::sync::{Arc, RwLock};
 
 use vortex::array::{Array, ArrayKind, ArrayRef, Encoding, EncodingId, EncodingRef};
 use vortex::compress::EncodingCompression;
 use vortex::error::{VortexError, VortexResult};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
+use vortex::impl_array;
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stats, StatsSet};
 use vortex_schema::{DType, Signedness};
@@ -39,31 +39,18 @@ impl ZigZagArray {
 
     pub fn encode(array: &dyn Array) -> VortexResult<ArrayRef> {
         match ArrayKind::from(array) {
-            ArrayKind::Primitive(p) => Ok(zigzag_encode(p)?.boxed()),
+            ArrayKind::Primitive(p) => Ok(zigzag_encode(p)?.into_array()),
             _ => Err(VortexError::InvalidEncoding(array.encoding().id().clone())),
         }
     }
 
-    pub fn encoded(&self) -> &dyn Array {
-        self.encoded.as_ref()
+    pub fn encoded(&self) -> &ArrayRef {
+        &self.encoded
     }
 }
 
 impl Array for ZigZagArray {
-    #[inline]
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    #[inline]
-    fn boxed(self) -> ArrayRef {
-        Box::new(self)
-    }
-
-    #[inline]
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
+    impl_array!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -86,7 +73,7 @@ impl Array for ZigZagArray {
     }
 
     fn slice(&self, start: usize, stop: usize) -> VortexResult<ArrayRef> {
-        Ok(Self::try_new(self.encoded.slice(start, stop)?)?.boxed())
+        Ok(Self::try_new(self.encoded.slice(start, stop)?)?.into_array())
     }
 
     #[inline]
@@ -101,12 +88,6 @@ impl Array for ZigZagArray {
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
         Some(self)
-    }
-}
-
-impl<'arr> AsRef<(dyn Array + 'arr)> for ZigZagArray {
-    fn as_ref(&self) -> &(dyn Array + 'arr) {
-        self
     }
 }
 

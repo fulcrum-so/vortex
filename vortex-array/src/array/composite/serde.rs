@@ -25,6 +25,6 @@ impl EncodingSerde for CompositeEncoding {
         let underling_dtype = ctx.dtype()?;
         let underlying = ctx.with_schema(&underling_dtype).read()?;
 
-        Ok(CompositeArray::new(id, Arc::new(metadata), underlying).boxed())
+        Ok(CompositeArray::new(id, Arc::new(metadata), underlying).into_array())
     }
 }

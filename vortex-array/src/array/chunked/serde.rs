@@ -21,7 +21,7 @@ impl EncodingSerde for ChunkedEncoding {
         for _ in 0..chunk_len {
             chunks.push(ctx.read()?);
         }
-        Ok(ChunkedArray::new(chunks, ctx.schema().clone()).boxed())
+        Ok(ChunkedArray::new(chunks, ctx.schema().clone()).into_array())
     }
 }
 
@@ -38,13 +38,13 @@ mod test {
     fn roundtrip() {
         let arr = ChunkedArray::new(
             vec![
-                PrimitiveArray::from_iter(vec![Some(0), None, Some(2), Some(42)]).boxed(),
-                PrimitiveArray::from_iter(vec![Some(5), None, Some(7), Some(42)]).boxed(),
+                PrimitiveArray::from_iter(vec![Some(0), None, Some(2), Some(42)]).into_array(),
+                PrimitiveArray::from_iter(vec![Some(5), None, Some(7), Some(42)]).into_array(),
             ],
             DType::Int(IntWidth::_32, Signedness::Signed, Nullability::Nullable),
         );
 
-        let read_arr = roundtrip_array(arr.as_ref()).unwrap();
+        let read_arr = roundtrip_array(&arr).unwrap();
 
         for (i, chunk) in arr.chunks().iter().enumerate() {
             assert_eq!(

@@ -40,8 +40,8 @@ impl<M: CompositeMetadata> TypedCompositeArray<M> {
     }
 
     #[inline]
-    pub fn underlying(&self) -> &dyn Array {
-        self.underlying.as_ref()
+    pub fn underlying(&self) -> &ArrayRef {
+        &self.underlying
     }
 
     #[inline]
@@ -53,7 +53,7 @@ impl<M: CompositeMetadata> TypedCompositeArray<M> {
         CompositeArray::new(
             self.metadata().id(),
             Arc::new(self.metadata().serialize()),
-            dyn_clone::clone_box(self.underlying()),
+            self.underlying().clone(),
         )
     }
 }

@@ -1,46 +1,14 @@
 use std::sync::Arc;
 
-use arrow_array::RecordBatch;
 use arrow_schema::TimeUnit as ArrowTimeUnit;
 use arrow_schema::{DataType, Field, SchemaRef};
 use itertools::Itertools;
 use vortex_schema::{DType, FloatWidth, IntWidth, Nullability};
 
-use crate::array::struct_::StructArray;
-use crate::array::{Array, ArrayRef};
 use crate::arrow::FromArrowType;
-use crate::compute::cast::cast;
 use crate::datetime::{LocalDateTimeExtension, TimeUnit};
-use crate::encode::FromArrowArray;
 use crate::error::{VortexError, VortexResult};
 use crate::ptype::PType;
-
-impl From<RecordBatch> for ArrayRef {
-    fn from(value: RecordBatch) -> Self {
-        StructArray::new(
-            value
-                .schema()
-                .fields()
-                .iter()
-                .map(|f| f.name())
-                .map(|s| s.to_owned())
-                .map(Arc::new)
-                .collect(),
-            value
-                .columns()
-                .iter()
-                .zip(value.schema().fields())
-                .map(|(array, field)| {
-                    // The dtype of the child arrays infer their nullability from the array itself.
-                    // In case the schema says something different, we cast into the schema's dtype.
-                    let vortex_array = ArrayRef::from_arrow(array.clone(), field.is_nullable());
-                    cast(vortex_array.as_ref(), &DType::from_arrow(field.as_ref())).unwrap()
-                })
-                .collect(),
-        )
-        .boxed()
-    }
-}
 
 impl TryFrom<&DataType> for PType {
     type Error = VortexError;

@@ -1,9 +1,9 @@
+use arrow_array::RecordBatchReader;
 use std::collections::HashSet;
 use std::fs::{create_dir_all, File};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use arrow_array::RecordBatchReader;
 use itertools::Itertools;
 use log::{info, warn};
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
@@ -19,6 +19,7 @@ use vortex::array::sparse::SparseEncoding;
 use vortex::array::struct_::StructEncoding;
 use vortex::array::varbin::VarBinEncoding;
 use vortex::array::varbinview::VarBinViewEncoding;
+use vortex::array::IntoArray;
 use vortex::array::{Array, ArrayRef, Encoding};
 use vortex::arrow::FromArrowType;
 use vortex::compress::{CompressConfig, CompressCtx};
@@ -113,15 +114,15 @@ pub fn compress_taxi_data() -> ArrayRef {
         //.skip(39)
         //.take(1)
         .map(|batch_result| batch_result.unwrap())
-        .map(ArrayRef::from)
+        .map(|batch| batch.into_array())
         .map(|array| {
             uncompressed_size += array.nbytes();
-            ctx.clone().compress(array.as_ref(), None).unwrap()
+            ctx.clone().compress(&array, None).unwrap()
         })
         .collect_vec();
 
     let dtype = DType::from_arrow(schema.clone());
-    let compressed = ChunkedArray::new(chunks.clone(), dtype).boxed();
+    let compressed = ChunkedArray::new(chunks.clone(), dtype).into_array();
 
     warn!("Compressed array {}", display_tree(compressed.as_ref()));
 

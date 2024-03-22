@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::sync::{Arc, RwLock};
 
 use itertools::Itertools;
@@ -10,6 +9,7 @@ use crate::array::{
 };
 use crate::error::{VortexError, VortexResult};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
+use crate::impl_array;
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsSet};
 
@@ -87,20 +87,7 @@ impl ChunkedArray {
 }
 
 impl Array for ChunkedArray {
-    #[inline]
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    #[inline]
-    fn boxed(self) -> ArrayRef {
-        Box::new(self)
-    }
-
-    #[inline]
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
+    impl_array!();
 
     fn len(&self) -> usize {
         *self.chunk_ends.last().unwrap_or(&0usize)
@@ -133,7 +120,7 @@ impl Array for ChunkedArray {
                     vec![chunk.slice(offset_in_first_chunk, length_in_last_chunk)?],
                     self.dtype.clone(),
                 )
-                .boxed());
+                .into_array());
             }
         }
 
@@ -148,7 +135,7 @@ impl Array for ChunkedArray {
             *c = c.slice(0, length_in_last_chunk)?;
         }
 
-        Ok(ChunkedArray::new(chunks, self.dtype.clone()).boxed())
+        Ok(ChunkedArray::new(chunks, self.dtype.clone()).into_array())
     }
 
     #[inline]
@@ -173,12 +160,6 @@ impl FromIterator<ArrayRef> for ChunkedArray {
             .map(|c| c.dtype().clone())
             .expect("Cannot create a chunked array from an empty iterator");
         Self::new(chunks, dtype)
-    }
-}
-
-impl<'arr> AsRef<(dyn Array + 'arr)> for ChunkedArray {
-    fn as_ref(&self) -> &(dyn Array + 'arr) {
-        self
     }
 }
 
@@ -217,15 +198,16 @@ mod test {
     use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 
     use crate::array::chunked::ChunkedArray;
+    use crate::array::IntoArray;
     use crate::compute::flatten::{flatten, flatten_primitive, FlattenedArray};
     use crate::ptype::NativePType;
 
     fn chunked_array() -> ChunkedArray {
         ChunkedArray::new(
             vec![
-                vec![1u64, 2, 3].into(),
-                vec![4u64, 5, 6].into(),
-                vec![7u64, 8, 9].into(),
+                vec![1u64, 2, 3].into_array(),
+                vec![4u64, 5, 6].into_array(),
+                vec![7u64, 8, 9].into_array(),
             ],
             DType::Int(
                 IntWidth::_64,
@@ -236,7 +218,7 @@ mod test {
     }
 
     fn assert_equal_slices<T: NativePType>(arr: ArrayRef, slice: &[T]) {
-        let FlattenedArray::Chunked(chunked) = flatten(arr.as_ref()).unwrap() else {
+        let FlattenedArray::Chunked(chunked) = flatten(&arr).unwrap() else {
             unreachable!()
         };
         let mut values = Vec::with_capacity(arr.len());

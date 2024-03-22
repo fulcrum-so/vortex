@@ -1,4 +1,5 @@
 use itertools::Itertools;
+
 use vortex::array::downcast::DowncastArrayBuiltin;
 use vortex::array::primitive::{PrimitiveArray, PrimitiveEncoding};
 use vortex::array::{Array, ArrayRef, Encoding};
@@ -45,11 +46,11 @@ impl EncodingCompression for REEEncoding {
         let (ends, values) = ree_encode(primitive_array);
         let compressed_ends = ctx
             .auxiliary("ends")
-            .compress(ends.as_ref(), ree_like.map(|ree| ree.ends()))?;
+            .compress(&ends, ree_like.map(|ree| ree.ends()))?;
         let compressed_values = ctx
             .named("values")
             .excluding(&REEEncoding::ID)
-            .compress(values.as_ref(), ree_like.map(|ree| ree.values()))?;
+            .compress(&values, ree_like.map(|ree| ree.values()))?;
 
         Ok(REEArray::new(
             compressed_ends,
@@ -60,7 +61,7 @@ impl EncodingCompression for REEEncoding {
                 .transpose()?,
             array.len(),
         )
-        .boxed())
+        .into_array())
     }
 }
 
@@ -140,7 +141,8 @@ mod test {
     use vortex::array::bool::BoolArray;
     use vortex::array::downcast::DowncastArrayBuiltin;
     use vortex::array::primitive::PrimitiveArray;
-    use vortex::array::{Array, CloneOptionalArray};
+    use vortex::array::Array;
+    use vortex::array::IntoArray;
 
     use crate::compress::{ree_decode, ree_encode};
     use crate::REEArray;
@@ -175,16 +177,16 @@ mod test {
             BoolArray::from(validity)
         };
         let arr = REEArray::new(
-            vec![2u32, 5, 10].into(),
-            vec![1i32, 2, 3].into(),
-            Some(validity.boxed()),
+            vec![2u32, 5, 10].into_array(),
+            vec![1i32, 2, 3].into_array(),
+            Some(validity.into_array()),
             10,
         );
 
         let decoded = ree_decode(
             arr.ends().as_primitive(),
             arr.values().as_primitive(),
-            arr.validity().clone_optional(),
+            arr.validity().cloned(),
         )
         .unwrap();
 

@@ -1,7 +1,7 @@
 use vortex::array::composite::CompositeEncoding;
 use vortex::array::downcast::DowncastArrayBuiltin;
 use vortex::array::primitive::PrimitiveArray;
-use vortex::array::{Array, ArrayRef, CloneOptionalArray};
+use vortex::array::{Array, ArrayRef};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
 use vortex::compute::cast::cast;
 use vortex::compute::flatten::flatten_primitive;
@@ -74,16 +74,14 @@ fn compress_localdatetime(
     Ok(DateTimeArray::new(
         ctx.named("days")
             .compress(&PrimitiveArray::from(days), like.map(|l| l.days()))?,
-        ctx.named("seconds").compress(
-            PrimitiveArray::from(seconds).as_ref(),
-            like.map(|l| l.seconds()),
-        )?,
+        ctx.named("seconds")
+            .compress(&PrimitiveArray::from(seconds), like.map(|l| l.seconds()))?,
         ctx.named("subsecond").compress(
-            PrimitiveArray::from(subsecond).as_ref(),
+            &PrimitiveArray::from(subsecond),
             like.map(|l| l.subsecond()),
         )?,
-        underlying.validity().clone_optional(),
+        underlying.validity().cloned(),
         LocalDateTimeExtension::dtype(underlying.validity().is_some().into()),
     )
-    .boxed())
+    .into_array())
 }

@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::sync::{Arc, RwLock};
 
 use linkme::distributed_slice;
@@ -9,6 +8,7 @@ use crate::array::{
 };
 use crate::error::VortexResult;
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
+use crate::impl_array;
 use crate::scalar::Scalar;
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stat, Stats, StatsSet};
@@ -49,20 +49,7 @@ impl ConstantArray {
 }
 
 impl Array for ConstantArray {
-    #[inline]
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    #[inline]
-    fn boxed(self) -> ArrayRef {
-        Box::new(self)
-    }
-
-    #[inline]
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
+    impl_array!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -87,7 +74,7 @@ impl Array for ConstantArray {
     fn slice(&self, start: usize, stop: usize) -> VortexResult<ArrayRef> {
         check_slice_bounds(self, start, stop)?;
 
-        Ok(ConstantArray::new(self.scalar.clone(), stop - start).boxed())
+        Ok(ConstantArray::new(self.scalar.clone(), stop - start).into_array())
     }
 
     #[inline]
@@ -102,12 +89,6 @@ impl Array for ConstantArray {
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
         Some(self)
-    }
-}
-
-impl<'arr> AsRef<(dyn Array + 'arr)> for ConstantArray {
-    fn as_ref(&self) -> &(dyn Array + 'arr) {
-        self
     }
 }
 

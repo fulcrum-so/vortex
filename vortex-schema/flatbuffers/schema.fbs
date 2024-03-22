@@ -1,0 +1,94 @@
+enum Nullability: byte {
+    NonNullable,
+    Nullable,
+}
+
+enum Signedness: byte {
+    Signed,
+    Unsigned,
+    Unknown,
+}
+
+enum IntWidth: byte {
+    Unknown,
+    _8,
+    _16,
+    _32,
+    _64,
+}
+
+enum FloatWidth: byte {
+    Unknown,
+    _16,
+    _32,
+    _64,
+}
+
+table Null {}
+
+table Bool {
+    nullability: Nullability;
+}
+
+table Int {
+    width: IntWidth = Unknown;
+    signedness: Signedness = Unknown;
+    nullability: Nullability;
+}
+
+table Decimal {
+    /// Total number of decimal digits
+    precision: ubyte;
+
+    /// Number of digits after the decimal point "."
+    scale: byte;
+    nullability: Nullability;
+}
+
+table Float {
+    width: FloatWidth = Unknown;
+    nullability: Nullability;
+}
+
+table Utf8 {
+    nullability: Nullability;
+
+}
+
+table Binary {
+    nullability: Nullability;
+}
+
+table Struct_ {
+    names: [string];
+    fields: [DType];
+}
+
+table List {
+    element_type: DType;
+    nullability: Nullability;
+}
+
+table Composite {
+    id: string;
+    nullability: Nullability;
+}
+
+union Type {
+    Null,
+    Bool,
+    Int,
+    Decimal,
+    Float,
+    Utf8,
+    Binary,
+    Struct_,
+    List,
+    Composite,
+}
+
+table DType {
+  type: Type;
+}
+
+root_type DType;

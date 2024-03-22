@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
+use std::sync::Arc;
 
 use linkme::distributed_slice;
 use vortex_schema::{DType, Nullability};
@@ -15,9 +16,18 @@ use crate::array::struct_::{StructArray, StructEncoding};
 use crate::array::varbin::{VarBinArray, VarBinEncoding};
 use crate::array::varbinview::{VarBinViewArray, VarBinViewEncoding};
 use crate::compress::EncodingCompression;
+use crate::compute::as_arrow::AsArrowArray;
+use crate::compute::as_contiguous::AsContiguousFn;
+use crate::compute::cast::CastFn;
+use crate::compute::fill::FillForwardFn;
+use crate::compute::flatten::FlattenFn;
+use crate::compute::patch::PatchFn;
+use crate::compute::scalar_at::ScalarAtFn;
+use crate::compute::search_sorted::SearchSortedFn;
+use crate::compute::take::TakeFn;
 use crate::compute::ArrayCompute;
 use crate::error::{VortexError, VortexResult};
-use crate::formatter::ArrayDisplay;
+use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::Stats;
 
@@ -32,9 +42,9 @@ pub mod struct_;
 pub mod varbin;
 pub mod varbinview;
 
-pub type ArrayRef = Box<dyn Array>;
+pub type ArrayRef = Arc<dyn Array>;
 
-/// An Enc Array is the base object representing all arrays in enc.
+/// A Vortex Array is the base object representing all arrays in enc.
 ///
 /// Arrays have a dtype and an encoding. DTypes represent the logical type of the
 /// values stored in a vortex array. Encodings represent the physical layout of the
@@ -42,13 +52,14 @@ pub type ArrayRef = Box<dyn Array>;
 ///
 /// This differs from Apache Arrow where logical and physical are combined in
 /// the data type, e.g. LargeString, RunEndEncoded.
-pub trait Array: ArrayDisplay + ArrayCompute + Debug + Send + Sync + dyn_clone::DynClone {
+pub trait Array: ArrayCompute + ArrayDisplay + Debug + Send + Sync {
     /// Converts itself to a reference of [`Any`], which enables downcasting to concrete types.
     fn as_any(&self) -> &dyn Any;
-    /// Move an owned array to `ArrayRef`
-    fn boxed(self) -> ArrayRef;
-    /// Convert boxed array into `Box<dyn Any>`
-    fn into_any(self: Box<Self>) -> Box<dyn Any>;
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
+    fn to_array(&self) -> ArrayRef;
+    fn into_array(self) -> ArrayRef;
+    fn compute(&self) -> &dyn ArrayCompute;
+
     /// Get the length of the array
     fn len(&self) -> usize;
     /// Check whether the array is empty
@@ -69,15 +80,136 @@ pub trait Array: ArrayDisplay + ArrayCompute + Debug + Send + Sync + dyn_clone::
     }
 }
 
-dyn_clone::clone_trait_object!(Array);
-
-pub trait CloneOptionalArray {
-    fn clone_optional(&self) -> Option<ArrayRef>;
+pub trait IntoArray {
+    fn into_array(self) -> ArrayRef;
 }
 
-impl CloneOptionalArray for Option<&dyn Array> {
-    fn clone_optional(&self) -> Option<ArrayRef> {
-        self.map(dyn_clone::clone_box)
+#[macro_export]
+macro_rules! impl_array {
+    () => {
+        #[inline]
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+
+        #[inline]
+        fn into_any(self: Arc<Self>) -> std::sync::Arc<dyn std::any::Any + Send + Sync> {
+            self
+        }
+
+        #[inline]
+        fn to_array(&self) -> ArrayRef {
+            self.clone().into_array()
+        }
+
+        #[inline]
+        fn into_array(self) -> ArrayRef {
+            std::sync::Arc::new(self)
+        }
+
+        fn compute(&self) -> &dyn $crate::compute::ArrayCompute {
+            self.as_any().downcast_ref::<Self>().unwrap()
+        }
+    };
+}
+
+pub use impl_array;
+
+impl ArrayCompute for ArrayRef {
+    fn as_arrow(&self) -> Option<&dyn AsArrowArray> {
+        self.as_ref().as_arrow()
+    }
+
+    fn as_contiguous(&self) -> Option<&dyn AsContiguousFn> {
+        self.as_ref().as_contiguous()
+    }
+
+    fn cast(&self) -> Option<&dyn CastFn> {
+        self.as_ref().cast()
+    }
+
+    fn flatten(&self) -> Option<&dyn FlattenFn> {
+        self.as_ref().flatten()
+    }
+
+    fn fill_forward(&self) -> Option<&dyn FillForwardFn> {
+        self.as_ref().fill_forward()
+    }
+
+    fn patch(&self) -> Option<&dyn PatchFn> {
+        self.as_ref().patch()
+    }
+
+    fn scalar_at(&self) -> Option<&dyn ScalarAtFn> {
+        self.as_ref().scalar_at()
+    }
+
+    fn search_sorted(&self) -> Option<&dyn SearchSortedFn> {
+        self.as_ref().search_sorted()
+    }
+
+    fn take(&self) -> Option<&dyn TakeFn> {
+        self.as_ref().take()
+    }
+}
+
+impl Array for ArrayRef {
+    fn as_any(&self) -> &dyn Any {
+        self.as_ref().as_any()
+    }
+
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
+        self
+    }
+
+    fn to_array(&self) -> ArrayRef {
+        self.as_ref().to_array()
+    }
+
+    fn into_array(self) -> ArrayRef {
+        self
+    }
+
+    fn compute(&self) -> &dyn ArrayCompute {
+        self.as_ref().compute()
+    }
+
+    fn len(&self) -> usize {
+        self.as_ref().len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.as_ref().is_empty()
+    }
+
+    fn dtype(&self) -> &DType {
+        self.as_ref().dtype()
+    }
+
+    fn stats(&self) -> Stats {
+        self.as_ref().stats()
+    }
+
+    fn slice(&self, start: usize, stop: usize) -> VortexResult<ArrayRef> {
+        self.as_ref().slice(start, stop)
+    }
+
+    fn encoding(&self) -> &'static dyn Encoding {
+        self.as_ref().encoding()
+    }
+
+    fn nbytes(&self) -> usize {
+        self.as_ref().nbytes()
+    }
+
+    fn serde(&self) -> Option<&dyn ArraySerde> {
+        self.as_ref().serde()
+    }
+}
+
+impl ArrayDisplay for ArrayRef {
+    fn fmt(&self, fmt: &'_ mut ArrayFormatter) -> std::fmt::Result {
+        ArrayDisplay::fmt(self.as_ref(), fmt)
     }
 }
 
@@ -91,10 +223,7 @@ pub fn check_slice_bounds(array: &dyn Array, start: usize, stop: usize) -> Vorte
     Ok(())
 }
 
-pub fn check_validity_buffer(
-    validity: Option<&dyn Array>,
-    expected_len: usize,
-) -> VortexResult<()> {
+pub fn check_validity_buffer(validity: Option<&ArrayRef>, expected_len: usize) -> VortexResult<()> {
     if let Some(v) = validity {
         if !matches!(v.dtype(), DType::Bool(Nullability::NonNullable)) {
             return Err(VortexError::MismatchedTypes(
@@ -116,12 +245,6 @@ pub fn check_validity_buffer(
     }
 
     Ok(())
-}
-
-impl<'a> AsRef<(dyn Array + 'a)> for dyn Array {
-    fn as_ref(&self) -> &(dyn Array + 'a) {
-        self
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -200,7 +323,7 @@ impl<'a> From<&'a dyn Array> for ArrayKind<'a> {
     }
 }
 
-impl Display for dyn Array {
+impl Display for dyn Array + '_ {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,

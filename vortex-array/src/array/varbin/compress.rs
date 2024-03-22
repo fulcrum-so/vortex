@@ -28,7 +28,7 @@ impl EncodingCompression for VarBinEncoding {
         Ok(VarBinArray::new(
             ctx.auxiliary("offsets")
                 .compress(vb.offsets(), vblike.map(|l| l.offsets()))?,
-            dyn_clone::clone_box(vb.bytes()),
+            vb.bytes().clone(),
             vb.dtype().clone(),
             vb.validity()
                 .map(|v| {
@@ -37,6 +37,6 @@ impl EncodingCompression for VarBinEncoding {
                 })
                 .transpose()?,
         )
-        .boxed())
+        .into_array())
     }
 }

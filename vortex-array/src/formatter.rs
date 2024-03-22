@@ -3,7 +3,7 @@ use std::fmt::{Display, Write};
 
 use humansize::{format_size, DECIMAL};
 
-use crate::array::Array;
+use crate::array::{Array, ArrayRef};
 
 pub trait ArrayDisplay {
     fn fmt(&self, fmt: &'_ mut ArrayFormatter) -> fmt::Result;
@@ -67,7 +67,7 @@ impl<'a, 'b: 'a> ArrayFormatter<'a, 'b> {
         self.indent(|indent| ArrayDisplay::fmt(array, indent))
     }
 
-    pub fn maybe_child(&mut self, name: &str, array: Option<&dyn Array>) -> fmt::Result {
+    pub fn maybe_child(&mut self, name: &str, array: Option<&ArrayRef>) -> fmt::Result {
         if let Some(array) = array {
             self.child(&format!("{}?", name), array)
         } else {
@@ -101,11 +101,12 @@ impl<'a, 'b: 'a> ArrayFormatter<'a, 'b> {
 #[cfg(test)]
 mod test {
     use crate::array::ArrayRef;
+    use crate::array::IntoArray;
     use crate::formatter::display_tree;
 
     #[test]
     fn display_primitive() {
-        let arr: ArrayRef = (0..100).collect::<Vec<i32>>().into();
+        let arr: ArrayRef = (0..100).collect::<Vec<i32>>().into_array();
         assert_eq!(
             format!("{}", arr),
             "vortex.primitive(signed_int(32), len=100)"
@@ -114,7 +115,7 @@ mod test {
 
     #[test]
     fn tree_display_primitive() {
-        let arr: ArrayRef = (0..100).collect::<Vec<i32>>().into();
-        assert_eq!(display_tree(arr.as_ref()), "root: vortex.primitive(signed_int(32), len=100) nbytes=400 B (100.00%)\n  values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]...\n  validity: None\n")
+        let arr: ArrayRef = (0..100).collect::<Vec<i32>>().into_array();
+        assert_eq!(display_tree(&arr), "root: vortex.primitive(signed_int(32), len=100) nbytes=400 B (100.00%)\n  values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]...\n  validity: None\n")
     }
 }

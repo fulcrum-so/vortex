@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::sync::{Arc, RwLock};
 
 use vortex::array::{check_validity_buffer, Array, ArrayRef, Encoding, EncodingId, EncodingRef};
@@ -6,6 +5,7 @@ use vortex::compress::EncodingCompression;
 use vortex::compute::scalar_at::scalar_at;
 use vortex::error::VortexResult;
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
+use vortex::impl_array;
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stat, Stats, StatsCompute, StatsSet};
 use vortex_schema::DType;
@@ -35,7 +35,7 @@ impl BitPackedArray {
         len: usize,
     ) -> VortexResult<Self> {
         let validity = validity.filter(|v| !v.is_empty());
-        check_validity_buffer(validity.as_deref(), len)?;
+        check_validity_buffer(validity.as_ref(), len)?;
 
         // TODO(ngates): check encoded has type u8
 
@@ -51,8 +51,8 @@ impl BitPackedArray {
     }
 
     #[inline]
-    pub fn encoded(&self) -> &dyn Array {
-        self.encoded.as_ref()
+    pub fn encoded(&self) -> &ArrayRef {
+        &self.encoded
     }
 
     #[inline]
@@ -61,13 +61,13 @@ impl BitPackedArray {
     }
 
     #[inline]
-    pub fn validity(&self) -> Option<&dyn Array> {
-        self.validity.as_deref()
+    pub fn validity(&self) -> Option<&ArrayRef> {
+        self.validity.as_ref()
     }
 
     #[inline]
-    pub fn patches(&self) -> Option<&dyn Array> {
-        self.patches.as_deref()
+    pub fn patches(&self) -> Option<&ArrayRef> {
+        self.patches.as_ref()
     }
 
     pub fn is_valid(&self, index: usize) -> bool {
@@ -78,20 +78,7 @@ impl BitPackedArray {
 }
 
 impl Array for BitPackedArray {
-    #[inline]
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    #[inline]
-    fn boxed(self) -> ArrayRef {
-        Box::new(self)
-    }
-
-    #[inline]
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
+    impl_array!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -133,12 +120,6 @@ impl Array for BitPackedArray {
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
         Some(self)
-    }
-}
-
-impl<'arr> AsRef<(dyn Array + 'arr)> for BitPackedArray {
-    fn as_ref(&self) -> &(dyn Array + 'arr) {
-        self
     }
 }
 

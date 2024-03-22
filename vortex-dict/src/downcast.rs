@@ -14,9 +14,9 @@ pub trait DowncastDict: private::Sealed {
     }
 }
 
-impl private::Sealed for dyn Array {}
+impl private::Sealed for dyn Array + '_ {}
 
-impl DowncastDict for dyn Array {
+impl DowncastDict for dyn Array + '_ {
     fn maybe_dict(&self) -> Option<&DictArray> {
         self.as_any().downcast_ref()
     }

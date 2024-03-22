@@ -3,7 +3,7 @@ use crate::array::{Array, ArrayRef};
 use crate::scalar::Scalar;
 
 pub fn repeat(scalar: &Scalar, n: usize) -> ArrayRef {
-    ConstantArray::new(scalar.clone(), n).boxed()
+    ConstantArray::new(scalar.clone(), n).into_array()
 }
 
 #[cfg(test)]

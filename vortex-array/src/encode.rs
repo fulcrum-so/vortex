@@ -28,31 +28,36 @@ use crate::array::constant::ConstantArray;
 use crate::array::primitive::PrimitiveArray;
 use crate::array::struct_::StructArray;
 use crate::array::varbin::VarBinArray;
+use crate::array::IntoArray;
 use crate::array::{Array, ArrayRef};
 use crate::datetime::{LocalDateTime, LocalDateTimeArray};
 use crate::ptype::PType;
 use crate::scalar::NullScalar;
+use crate::stats::Stat;
 
 pub trait FromArrowArray<A> {
     fn from_arrow(array: A, nullable: bool) -> Self;
 }
 
-impl From<&Buffer> for ArrayRef {
-    fn from(value: &Buffer) -> Self {
-        PrimitiveArray::new(PType::U8, value.to_owned(), None).boxed()
+impl IntoArray for Buffer {
+    fn into_array(self) -> ArrayRef {
+        PrimitiveArray::new(PType::U8, self.to_owned(), None).into_array()
     }
 }
 
-impl From<&NullBuffer> for ArrayRef {
-    fn from(value: &NullBuffer) -> Self {
-        BoolArray::new(value.inner().to_owned(), None).boxed()
+impl IntoArray for NullBuffer {
+    fn into_array(self) -> ArrayRef {
+        BoolArray::new(self.into_inner(), None).into_array()
     }
 }
 
-impl<O: OffsetSizeTrait> From<&OffsetBuffer<O>> for ArrayRef {
-    fn from(value: &OffsetBuffer<O>) -> Self {
+impl<O: OffsetSizeTrait> IntoArray for OffsetBuffer<O> {
+    fn into_array(self) -> ArrayRef {
         let ptype = if O::IS_LARGE { PType::I64 } else { PType::I32 };
-        PrimitiveArray::new(ptype, value.inner().inner().to_owned(), None).boxed()
+        let array = PrimitiveArray::new(ptype, self.into_inner().into_inner(), None).into_array();
+        array.stats().set(Stat::IsSorted, true.into());
+        array.stats().set(Stat::IsStrictSorted, true.into());
+        array
     }
 }
 
@@ -64,7 +69,7 @@ impl<T: ArrowPrimitiveType> FromArrowArray<&ArrowPrimitiveArray<T>> for ArrayRef
             value.values().inner().to_owned(),
             nulls(value.nulls(), nullable, value.len()),
         )
-        .boxed();
+        .into_array();
 
         if T::DATA_TYPE.is_numeric() {
             return arr;
@@ -76,7 +81,7 @@ impl<T: ArrowPrimitiveType> FromArrowArray<&ArrowPrimitiveArray<T>> for ArrayRef
                 // Therefore, we must treat it as a LocalDateTime and not an Instant.
                 None => LocalDateTimeArray::new(LocalDateTime::new((&time_unit).into()), arr)
                     .as_composite()
-                    .boxed(),
+                    .into_array(),
                 Some(_tz) => todo!(),
             },
             DataType::Date32 => todo!(),
@@ -98,12 +103,12 @@ impl<T: ByteArrayType> FromArrowArray<&GenericByteArray<T>> for ArrayRef {
             _ => panic!("Invalid data type for ByteArray"),
         };
         VarBinArray::new(
-            value.offsets().into(),
-            value.values().into(),
+            value.offsets().clone().into_array(),
+            value.values().clone().into_array(),
             dtype,
             nulls(value.nulls(), nullable, value.len()),
         )
-        .boxed()
+        .into_array()
     }
 }
 
@@ -113,7 +118,7 @@ impl FromArrowArray<&ArrowBooleanArray> for ArrayRef {
             value.values().to_owned(),
             nulls(value.nulls(), nullable, value.len()),
         )
-        .boxed()
+        .into_array()
     }
 }
 
@@ -135,14 +140,14 @@ impl FromArrowArray<&ArrowStructArray> for ArrayRef {
                 .map(|(c, field)| ArrayRef::from_arrow(c.clone(), field.is_nullable()))
                 .collect(),
         )
-        .boxed()
+        .into_array()
     }
 }
 
 impl FromArrowArray<&ArrowNullArray> for ArrayRef {
     fn from_arrow(value: &ArrowNullArray, nullable: bool) -> Self {
         assert!(nullable);
-        ConstantArray::new(NullScalar::new().into(), value.len()).boxed()
+        ConstantArray::new(NullScalar::new().into(), value.len()).into_array()
     }
 }
 
@@ -150,8 +155,8 @@ fn nulls(nulls: Option<&NullBuffer>, nullable: bool, len: usize) -> Option<Array
     if nullable {
         Some(
             nulls
-                .map(|n| n.into())
-                .unwrap_or_else(|| ConstantArray::new(true.into(), len).boxed()),
+                .map(|n| n.clone().into_array())
+                .unwrap_or_else(|| ConstantArray::new(true.into(), len).into_array()),
         )
     } else {
         assert!(nulls.is_none());
@@ -185,7 +190,7 @@ impl FromArrowArray<ArrowArrayRef> for ArrayRef {
             DataType::Binary => ArrayRef::from_arrow(array.as_binary::<i32>(), nullable),
             DataType::LargeBinary => ArrayRef::from_arrow(array.as_binary::<i64>(), nullable),
             DataType::Struct(_) => ArrayRef::from_arrow(array.as_struct(), nullable),
-            DataType::Null => ArrayRef::from_arrow(as_null_array(array.as_ref()), nullable),
+            DataType::Null => ArrayRef::from_arrow(as_null_array(&array), nullable),
             DataType::Timestamp(u, _) => match u {
                 TimeUnit::Second => {
                     ArrayRef::from_arrow(array.as_primitive::<TimestampSecondType>(), nullable)

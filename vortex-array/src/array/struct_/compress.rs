@@ -4,7 +4,6 @@ use crate::array::{Array, ArrayRef};
 use crate::compress::{CompressConfig, CompressCtx, EncodingCompression};
 use crate::error::VortexResult;
 use itertools::Itertools;
-use std::ops::Deref;
 
 impl EncodingCompression for StructEncoding {
     fn can_compress(
@@ -29,14 +28,12 @@ impl EncodingCompression for StructEncoding {
             .iter()
             .enumerate()
             .map(|(i, chunk)| {
-                let like_chunk = struct_like
-                    .and_then(|c_like| c_like.fields().get(i))
-                    .map(Deref::deref);
+                let like_chunk = struct_like.and_then(|c_like| c_like.fields().get(i));
                 ctx.auxiliary(&format!("[{}]", i))
-                    .compress(chunk.deref(), like_chunk)
+                    .compress(chunk, like_chunk)
             })
             .try_collect()?;
 
-        Ok(StructArray::new(struct_array.names().clone(), fields).boxed())
+        Ok(StructArray::new(struct_array.names().clone(), fields).into_array())
     }
 }

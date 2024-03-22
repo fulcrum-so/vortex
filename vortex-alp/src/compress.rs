@@ -76,7 +76,7 @@ impl EncodingCompression for ALPEncoding {
             })
             .transpose()?;
 
-        Ok(ALPArray::new(compressed_encoded, exponents, compressed_patches).boxed())
+        Ok(ALPArray::new(compressed_encoded, exponents, compressed_patches).into_array())
     }
 }
 
@@ -92,14 +92,14 @@ where
     let len = values.len();
     (
         exponents,
-        PrimitiveArray::from(values).boxed(),
+        PrimitiveArray::from(values).into_array(),
         (!exc.is_empty()).then(|| {
             SparseArray::new(
-                PrimitiveArray::from(exc_pos).boxed(),
-                PrimitiveArray::from(exc).boxed(),
+                PrimitiveArray::from(exc_pos).into_array(),
+                PrimitiveArray::from(exc).into_array(),
                 len,
             )
-            .boxed()
+            .into_array()
         }),
     )
 }
@@ -116,21 +116,15 @@ pub(crate) fn alp_encode(parray: &PrimitiveArray) -> VortexResult<ALPArray> {
 pub fn decompress(array: &ALPArray) -> VortexResult<PrimitiveArray> {
     let encoded = flatten_primitive(array.encoded())?;
     let decoded = match_each_alp_float_ptype!(array.dtype().try_into().unwrap(), |$T| {
-        use vortex::array::CloneOptionalArray;
         PrimitiveArray::from_nullable(
             decompress_primitive::<$T>(encoded.typed_data(), array.exponents()),
-            encoded.validity().clone_optional(),
+            encoded.validity().cloned(),
         )
     })?;
+
     if let Some(patches) = array.patches() {
         // TODO(#121): right now, applying patches forces an extraneous copy of the array data
-        let patched = patch(&decoded, patches)?;
-        let patched_encoding_id = patched.encoding().id().clone();
-        patched
-            .into_any()
-            .downcast::<PrimitiveArray>()
-            .map_err(|_| VortexError::InvalidEncoding(patched_encoding_id))
-            .map(|boxed| *boxed)
+        flatten_primitive(&patch(&decoded, patches)?)
     } else {
         Ok(decoded)
     }

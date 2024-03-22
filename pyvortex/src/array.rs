@@ -22,7 +22,7 @@ use vortex_zigzag::{ZigZagArray, ZigZagEncoding};
 use crate::dtype::PyDType;
 use crate::error::PyVortexError;
 use crate::vortex_arrow;
-
+use std::sync::Arc;
 #[pyclass(name = "Array", module = "vortex", sequence, subclass)]
 pub struct PyArray {
     inner: ArrayRef,
@@ -33,13 +33,13 @@ macro_rules! pyarray {
         paste! {
             #[pyclass(name = $TName, module = "vortex", extends = PyArray, sequence, subclass)]
             pub struct [<Py $T>] {
-                inner: $T,
+                inner: Arc<$T>,
             }
 
            impl [<Py $T>] {
-               pub fn wrap(py: Python<'_>, inner: Box<$T>) -> PyResult<Py<Self>> {
-                   let init = PyClassInitializer::from(PyArray { inner: inner.clone() as ArrayRef })
-                        .add_subclass([<Py $T>] { inner: *inner });
+               pub fn wrap(py: Python<'_>, inner: Arc<$T>) -> PyResult<Py<Self>> {
+                   let init = PyClassInitializer::from(PyArray { inner: inner.clone() })
+                        .add_subclass([<Py $T>] { inner });
                    Py::new(py, init)
                }
 
@@ -157,8 +157,8 @@ impl PyArray {
         }
     }
 
-    pub fn unwrap(&self) -> &dyn Array {
-        self.inner.as_ref()
+    pub fn unwrap(&self) -> &ArrayRef {
+        &self.inner
     }
 }
 
@@ -198,7 +198,7 @@ impl PyRoaringBoolArray {
     fn encode(array: PyRef<'_, PyArray>) -> PyResult<Py<PyArray>> {
         RoaringBoolArray::encode(array.unwrap())
             .map_err(PyVortexError::map_err)
-            .and_then(|zarray| PyArray::wrap(array.py(), zarray.boxed()))
+            .and_then(|zarray| PyArray::wrap(array.py(), zarray.into_array()))
     }
 }
 
@@ -208,7 +208,7 @@ impl PyRoaringIntArray {
     fn encode(array: PyRef<'_, PyArray>) -> PyResult<Py<PyArray>> {
         RoaringIntArray::encode(array.unwrap())
             .map_err(PyVortexError::map_err)
-            .and_then(|zarray| PyArray::wrap(array.py(), zarray.boxed()))
+            .and_then(|zarray| PyArray::wrap(array.py(), zarray.into_array()))
     }
 }
 

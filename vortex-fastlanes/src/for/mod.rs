@@ -1,10 +1,10 @@
-use std::any::Any;
 use std::sync::{Arc, RwLock};
 
 use vortex::array::{Array, ArrayRef, Encoding, EncodingId, EncodingRef};
 use vortex::compress::EncodingCompression;
 use vortex::error::VortexResult;
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
+use vortex::impl_array;
 use vortex::scalar::Scalar;
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stat, Stats, StatsCompute, StatsSet};
@@ -34,8 +34,8 @@ impl FoRArray {
     }
 
     #[inline]
-    pub fn encoded(&self) -> &dyn Array {
-        self.encoded.as_ref()
+    pub fn encoded(&self) -> &ArrayRef {
+        &self.encoded
     }
 
     #[inline]
@@ -50,20 +50,7 @@ impl FoRArray {
 }
 
 impl Array for FoRArray {
-    #[inline]
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    #[inline]
-    fn boxed(self) -> ArrayRef {
-        Box::new(self)
-    }
-
-    #[inline]
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
+    impl_array!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -92,7 +79,7 @@ impl Array for FoRArray {
             shift: self.shift,
             stats: Arc::new(RwLock::new(StatsSet::new())),
         }
-        .boxed())
+        .into_array())
     }
 
     #[inline]
@@ -107,12 +94,6 @@ impl Array for FoRArray {
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
         Some(self)
-    }
-}
-
-impl<'arr> AsRef<(dyn Array + 'arr)> for FoRArray {
-    fn as_ref(&self) -> &(dyn Array + 'arr) {
-        self
     }
 }
 

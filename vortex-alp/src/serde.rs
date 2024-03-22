@@ -11,7 +11,7 @@ impl ArraySerde for ALPArray {
     fn write(&self, ctx: &mut WriteCtx) -> VortexResult<()> {
         ctx.write_option_tag(self.patches().is_some())?;
         if let Some(p) = self.patches() {
-            ctx.write(p.as_ref())?;
+            ctx.write(p)?;
         }
         ctx.write_fixed_slice([self.exponents().e, self.exponents().f])?;
         ctx.write(self.encoded())
@@ -44,7 +44,7 @@ impl EncodingSerde for ALPEncoding {
             },
             patches,
         )
-        .boxed())
+        .into_array())
     }
 }
 
@@ -77,7 +77,7 @@ mod test {
             0.33f64,
         ]))
         .unwrap();
-        let read_arr = roundtrip_array(arr.as_ref()).unwrap();
+        let read_arr = roundtrip_array(&arr).unwrap();
 
         let read_alp = read_arr.as_alp();
         assert_eq!(

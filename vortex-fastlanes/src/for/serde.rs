@@ -17,13 +17,16 @@ impl EncodingSerde for FoREncoding {
         let reference = ctx.scalar()?;
         let shift = ctx.read_usize()? as u8;
         let child = ctx.read()?;
-        Ok(FoRArray::try_new(child, reference, shift).unwrap().boxed())
+        Ok(FoRArray::try_new(child, reference, shift)
+            .unwrap()
+            .into_array())
     }
 }
 
 #[cfg(test)]
 mod test {
 
+    use vortex::array::IntoArray;
     use vortex::array::{Array, ArrayRef};
     use vortex::error::VortexResult;
     use vortex::scalar::Scalar;
@@ -43,11 +46,11 @@ mod test {
     #[test]
     fn roundtrip() {
         let arr = FoRArray::try_new(
-            vec![-7i64, -13, 17, 23].into(),
+            vec![-7i64, -13, 17, 23].into_array(),
             <i64 as Into<Scalar>>::into(-7i64),
             2,
         )
         .unwrap();
-        roundtrip_array(arr.as_ref()).unwrap();
+        roundtrip_array(&arr).unwrap();
     }
 }

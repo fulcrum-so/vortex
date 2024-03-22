@@ -564,6 +564,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98cc8fbded0c607b7ba9dd60cd98df59af97e84d24e49c8557331cfc26d301ce"
 
 [[package]]
+name = "cmake"
+version = "0.1.50"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a31c789563b815f77f4250caee12365734369f942439b7defd71e18a48197130"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "condtype"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -824,6 +833,15 @@ checksum = "4dac53e22462d78c16d64a1cd22371b54cc3fe94aa15e7886a2fa6e5d1ab8640"
 dependencies = [
  "bitflags 1.3.2",
  "rustc_version",
+]
+
+[[package]]
+name = "flatc"
+version = "0.2.2+23.5.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4bba3050358223ece3d79720f9800139503b600e93b1d68493500a2d8c3721e"
+dependencies = [
+ "cmake",
 ]
 
 [[package]]
@@ -2742,10 +2760,11 @@ name = "vortex-schema"
 version = "0.1.0"
 dependencies = [
  "arrow-schema",
+ "flatbuffers",
+ "flatc",
  "itertools 0.12.1",
- "leb128",
- "num_enum",
  "thiserror",
+ "walkdir",
 ]
 
 [[package]]

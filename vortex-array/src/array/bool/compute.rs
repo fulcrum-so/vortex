@@ -1,9 +1,10 @@
 use arrow_buffer::buffer::BooleanBuffer;
 use itertools::Itertools;
+use std::sync::Arc;
 
 use crate::array::bool::BoolArray;
 use crate::array::downcast::DowncastArrayBuiltin;
-use crate::array::{Array, ArrayRef, CloneOptionalArray};
+use crate::array::{Array, ArrayRef};
 use crate::compute::as_contiguous::{as_contiguous, AsContiguousFn};
 use crate::compute::fill::FillForwardFn;
 use crate::compute::flatten::{flatten_bool, FlattenFn, FlattenedArray};
@@ -42,8 +43,8 @@ impl AsContiguousFn for BoolArray {
                     .map(|a| {
                         a.as_bool()
                             .validity()
-                            .clone_optional()
-                            .unwrap_or_else(|| BoolArray::from(vec![true; a.len()]).boxed())
+                            .cloned()
+                            .unwrap_or_else(|| BoolArray::from(vec![true; a.len()]).into_array())
                     })
                     .collect_vec(),
             )?)
@@ -58,7 +59,7 @@ impl AsContiguousFn for BoolArray {
             ),
             validity,
         )
-        .boxed())
+        .into_array())
     }
 }
 
@@ -81,7 +82,7 @@ impl ScalarAtFn for BoolArray {
 impl FillForwardFn for BoolArray {
     fn fill_forward(&self) -> VortexResult<ArrayRef> {
         if self.validity().is_none() {
-            Ok(dyn_clone::clone_box(self))
+            Ok(Arc::new(self.clone()))
         } else {
             let validity = flatten_bool(self.validity().unwrap())?;
             let bools = self.buffer();
@@ -96,7 +97,7 @@ impl FillForwardFn for BoolArray {
                     last_value
                 })
                 .collect::<Vec<_>>();
-            Ok(BoolArray::from(filled).boxed())
+            Ok(BoolArray::from(filled).into_array())
         }
     }
 }

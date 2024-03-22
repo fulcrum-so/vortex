@@ -1,6 +1,7 @@
 use crate::array::downcast::DowncastArrayBuiltin;
 use crate::array::Array;
 use crate::compute::flatten::flatten;
+use crate::compute::ArrayCompute;
 use crate::error::{VortexError, VortexResult};
 use arrow_array::ArrayRef as ArrowArrayRef;
 use itertools::Itertools;
@@ -11,7 +12,7 @@ pub trait AsArrowArray {
 
 pub fn as_arrow(array: &dyn Array) -> VortexResult<ArrowArrayRef> {
     // If as_arrow is implemented, then invoke that.
-    if let Some(a) = array.as_arrow() {
+    if let Some(a) = array.compute().as_arrow() {
         return a.as_arrow();
     }
 

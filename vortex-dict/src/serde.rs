@@ -18,13 +18,14 @@ impl EncodingSerde for DictEncoding {
         let dict = ctx.read()?;
         let codes_dtype = ctx.dtype()?;
         let codes = ctx.with_schema(&codes_dtype).read()?;
-        Ok(DictArray::new(codes, dict).boxed())
+        Ok(DictArray::new(codes, dict).into_array())
     }
 }
 
 #[cfg(test)]
 mod test {
     use vortex::array::downcast::DowncastArrayBuiltin;
+    use vortex::array::IntoArray;
     use vortex::array::{Array, ArrayRef};
     use vortex::error::VortexResult;
     use vortex::serde::{ReadCtx, WriteCtx};
@@ -44,10 +45,10 @@ mod test {
     #[test]
     fn roundtrip() {
         let arr = DictArray::new(
-            vec![0u8, 0, 1, 2, 3].into(),
-            vec![-7i64, -13, 17, 23].into(),
+            vec![0u8, 0, 1, 2, 3].into_array(),
+            vec![-7i64, -13, 17, 23].into_array(),
         );
-        let read_arr = roundtrip_array(arr.as_ref()).unwrap();
+        let read_arr = roundtrip_array(&arr).unwrap();
 
         assert_eq!(
             arr.codes().as_primitive().buffer().typed_data::<u8>(),

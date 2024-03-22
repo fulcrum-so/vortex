@@ -30,7 +30,7 @@ impl EncodingSerde for VarBinViewEncoding {
         for _ in 0..num_data {
             data_bufs.push(ctx.bytes().read()?);
         }
-        Ok(VarBinViewArray::new(views, data_bufs, ctx.schema().clone(), validity).boxed())
+        Ok(VarBinViewArray::new(views, data_bufs, ctx.schema().clone(), validity).into_array())
     }
 }
 
@@ -64,8 +64,8 @@ mod test {
         );
 
         VarBinViewArray::new(
-            view_arr.boxed(),
-            vec![values.boxed()],
+            view_arr.into_array(),
+            vec![values.into_array()],
             DType::Utf8(Nullability::NonNullable),
             None,
         )
@@ -74,7 +74,7 @@ mod test {
     #[test]
     fn roundtrip() {
         let arr = binary_array();
-        let read_arr = roundtrip_array(arr.as_ref()).unwrap();
+        let read_arr = roundtrip_array(&arr).unwrap();
 
         assert_eq!(
             arr.views().as_primitive().buffer().typed_data::<u8>(),

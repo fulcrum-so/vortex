@@ -93,7 +93,7 @@ mod test {
         );
         let offsets = PrimitiveArray::from(vec![0, 11, 44]);
 
-        VarBinArray::new(offsets.boxed(), values.boxed(), dtype, None)
+        VarBinArray::new(offsets.into_array(), values.into_array(), dtype, None)
     }
 
     #[test]
