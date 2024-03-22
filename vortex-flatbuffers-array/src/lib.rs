@@ -10,7 +10,6 @@ use vortex::array::ArrayRef;
 use vortex::compute::patch::PatchFn;
 use vortex::compute::scalar_at::{scalar_at, ScalarAtFn};
 use vortex::compute::take::TakeFn;
-use vortex::compute::ArrayCompute;
 use vortex::error::VortexResult;
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::scalar::Scalar;
@@ -77,6 +76,10 @@ struct ReaderCtx {
     encodings: Vec<EncodingRef>,
 }
 
+struct VortexArray<M> {
+    metadata: M,
+}
+
 #[derive(Clone)]
 struct ArrayData<'a> {
     ctx: Arc<ReaderCtx>,
@@ -131,6 +134,14 @@ impl<'a> ArrayCompute for ArrayData<'a> {}
 struct DictArrayData<'a>(ArrayData<'a>);
 
 impl<'a> DictArrayData<'a> {
+    fn codes(&self) -> ArrayData {
+        ArrayData::new(
+            self.0.ctx.clone(),
+            self.0.metadata.codes().unwrap(),
+            self.0.buffers.clone(),
+        )
+    }
+
     fn with_codes<T>(&self, closure: impl FnOnce(ArrayData<'a>) -> T) -> T {
         self.0.with_child(0, closure)
     }

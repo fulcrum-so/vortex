@@ -12,9 +12,8 @@ pub struct Flat<F> {
     phantom: PhantomData<F>,
 }
 
-impl<'a, F> Flat<F>
+impl<F> Flat<F>
 where
-    F: Follow<'a>,
     F: Verifiable,
 {
     pub fn from_root(fbb: FlatBufferBuilder, root: WIPOffset<F>) -> Self {
@@ -38,18 +37,11 @@ where
         })
     }
 
-    pub fn as_typed(&'a self) -> F::Inner {
-        unsafe { root_unchecked::<F>(self.buffer.as_slice()) }
-    }
-
-    pub fn follow<T>(&'a self, follower: F) -> Flat<T>
+    pub fn as_typed<'a>(&'a self) -> F::Inner
     where
-        F: FnOnce() -> T,
+        F: Follow<'a>,
     {
-        Flat {
-            buffer: self.buffer.clone(),
-            phantom: PhantomData,
-        }
+        unsafe { root_unchecked::<F>(self.buffer.as_slice()) }
     }
 }
 

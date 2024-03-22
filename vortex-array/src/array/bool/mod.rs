@@ -124,7 +124,7 @@ impl Array for BoolArray {
     }
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
-        Some(&self)
+        Some(self)
     }
 }
 
