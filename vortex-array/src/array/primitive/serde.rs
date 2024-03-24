@@ -1,31 +1,20 @@
-use std::io;
-use std::io::ErrorKind;
-
 use crate::array::primitive::{PrimitiveArray, PrimitiveEncoding};
 use crate::array::{Array, ArrayRef};
 use crate::error::VortexResult;
-use crate::ptype::PType;
 use crate::serde::{ArraySerde, EncodingSerde, ReadCtx, WriteCtx};
 
 impl ArraySerde for PrimitiveArray {
     fn write(&self, ctx: &mut WriteCtx) -> VortexResult<()> {
-        if let Some(v) = self.validity() {
-            ctx.write(v.as_ref())?;
-        }
+        ctx.ptype(self.ptype())?;
+        ctx.write_optional_array(self.validity())?;
         ctx.write_buffer(self.len(), self.buffer())
     }
 }
 
 impl EncodingSerde for PrimitiveEncoding {
     fn read(&self, ctx: &mut ReadCtx) -> VortexResult<ArrayRef> {
-        let validity = if ctx.schema().is_nullable() {
-            Some(ctx.validity().read()?)
-        } else {
-            None
-        };
-
-        let ptype =
-            PType::try_from(ctx.schema()).map_err(|e| io::Error::new(ErrorKind::InvalidData, e))?;
+        let ptype = ctx.ptype()?;
+        let validity = ctx.validity().read_optional_array()?;
         let (_, buf) = ctx.read_buffer(|len| len * ptype.byte_width())?;
         Ok(PrimitiveArray::new(ptype, buf, validity).into_array())
     }

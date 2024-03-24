@@ -138,8 +138,8 @@ impl CompositeEncoding {
 static ENCODINGS_COMPOSITE: EncodingRef = &CompositeEncoding;
 
 impl Encoding for CompositeEncoding {
-    fn id(&self) -> &EncodingId {
-        &Self::ID
+    fn id(&self) -> EncodingId {
+        Self::ID
     }
 
     fn compression(&self) -> Option<&dyn EncodingCompression> {

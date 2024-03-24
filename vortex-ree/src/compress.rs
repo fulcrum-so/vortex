@@ -49,7 +49,7 @@ impl EncodingCompression for REEEncoding {
             .compress(&ends, ree_like.map(|ree| ree.ends()))?;
         let compressed_values = ctx
             .named("values")
-            .excluding(&REEEncoding::ID)
+            .excluding(&REEEncoding)
             .compress(&values, ree_like.map(|ree| ree.values()))?;
 
         Ok(REEArray::new(
@@ -120,7 +120,7 @@ pub fn ree_decode(
     // TODO(ngates): switch over ends without necessarily casting
     match_each_native_ptype!(values.ptype(), |$P| {
         Ok(PrimitiveArray::from_nullable(ree_decode_primitive(
-            flatten_primitive(cast(ends, &PType::U64.into())?.as_ref())?.typed_data(),
+            flatten_primitive(cast(ends, PType::U64.into())?.as_ref())?.typed_data(),
             values.typed_data::<$P>(),
         ), validity))
     })

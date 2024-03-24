@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use vortex::array::{check_slice_bounds, Array, ArrayRef, Encoding, EncodingId};
+use vortex::array::{check_slice_bounds, Array, ArrayRef, Encoding, EncodingId, EncodingRef};
 use vortex::compress::EncodingCompression;
 use vortex::error::{VortexError, VortexResult};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
@@ -68,7 +68,7 @@ impl Array for DictArray {
         Ok(Self::new(self.codes().slice(start, stop)?, self.dict.clone()).into_array())
     }
 
-    fn encoding(&self) -> &'static dyn Encoding {
+    fn encoding(&self) -> EncodingRef {
         &DictEncoding
     }
 
@@ -96,8 +96,8 @@ impl DictEncoding {
 }
 
 impl Encoding for DictEncoding {
-    fn id(&self) -> &'static EncodingId {
-        &Self::ID
+    fn id(&self) -> EncodingId {
+        Self::ID
     }
 
     fn compression(&self) -> Option<&dyn EncodingCompression> {

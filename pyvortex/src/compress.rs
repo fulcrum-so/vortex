@@ -1,6 +1,7 @@
 use pyo3::types::PyType;
 use pyo3::{pyclass, pyfunction, pymethods, Py, PyResult, Python};
 use std::sync::Arc;
+use vortex::array::ENCODINGS;
 
 use vortex::compress::{CompressConfig, CompressCtx};
 
@@ -17,12 +18,15 @@ pub struct PyCompressConfig {
 impl PyCompressConfig {
     #[classmethod]
     pub fn default(cls: &PyType) -> PyResult<Py<PyCompressConfig>> {
-        Py::new(
-            cls.py(),
-            Self {
-                inner: Default::default(),
-            },
-        )
+        Py::new(cls.py(), <Self as Default>::default())
+    }
+}
+
+impl Default for PyCompressConfig {
+    fn default() -> Self {
+        Self {
+            inner: CompressConfig::new().with_enabled(ENCODINGS.iter().cloned()),
+        }
     }
 }
 
@@ -33,7 +37,7 @@ pub fn compress(
     arr: &PyArray,
     opts: Option<PyCompressConfig>,
 ) -> PyResult<Py<PyArray>> {
-    let compress_opts = opts.map(|o| o.inner).unwrap_or_default();
+    let compress_opts = opts.unwrap_or_default().inner;
     let ctx = CompressCtx::new(Arc::new(compress_opts));
     let compressed = py
         .allow_threads(|| ctx.compress(arr.unwrap(), None))

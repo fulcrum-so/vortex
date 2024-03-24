@@ -109,8 +109,8 @@ impl ConstantEncoding {
 static ENCODINGS_CONSTANT: EncodingRef = &ConstantEncoding;
 
 impl Encoding for ConstantEncoding {
-    fn id(&self) -> &EncodingId {
-        &Self::ID
+    fn id(&self) -> EncodingId {
+        Self::ID
     }
 
     fn serde(&self) -> Option<&dyn EncodingSerde> {

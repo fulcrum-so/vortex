@@ -183,8 +183,8 @@ impl ChunkedEncoding {
 static ENCODINGS_CHUNKED: EncodingRef = &ChunkedEncoding;
 
 impl Encoding for ChunkedEncoding {
-    fn id(&self) -> &EncodingId {
-        &Self::ID
+    fn id(&self) -> EncodingId {
+        Self::ID
     }
 
     fn serde(&self) -> Option<&dyn EncodingSerde> {

@@ -1,20 +1,21 @@
 use paste::paste;
-use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
-use vortex::array::bool::BoolArray;
-use vortex::array::chunked::ChunkedArray;
-use vortex::array::composite::CompositeArray;
-use vortex::array::constant::ConstantArray;
-use vortex::array::primitive::PrimitiveArray;
-use vortex::array::sparse::SparseArray;
-use vortex::array::struct_::StructArray;
-use vortex::array::varbin::VarBinArray;
-use vortex::array::varbinview::VarBinViewArray;
-use vortex::array::{Array, ArrayKind, ArrayRef};
+use vortex::array::bool::{BoolArray, BoolEncoding};
+use vortex::array::chunked::{ChunkedArray, ChunkedEncoding};
+use vortex::array::composite::{CompositeArray, CompositeEncoding};
+use vortex::array::constant::{ConstantArray, ConstantEncoding};
+use vortex::array::primitive::{PrimitiveArray, PrimitiveEncoding};
+use vortex::array::sparse::{SparseArray, SparseEncoding};
+use vortex::array::struct_::{StructArray, StructEncoding};
+use vortex::array::varbin::{VarBinArray, VarBinEncoding};
+use vortex::array::varbinview::{VarBinViewArray, VarBinViewEncoding};
+use vortex::array::{Array, ArrayKind, ArrayRef, EncodingRef};
 use vortex_alp::{ALPArray, ALPEncoding};
 use vortex_dict::{DictArray, DictEncoding};
-use vortex_fastlanes::{BitPackedArray, BitPackedEncoding, FoRArray, FoREncoding};
+use vortex_fastlanes::{
+    BitPackedArray, BitPackedEncoding, DeltaArray, DeltaEncoding, FoRArray, FoREncoding,
+};
 use vortex_ree::{REEArray, REEEncoding};
 use vortex_roaring::{RoaringBoolArray, RoaringBoolEncoding, RoaringIntArray, RoaringIntEncoding};
 use vortex_zigzag::{ZigZagArray, ZigZagEncoding};
@@ -29,17 +30,19 @@ pub struct PyArray {
 }
 
 macro_rules! pyarray {
-    ($T:ident, $TName:tt) => {
+    ($E:ident, $T:ident, $TName:tt) => {
         paste! {
             #[pyclass(name = $TName, module = "vortex", extends = PyArray, sequence, subclass)]
             pub struct [<Py $T>] {
                 inner: Arc<$T>,
+                #[allow(dead_code)]
+                encoding: EncodingRef,
             }
 
            impl [<Py $T>] {
                pub fn wrap(py: Python<'_>, inner: Arc<$T>) -> PyResult<Py<Self>> {
                    let init = PyClassInitializer::from(PyArray { inner: inner.clone() })
-                        .add_subclass([<Py $T>] { inner });
+                        .add_subclass([<Py $T>] { inner, encoding: &$E });
                    Py::new(py, init)
                }
 
@@ -51,24 +54,25 @@ macro_rules! pyarray {
     };
 }
 
-pyarray!(BoolArray, "BoolArray");
-pyarray!(ChunkedArray, "ChunkedArray");
-pyarray!(CompositeArray, "CompositeArray");
-pyarray!(ConstantArray, "ConstantArray");
-pyarray!(PrimitiveArray, "PrimitiveArray");
-pyarray!(SparseArray, "SparseArray");
-pyarray!(StructArray, "StructArray");
-pyarray!(VarBinArray, "VarBinArray");
-pyarray!(VarBinViewArray, "VarBinViewArray");
+pyarray!(BoolEncoding, BoolArray, "BoolArray");
+pyarray!(ChunkedEncoding, ChunkedArray, "ChunkedArray");
+pyarray!(CompositeEncoding, CompositeArray, "CompositeArray");
+pyarray!(ConstantEncoding, ConstantArray, "ConstantArray");
+pyarray!(PrimitiveEncoding, PrimitiveArray, "PrimitiveArray");
+pyarray!(SparseEncoding, SparseArray, "SparseArray");
+pyarray!(StructEncoding, StructArray, "StructArray");
+pyarray!(VarBinEncoding, VarBinArray, "VarBinArray");
+pyarray!(VarBinViewEncoding, VarBinViewArray, "VarBinViewArray");
 
-pyarray!(ALPArray, "ALPArray");
-pyarray!(BitPackedArray, "BitPackedArray");
-pyarray!(FoRArray, "FoRArray");
-pyarray!(DictArray, "DictArray");
-pyarray!(REEArray, "REEArray");
-pyarray!(RoaringBoolArray, "RoaringBoolArray");
-pyarray!(RoaringIntArray, "RoaringIntArray");
-pyarray!(ZigZagArray, "ZigZagArray");
+pyarray!(ALPEncoding, ALPArray, "ALPArray");
+pyarray!(BitPackedEncoding, BitPackedArray, "BitPackedArray");
+pyarray!(FoREncoding, FoRArray, "FoRArray");
+pyarray!(DeltaEncoding, DeltaArray, "DeltaArray");
+pyarray!(DictEncoding, DictArray, "DictArray");
+pyarray!(REEEncoding, REEArray, "REEArray");
+pyarray!(RoaringBoolEncoding, RoaringBoolArray, "RoaringBoolArray");
+pyarray!(RoaringIntEncoding, RoaringIntArray, "RoaringIntArray");
+pyarray!(ZigZagEncoding, ZigZagArray, "ZigZagArray");
 
 impl PyArray {
     pub fn wrap(py: Python<'_>, inner: ArrayRef) -> PyResult<Py<Self>> {
@@ -111,11 +115,15 @@ impl PyArray {
                 inner.into_any().downcast::<VarBinViewArray>().unwrap(),
             )?
             .extract(py),
-            ArrayKind::Other(other) => match *other.encoding().id() {
+            ArrayKind::Other(other) => match other.encoding().id() {
                 // PyEnc chooses to expose certain encodings as first-class objects.
                 // For the remainder, we should have a generic EncArray implementation that supports basic functions.
                 ALPEncoding::ID => {
                     PyALPArray::wrap(py, inner.into_any().downcast::<ALPArray>().unwrap())?
+                        .extract(py)
+                }
+                DeltaEncoding::ID => {
+                    PyDeltaArray::wrap(py, inner.into_any().downcast::<DeltaArray>().unwrap())?
                         .extract(py)
                 }
                 DictEncoding::ID => {
@@ -149,10 +157,7 @@ impl PyArray {
                     PyZigZagArray::wrap(py, inner.into_any().downcast::<ZigZagArray>().unwrap())?
                         .extract(py)
                 }
-                _ => Err(PyValueError::new_err(format!(
-                    "Cannot convert {:?} to enc array",
-                    inner
-                ))),
+                _ => Py::new(py, Self { inner }),
             },
         }
     }

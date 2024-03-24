@@ -40,7 +40,7 @@ impl ZigZagArray {
     pub fn encode(array: &dyn Array) -> VortexResult<ArrayRef> {
         match ArrayKind::from(array) {
             ArrayKind::Primitive(p) => Ok(zigzag_encode(p)?.into_array()),
-            _ => Err(VortexError::InvalidEncoding(array.encoding().id().clone())),
+            _ => Err(VortexError::InvalidEncoding(array.encoding().id())),
         }
     }
 
@@ -105,8 +105,8 @@ impl ZigZagEncoding {
 }
 
 impl Encoding for ZigZagEncoding {
-    fn id(&self) -> &EncodingId {
-        &Self::ID
+    fn id(&self) -> EncodingId {
+        Self::ID
     }
 
     fn compression(&self) -> Option<&dyn EncodingCompression> {

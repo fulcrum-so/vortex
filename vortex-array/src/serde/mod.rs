@@ -35,7 +35,7 @@ where
 
 pub struct ReadCtx<'a> {
     schema: &'a DType,
-    encodings: Vec<&'static EncodingId>,
+    encodings: Vec<EncodingId>,
     r: &'a mut dyn Read,
 }
 
@@ -167,7 +167,7 @@ impl<'a> ReadCtx<'a> {
 
 pub struct WriteCtx<'a> {
     w: &'a mut dyn Write,
-    available_encodings: Vec<&'static EncodingId>,
+    available_encodings: Vec<EncodingId>,
 }
 
 impl<'a> WriteCtx<'a> {

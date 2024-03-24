@@ -125,8 +125,8 @@ impl StructEncoding {
 static ENCODINGS_STRUCT: EncodingRef = &StructEncoding;
 
 impl Encoding for StructEncoding {
-    fn id(&self) -> &EncodingId {
-        &Self::ID
+    fn id(&self) -> EncodingId {
+        Self::ID
     }
 
     fn compression(&self) -> Option<&dyn EncodingCompression> {

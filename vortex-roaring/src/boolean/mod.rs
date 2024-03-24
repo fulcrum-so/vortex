@@ -43,7 +43,7 @@ impl RoaringBoolArray {
     pub fn encode(array: &dyn Array) -> VortexResult<Self> {
         match ArrayKind::from(array) {
             ArrayKind::Bool(p) => Ok(roaring_encode(p)),
-            _ => Err(VortexError::InvalidEncoding(array.encoding().id().clone())),
+            _ => Err(VortexError::InvalidEncoding(array.encoding().id())),
         }
     }
 }
@@ -114,8 +114,8 @@ impl RoaringBoolEncoding {
 }
 
 impl Encoding for RoaringBoolEncoding {
-    fn id(&self) -> &EncodingId {
-        &Self::ID
+    fn id(&self) -> EncodingId {
+        Self::ID
     }
 
     fn compression(&self) -> Option<&dyn EncodingCompression> {

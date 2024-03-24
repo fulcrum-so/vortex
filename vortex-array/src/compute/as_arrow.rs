@@ -12,7 +12,7 @@ pub trait AsArrowArray {
 
 pub fn as_arrow(array: &dyn Array) -> VortexResult<ArrowArrayRef> {
     // If as_arrow is implemented, then invoke that.
-    if let Some(a) = array.compute().as_arrow() {
+    if let Some(a) = array.as_arrow() {
         return a.as_arrow();
     }
 

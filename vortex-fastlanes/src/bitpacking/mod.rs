@@ -146,8 +146,8 @@ impl BitPackedEncoding {
 }
 
 impl Encoding for BitPackedEncoding {
-    fn id(&self) -> &EncodingId {
-        &Self::ID
+    fn id(&self) -> EncodingId {
+        Self::ID
     }
 
     fn compression(&self) -> Option<&dyn EncodingCompression> {

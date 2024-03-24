@@ -12,11 +12,11 @@ edition = { workspace = true }
 rust-version = { workspace = true }
 
 [dependencies]
-linkme = "0.3.22"
+linkme = { workspace = true }
 vortex-alloc = { path = "../vortex-alloc" }
 vortex-array = { path = "../vortex-array" }
 vortex-schema = { path = "../vortex-schema" }
-zigzag = "0.1.0"
+zigzag = { workspace = true }
 
 [lints]
 workspace = true

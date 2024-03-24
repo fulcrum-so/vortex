@@ -25,7 +25,7 @@ impl ArrayCompute for REEArray {
 impl FlattenFn for REEArray {
     fn flatten(&self) -> VortexResult<FlattenedArray> {
         let ends: PrimitiveArray =
-            flatten_primitive(cast(self.ends(), &PType::U64.into())?.as_ref())?
+            flatten_primitive(cast(self.ends(), PType::U64.into())?.as_ref())?
                 .typed_data::<u64>()
                 .iter()
                 .map(|v| v - self.offset() as u64)

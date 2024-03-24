@@ -15,10 +15,14 @@ rust-version = { workspace = true }
 workspace = true
 
 [dependencies]
-arrayref = "0.3.7"
-fastlanez-sys = { path = "../fastlanez-sys" }
-itertools = "0.12.1"
-linkme = "0.3.22"
-num-traits = "0.2.18"
-vortex-array = { path = "../vortex-array" }
+arrayref = { workspace = true }
 vortex-schema = { path = "../vortex-schema" }
+vortex-array = { path = "../vortex-array" }
+linkme = { workspace = true }
+itertools = { workspace = true }
+num-traits = { workspace = true }
+fastlanez-sys = { path = "../fastlanez-sys" }
+log = { workspace = true }
+
+[dev-dependencies]
+simplelog = { workspace = true }

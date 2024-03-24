@@ -1,96 +1,80 @@
-use arrow_array::RecordBatchReader;
-use std::collections::HashSet;
 use std::fs::{create_dir_all, File};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use arrow_array::RecordBatchReader;
 use itertools::Itertools;
-use log::{info, warn};
+use log::{info, warn, LevelFilter};
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use parquet::arrow::ProjectionMask;
+use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
 
-use vortex::array::bool::BoolEncoding;
-use vortex::array::chunked::{ChunkedArray, ChunkedEncoding};
-use vortex::array::composite::CompositeEncoding;
-use vortex::array::constant::ConstantEncoding;
+use vortex::array::chunked::ChunkedArray;
 use vortex::array::downcast::DowncastArrayBuiltin;
-use vortex::array::primitive::PrimitiveEncoding;
-use vortex::array::sparse::SparseEncoding;
-use vortex::array::struct_::StructEncoding;
-use vortex::array::varbin::VarBinEncoding;
-use vortex::array::varbinview::VarBinViewEncoding;
 use vortex::array::IntoArray;
-use vortex::array::{Array, ArrayRef, Encoding};
+use vortex::array::{Array, ArrayRef, EncodingRef, ENCODINGS};
 use vortex::arrow::FromArrowType;
 use vortex::compress::{CompressConfig, CompressCtx};
 use vortex::formatter::display_tree;
 use vortex_alp::ALPEncoding;
 use vortex_datetime::DateTimeEncoding;
 use vortex_dict::DictEncoding;
-use vortex_fastlanes::{BitPackedEncoding, FoREncoding};
+use vortex_fastlanes::{BitPackedEncoding, DeltaEncoding, FoREncoding};
 use vortex_ree::REEEncoding;
 use vortex_roaring::RoaringBoolEncoding;
 use vortex_schema::DType;
 
-pub fn enumerate_arrays() -> Vec<&'static dyn Encoding> {
+pub mod serde;
+pub mod taxi_data;
+
+pub fn idempotent(name: &str, f: impl FnOnce(&mut File)) -> PathBuf {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("data")
+        .join(name);
+    if !path.exists() {
+        create_dir_all(path.parent().unwrap()).unwrap();
+        let mut file = File::create(&path).unwrap();
+        f(&mut file);
+    }
+    path.to_path_buf()
+}
+
+#[allow(dead_code)]
+fn setup_logger(level: LevelFilter) {
+    TermLogger::init(
+        level,
+        Config::default(),
+        TerminalMode::Mixed,
+        ColorChoice::Auto,
+    )
+    .unwrap();
+}
+
+pub fn enumerate_arrays() -> Vec<EncodingRef> {
+    println!("FOUND {:?}", ENCODINGS.iter().map(|e| e.id()).collect_vec());
     vec![
-        // TODO(ngates): fix https://github.com/fulcrum-so/vortex/issues/35
-        // Builtins
-        &BoolEncoding,
-        &ChunkedEncoding,
-        &CompositeEncoding,
-        &ConstantEncoding,
-        &PrimitiveEncoding,
-        &SparseEncoding,
-        &StructEncoding,
-        &VarBinEncoding,
-        &VarBinViewEncoding,
-        // Encodings
         &ALPEncoding,
         &DictEncoding,
         &BitPackedEncoding,
         &FoREncoding,
         &DateTimeEncoding,
-        // &DeltaEncoding,
-        // &FFoREncoding,
+        &DeltaEncoding,
         &REEEncoding,
         &RoaringBoolEncoding,
-        // &RoaringIntEncoding,
+        // RoaringIntEncoding,
         // Doesn't offer anything more than FoR really
-        // &ZigZagEncoding,
+        // ZigZagEncoding,
     ]
 }
 
 pub fn compress_ctx() -> CompressCtx {
-    let cfg = CompressConfig::new(
-        HashSet::from_iter(enumerate_arrays().iter().map(|e| (*e).id())),
-        HashSet::default(),
-    );
+    let cfg = CompressConfig::new().with_enabled(enumerate_arrays());
     info!("Compression config {cfg:?}");
     CompressCtx::new(Arc::new(cfg))
 }
 
-pub fn download_taxi_data() -> PathBuf {
-    let download_path =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("data/yellow-tripdata-2023-11.parquet");
-    if download_path.exists() {
-        return download_path;
-    }
-
-    create_dir_all(download_path.parent().unwrap()).unwrap();
-    let mut download_file = File::create(&download_path).unwrap();
-    reqwest::blocking::get(
-        "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2023-11.parquet",
-    )
-    .unwrap()
-    .copy_to(&mut download_file)
-    .unwrap();
-
-    download_path
-}
-
 pub fn compress_taxi_data() -> ArrayRef {
-    let file = File::open(download_taxi_data()).unwrap();
+    let file = File::open(taxi_data::download_taxi_data()).unwrap();
     let builder = ParquetRecordBatchReaderBuilder::try_new(file).unwrap();
     let _mask = ProjectionMask::roots(builder.parquet_schema(), [1]);
     let _no_datetime_mask = ProjectionMask::roots(
@@ -154,30 +138,18 @@ mod test {
     use arrow_array::{ArrayRef as ArrowArrayRef, StructArray as ArrowStructArray};
     use log::LevelFilter;
     use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
-    use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
 
     use vortex::array::ArrayRef;
     use vortex::compute::as_arrow::as_arrow;
     use vortex::encode::FromArrowArray;
     use vortex::serde::{ReadCtx, WriteCtx};
 
-    use crate::{compress_ctx, compress_taxi_data, download_taxi_data};
+    use crate::taxi_data::download_taxi_data;
+    use crate::{compress_ctx, compress_taxi_data, setup_logger};
 
-    #[allow(dead_code)]
-    fn setup_logger(level: LevelFilter) {
-        TermLogger::init(
-            level,
-            Config::default(),
-            TerminalMode::Mixed,
-            ColorChoice::Auto,
-        )
-        .unwrap();
-    }
-
-    #[ignore]
     #[test]
     fn compression_ratio() {
-        setup_logger(LevelFilter::Info);
+        setup_logger(LevelFilter::Debug);
         _ = compress_taxi_data();
     }
 

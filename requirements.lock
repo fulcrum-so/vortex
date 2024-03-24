@@ -5,7 +5,6 @@
 #   pre: false
 #   features: []
 #   all-features: false
-#   with-sources: false
 
 -e file:pyvortex
 -e file:.

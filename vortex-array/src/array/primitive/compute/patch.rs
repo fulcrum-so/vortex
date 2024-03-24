@@ -11,7 +11,7 @@ use crate::{compute, match_each_native_ptype};
 impl PatchFn for PrimitiveArray {
     fn patch(&self, patch: &dyn Array) -> VortexResult<ArrayRef> {
         match patch.encoding().id() {
-            &SparseEncoding::ID => patch_with_sparse(self, patch.as_sparse()),
+            SparseEncoding::ID => patch_with_sparse(self, patch.as_sparse()),
             // TODO(ngates): support a default implementation based on iter_arrow?
             _ => Err(VortexError::MissingKernel(
                 "patch",

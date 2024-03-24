@@ -266,8 +266,8 @@ impl VarBinViewEncoding {
 static ENCODINGS_VARBINVIEW: EncodingRef = &VarBinViewEncoding;
 
 impl Encoding for VarBinViewEncoding {
-    fn id(&self) -> &EncodingId {
-        &Self::ID
+    fn id(&self) -> EncodingId {
+        Self::ID
     }
 
     fn serde(&self) -> Option<&dyn EncodingSerde> {

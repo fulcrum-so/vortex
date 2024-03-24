@@ -22,7 +22,7 @@ impl EncodingCompression for RoaringIntEncoding {
         _config: &CompressConfig,
     ) -> Option<&dyn EncodingCompression> {
         // Only support primitive enc arrays
-        if array.encoding().id() != &PrimitiveEncoding::ID {
+        if array.encoding().id() != PrimitiveEncoding::ID {
             return None;
         }
 

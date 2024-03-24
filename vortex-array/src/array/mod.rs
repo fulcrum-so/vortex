@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use linkme::distributed_slice;
@@ -36,6 +37,7 @@ pub mod chunked;
 pub mod composite;
 pub mod constant;
 pub mod downcast;
+pub mod lazy;
 pub mod primitive;
 pub mod sparse;
 pub mod struct_;
@@ -58,7 +60,6 @@ pub trait Array: ArrayCompute + ArrayDisplay + Debug + Send + Sync {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
     fn to_array(&self) -> ArrayRef;
     fn into_array(self) -> ArrayRef;
-    fn compute(&self) -> &dyn ArrayCompute;
 
     /// Get the length of the array
     fn len(&self) -> usize;
@@ -71,7 +72,7 @@ pub trait Array: ArrayCompute + ArrayDisplay + Debug + Send + Sync {
     /// Limit array to start..stop range
     fn slice(&self, start: usize, stop: usize) -> VortexResult<ArrayRef>;
     /// Encoding kind of the array
-    fn encoding(&self) -> &'static dyn Encoding;
+    fn encoding(&self) -> EncodingRef;
     /// Approximate size in bytes of the array. Only takes into account variable size portion of the array
     fn nbytes(&self) -> usize;
 
@@ -105,10 +106,6 @@ macro_rules! impl_array {
         #[inline]
         fn into_array(self) -> ArrayRef {
             std::sync::Arc::new(self)
-        }
-
-        fn compute(&self) -> &dyn $crate::compute::ArrayCompute {
-            self.as_any().downcast_ref::<Self>().unwrap()
         }
     };
 }
@@ -170,10 +167,6 @@ impl Array for ArrayRef {
         self
     }
 
-    fn compute(&self) -> &dyn ArrayCompute {
-        self.as_ref().compute()
-    }
-
     fn len(&self) -> usize {
         self.as_ref().len()
     }
@@ -194,7 +187,7 @@ impl Array for ArrayRef {
         self.as_ref().slice(start, stop)
     }
 
-    fn encoding(&self) -> &'static dyn Encoding {
+    fn encoding(&self) -> EncodingRef {
         self.as_ref().encoding()
     }
 
@@ -247,7 +240,7 @@ pub fn check_validity_buffer(validity: Option<&ArrayRef>, expected_len: usize) -
     Ok(())
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct EncodingId(&'static str);
 
 impl EncodingId {
@@ -268,7 +261,7 @@ impl Display for EncodingId {
 }
 
 pub trait Encoding: Debug + Send + Sync + 'static {
-    fn id(&self) -> &EncodingId;
+    fn id(&self) -> EncodingId;
 
     /// Whether this encoding provides a compressor.
     fn compression(&self) -> Option<&dyn EncodingCompression> {
@@ -289,6 +282,20 @@ impl Display for dyn Encoding {
 
 pub type EncodingRef = &'static dyn Encoding;
 
+impl PartialEq<Self> for EncodingRef {
+    fn eq(&self, other: &Self) -> bool {
+        self.id() == other.id()
+    }
+}
+
+impl Eq for EncodingRef {}
+
+impl Hash for EncodingRef {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id().hash(state)
+    }
+}
+
 #[distributed_slice]
 pub static ENCODINGS: [EncodingRef] = [..];
 
@@ -308,7 +315,7 @@ pub enum ArrayKind<'a> {
 
 impl<'a> From<&'a dyn Array> for ArrayKind<'a> {
     fn from(value: &'a dyn Array) -> Self {
-        match *value.encoding().id() {
+        match value.encoding().id() {
             BoolEncoding::ID => ArrayKind::Bool(value.as_bool()),
             ChunkedEncoding::ID => ArrayKind::Chunked(value.as_chunked()),
             CompositeEncoding::ID => ArrayKind::Composite(value.as_composite()),

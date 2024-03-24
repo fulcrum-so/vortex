@@ -4,6 +4,7 @@ use crate::array::composite::CompositeArray;
 use crate::array::primitive::PrimitiveArray;
 use crate::array::struct_::StructArray;
 use crate::array::varbin::VarBinArray;
+use crate::array::varbinview::VarBinViewArray;
 use crate::array::{Array, ArrayRef};
 use crate::error::{VortexError, VortexResult};
 
@@ -19,6 +20,7 @@ pub enum FlattenedArray {
     Primitive(PrimitiveArray),
     Struct(StructArray),
     VarBin(VarBinArray),
+    VarBinView(VarBinViewArray),
 }
 
 impl FlattenedArray {
@@ -30,6 +32,7 @@ impl FlattenedArray {
             FlattenedArray::Primitive(array) => array.into_array(),
             FlattenedArray::Struct(array) => array.into_array(),
             FlattenedArray::VarBin(array) => array.into_array(),
+            FlattenedArray::VarBinView(array) => array.into_array(),
         }
     }
 }

@@ -36,10 +36,11 @@ def test_roaring_bool_encode():
     assert rarr.nbytes < a.nbytes
 
 
-def test_roaring_int_encode():
+def test_arange_encode():
     a = vortex.encode(pa.array(np.arange(10_000), type=pa.uint32()))
     compressed = vortex.compress(a)
-    assert compressed.encoding == "roaring.int"
+    assert isinstance(compressed, vortex.DeltaArray) or isinstance(compressed, vortex.RoaringIntArray)
+    assert compressed.nbytes < a.nbytes
 
 
 def test_zigzag_encode():

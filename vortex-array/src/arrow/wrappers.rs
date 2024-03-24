@@ -10,7 +10,7 @@ use arrow_buffer::{ArrowNativeType, NullBuffer, OffsetBuffer, ScalarBuffer};
 pub fn as_scalar_buffer<T: NativePType + ArrowNativeType>(
     array: PrimitiveArray,
 ) -> ScalarBuffer<T> {
-    assert_eq!(array.ptype(), &T::PTYPE);
+    assert_eq!(array.ptype(), T::PTYPE);
     ScalarBuffer::from(array.buffer().clone())
 }
 
@@ -32,11 +32,11 @@ pub fn as_nulls(validity: Option<&ArrayRef>) -> VortexResult<Option<NullBuffer>>
         .get_as::<bool>(&Stat::IsConstant)
         .unwrap_or_default()
     {
-        if scalar_at(validity, 0)?.try_into().unwrap() {
-            return Ok(None);
+        return if scalar_at(validity, 0)?.try_into().unwrap() {
+            Ok(None)
         } else {
-            return Ok(Some(NullBuffer::new_null(validity.len())));
-        }
+            Ok(Some(NullBuffer::new_null(validity.len())))
+        };
     }
 
     Ok(Some(NullBuffer::new(

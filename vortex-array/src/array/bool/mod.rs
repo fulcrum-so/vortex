@@ -139,8 +139,8 @@ impl BoolEncoding {
 static ENCODINGS_BOOL: EncodingRef = &BoolEncoding;
 
 impl Encoding for BoolEncoding {
-    fn id(&self) -> &EncodingId {
-        &Self::ID
+    fn id(&self) -> EncodingId {
+        Self::ID
     }
 
     fn serde(&self) -> Option<&dyn EncodingSerde> {

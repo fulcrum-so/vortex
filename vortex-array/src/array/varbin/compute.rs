@@ -65,7 +65,7 @@ impl AsContiguousFn for VarBinArray {
         offsets.push(0);
         for a in arrays.iter().map(|a| a.as_varbin()) {
             let first_offset: u64 = a.first_offset()?;
-            let offsets_array = flatten_primitive(cast(a.offsets(), &PType::U64.into())?.as_ref())?;
+            let offsets_array = flatten_primitive(cast(a.offsets(), PType::U64.into())?.as_ref())?;
             let shift = offsets.last().copied().unwrap_or(0);
             offsets.extend(
                 offsets_array
@@ -87,18 +87,18 @@ impl AsArrowArray for VarBinArray {
         // Ensure the offsets are either i32 or i64
         let offsets = flatten_primitive(self.offsets())?;
         let offsets = match offsets.ptype() {
-            &PType::I32 | &PType::I64 => offsets,
+            PType::I32 | PType::I64 => offsets,
             // Unless it's u64, everything else can be converted into an i32.
             // FIXME(ngates): do not copy offsets again
-            &PType::U64 => {
-                flatten_primitive(cast(&offsets.to_array(), &PType::I64.into())?.as_ref())?
+            PType::U64 => {
+                flatten_primitive(cast(&offsets.to_array(), PType::I64.into())?.as_ref())?
             }
-            _ => flatten_primitive(cast(&offsets.to_array(), &PType::I32.into())?.as_ref())?,
+            _ => flatten_primitive(cast(&offsets.to_array(), PType::I32.into())?.as_ref())?,
         };
-        let nulls = as_nulls(offsets.validity())?;
+        let nulls = as_nulls(self.validity())?;
 
         let data = flatten_primitive(self.bytes())?;
-        assert_eq!(data.ptype(), &PType::U8);
+        assert_eq!(data.ptype(), PType::U8);
         let data = data.buffer().clone();
 
         // Switch on Arrow DType.

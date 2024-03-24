@@ -69,8 +69,8 @@ pub enum IntWidth {
     _64,
 }
 
-impl From<i8> for IntWidth {
-    fn from(item: i8) -> Self {
+impl From<u16> for IntWidth {
+    fn from(item: u16) -> Self {
         match item {
             8 => IntWidth::_8,
             16 => IntWidth::_16,

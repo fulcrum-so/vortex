@@ -14,12 +14,12 @@ rust-version = { workspace = true }
 [dependencies]
 vortex-array = { path = "../vortex-array" }
 vortex-schema = { path = "../vortex-schema" }
-arrow-array = "50.0.0"
-arrow-buffer = "50.0.0"
-linkme = "0.3.22"
-half = "2.3.1"
-num-traits = "0.2.17"
-itertools = "0.12.1"
+arrow-array = { workspace = true }
+arrow-buffer = { workspace = true }
+linkme = { workspace = true }
+half = { workspace = true }
+num-traits = { workspace = true }
+itertools = { workspace = true }
 
 [lints]
 workspace = true

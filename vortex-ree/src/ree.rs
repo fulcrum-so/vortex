@@ -82,7 +82,7 @@ impl REEArray {
                 )
                 .into_array())
             }
-            _ => Err(VortexError::InvalidEncoding(array.encoding().id().clone())),
+            _ => Err(VortexError::InvalidEncoding(array.encoding().id())),
         }
     }
 
@@ -174,8 +174,8 @@ impl REEEncoding {
 }
 
 impl Encoding for REEEncoding {
-    fn id(&self) -> &EncodingId {
-        &Self::ID
+    fn id(&self) -> EncodingId {
+        Self::ID
     }
 
     fn compression(&self) -> Option<&dyn EncodingCompression> {

@@ -39,17 +39,16 @@ fn _lib(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyChunkedArray>()?;
     m.add_class::<PyCompositeArray>()?;
     m.add_class::<PyConstantArray>()?;
+    m.add_class::<PyDeltaArray>()?;
     m.add_class::<PyFoRArray>()?;
     m.add_class::<PyPrimitiveArray>()?;
     m.add_class::<PyREEArray>()?;
+    m.add_class::<PyRoaringBoolArray>()?;
+    m.add_class::<PyRoaringIntArray>()?;
     m.add_class::<PySparseArray>()?;
     m.add_class::<PyStructArray>()?;
     m.add_class::<PyVarBinArray>()?;
     m.add_class::<PyVarBinViewArray>()?;
-
-    m.add_class::<PyRoaringBoolArray>()?;
-    m.add_class::<PyRoaringIntArray>()?;
-
     m.add_class::<PyZigZagArray>()?;
 
     m.add_class::<PyDType>()?;
@@ -74,7 +73,7 @@ fn dtype_bool(py: Python<'_>, nullable: bool) -> PyResult<Py<PyDType>> {
 #[pyo3(signature = (width = None, signed = true, nullable = false))]
 fn dtype_int(
     py: Python<'_>,
-    width: Option<i8>,
+    width: Option<u16>,
     signed: bool,
     nullable: bool,
 ) -> PyResult<Py<PyDType>> {

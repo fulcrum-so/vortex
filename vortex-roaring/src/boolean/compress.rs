@@ -17,7 +17,7 @@ impl EncodingCompression for RoaringBoolEncoding {
         _config: &CompressConfig,
     ) -> Option<&dyn EncodingCompression> {
         // Only support bool enc arrays
-        if array.encoding().id() != &BoolEncoding::ID {
+        if array.encoding().id() != BoolEncoding::ID {
             return None;
         }
 

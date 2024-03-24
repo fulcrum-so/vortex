@@ -57,7 +57,7 @@ impl EncodingCompression for FoREncoding {
         // TODO(ngates): remove FoR as a potential encoding from the ctx
         // NOTE(ngates): we don't invoke next_level here since we know bit-packing is always
         //  worth trying.
-        let compressed_child = ctx.named("for").excluding(&FoREncoding::ID).compress(
+        let compressed_child = ctx.named("for").excluding(&FoREncoding).compress(
             &child,
             like.map(|l| l.as_any().downcast_ref::<FoRArray>().unwrap().encoded()),
         )?;
@@ -136,26 +136,18 @@ fn trailing_zeros(array: &dyn Array) -> u8 {
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashSet;
     use std::sync::Arc;
 
-    use vortex::array::primitive::PrimitiveEncoding;
-    use vortex::array::Encoding;
+    use vortex::array::{Encoding, EncodingRef};
 
     use crate::BitPackedEncoding;
 
     use super::*;
 
     fn compress_ctx() -> CompressCtx {
-        let cfg = CompressConfig::new(
+        let cfg = CompressConfig::new()
             // We need some BitPacking else we will need choose FoR.
-            HashSet::from([
-                PrimitiveEncoding.id(),
-                FoREncoding.id(),
-                BitPackedEncoding.id(),
-            ]),
-            HashSet::default(),
-        );
+            .with_enabled([&FoREncoding as EncodingRef, &BitPackedEncoding]);
         CompressCtx::new(Arc::new(cfg))
     }
 

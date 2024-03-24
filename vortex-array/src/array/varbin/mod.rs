@@ -276,8 +276,8 @@ impl VarBinEncoding {
 static ENCODINGS_VARBIN: EncodingRef = &VarBinEncoding;
 
 impl Encoding for VarBinEncoding {
-    fn id(&self) -> &EncodingId {
-        &Self::ID
+    fn id(&self) -> EncodingId {
+        Self::ID
     }
 
     fn compression(&self) -> Option<&dyn EncodingCompression> {

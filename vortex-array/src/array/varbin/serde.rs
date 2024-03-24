@@ -5,9 +5,7 @@ use crate::serde::{ArraySerde, EncodingSerde, ReadCtx, WriteCtx};
 
 impl ArraySerde for VarBinArray {
     fn write(&self, ctx: &mut WriteCtx) -> VortexResult<()> {
-        if let Some(v) = self.validity() {
-            ctx.write(v.as_ref())?;
-        }
+        ctx.write_optional_array(self.validity())?;
         ctx.dtype(self.offsets().dtype())?;
         ctx.write(self.offsets())?;
         ctx.write(self.bytes())
@@ -16,11 +14,7 @@ impl ArraySerde for VarBinArray {
 
 impl EncodingSerde for VarBinEncoding {
     fn read(&self, ctx: &mut ReadCtx) -> VortexResult<ArrayRef> {
-        let validity = if ctx.schema().is_nullable() {
-            Some(ctx.validity().read()?)
-        } else {
-            None
-        };
+        let validity = ctx.validity().read_optional_array()?;
         // TODO(robert): Stop writing this
         let offsets_dtype = ctx.dtype()?;
         let offsets = ctx.with_schema(&offsets_dtype).read()?;

@@ -15,25 +15,29 @@ rust-version = { workspace = true }
 workspace = true
 
 [dependencies]
-arrow-array = "50.0.0"
-vortex-alp = { path = "../vortex-alp" }
+arrow-array = { workspace = true }
 vortex-array = { path = "../vortex-array" }
 vortex-datetime = { path = "../vortex-datetime" }
+vortex-alp = { path = "../vortex-alp" }
 vortex-dict = { path = "../vortex-dict" }
 vortex-fastlanes = { path = "../vortex-fastlanes" }
 vortex-ree = { path = "../vortex-ree" }
 vortex-roaring = { path = "../vortex-roaring" }
 vortex-schema = { path = "../vortex-schema" }
 vortex-zigzag = { path = "../vortex-zigzag" }
-itertools = "0.12.1"
-reqwest = { version = "0.11.24", features = ["blocking"] }
-parquet = "50.0.0"
-log = "0.4.20"
+itertools = { workspace = true }
+reqwest = { workspace = true }
+parquet = { workspace = true }
+log = { workspace = true }
+simplelog = { workspace = true }
 
 [dev-dependencies]
-criterion = { version = "0.5.1", features = ["html_reports"] }
-simplelog = { version = "0.12.1", features = ["paris"] }
+criterion = { workspace = true }
 
 [[bench]]
 name = "compress_benchmark"
+harness = false
+
+[[bench]]
+name = "random_access"
 harness = false

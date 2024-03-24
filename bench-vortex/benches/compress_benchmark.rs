@@ -1,8 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use bench_vortex::{compress_taxi_data, download_taxi_data};
+use bench_vortex::compress_taxi_data;
+use bench_vortex::taxi_data::download_taxi_data;
 
-fn enc_compress(c: &mut Criterion) {
+fn vortex_compress(c: &mut Criterion) {
     download_taxi_data();
     let mut group = c.benchmark_group("end to end");
     group.sample_size(10);
@@ -10,5 +11,5 @@ fn enc_compress(c: &mut Criterion) {
     group.finish()
 }
 
-criterion_group!(benches, enc_compress);
+criterion_group!(benches, vortex_compress);
 criterion_main!(benches);

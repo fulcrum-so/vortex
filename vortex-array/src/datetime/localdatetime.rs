@@ -63,7 +63,7 @@ impl ArrayCompute for LocalDateTimeArray {
 impl AsArrowArray for LocalDateTimeArray {
     fn as_arrow(&self) -> VortexResult<ArrowArrayRef> {
         // A LocalDateTime maps to an Arrow Timestamp array with no timezone.
-        let timestamps = flatten_primitive(cast(self.underlying(), &PType::I64.into())?.as_ref())?;
+        let timestamps = flatten_primitive(cast(self.underlying(), PType::I64.into())?.as_ref())?;
         let validity = as_nulls(timestamps.validity())?;
         let buffer = timestamps.scalar_buffer::<i64>();
 

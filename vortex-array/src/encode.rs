@@ -8,17 +8,18 @@ use arrow_array::array::{
 use arrow_array::array::{ArrowPrimitiveType, OffsetSizeTrait};
 use arrow_array::cast::{as_null_array, AsArray};
 use arrow_array::types::{
-    ByteArrayType, Date32Type, Date64Type, DurationMicrosecondType, DurationMillisecondType,
-    DurationNanosecondType, DurationSecondType, Time32MillisecondType, Time32SecondType,
-    Time64MicrosecondType, Time64NanosecondType, TimestampMicrosecondType,
+    ByteArrayType, ByteViewType, Date32Type, Date64Type, DurationMicrosecondType,
+    DurationMillisecondType, DurationNanosecondType, DurationSecondType, Time32MillisecondType,
+    Time32SecondType, Time64MicrosecondType, Time64NanosecondType, TimestampMicrosecondType,
     TimestampMillisecondType, TimestampNanosecondType, TimestampSecondType,
 };
 use arrow_array::types::{
     Float16Type, Float32Type, Float64Type, Int16Type, Int32Type, Int64Type, Int8Type, UInt16Type,
     UInt32Type, UInt64Type, UInt8Type,
 };
+use arrow_array::{BinaryViewArray, GenericByteViewArray, StringViewArray};
 use arrow_buffer::buffer::{NullBuffer, OffsetBuffer};
-use arrow_buffer::Buffer;
+use arrow_buffer::{ArrowNativeType, Buffer, ScalarBuffer};
 use arrow_schema::{DataType, TimeUnit};
 
 use vortex_schema::DType;
@@ -28,10 +29,11 @@ use crate::array::constant::ConstantArray;
 use crate::array::primitive::PrimitiveArray;
 use crate::array::struct_::StructArray;
 use crate::array::varbin::VarBinArray;
+use crate::array::varbinview::VarBinViewArray;
 use crate::array::IntoArray;
 use crate::array::{Array, ArrayRef};
 use crate::datetime::{LocalDateTime, LocalDateTimeArray};
-use crate::ptype::PType;
+use crate::ptype::{NativePType, PType};
 use crate::scalar::NullScalar;
 use crate::stats::Stat;
 
@@ -48,6 +50,12 @@ impl IntoArray for Buffer {
 impl IntoArray for NullBuffer {
     fn into_array(self) -> ArrayRef {
         BoolArray::new(self.into_inner(), None).into_array()
+    }
+}
+
+impl<T: ArrowNativeType + NativePType> IntoArray for ScalarBuffer<T> {
+    fn into_array(self) -> ArrayRef {
+        PrimitiveArray::new(T::PTYPE, self.into_inner(), None).into_array()
     }
 }
 
@@ -105,6 +113,28 @@ impl<T: ByteArrayType> FromArrowArray<&GenericByteArray<T>> for ArrayRef {
         VarBinArray::new(
             value.offsets().clone().into_array(),
             value.values().clone().into_array(),
+            dtype,
+            nulls(value.nulls(), nullable, value.len()),
+        )
+        .into_array()
+    }
+}
+
+impl<T: ByteViewType> FromArrowArray<&GenericByteViewArray<T>> for ArrayRef {
+    fn from_arrow(value: &GenericByteViewArray<T>, nullable: bool) -> Self {
+        let dtype = match T::DATA_TYPE {
+            DataType::BinaryView => DType::Binary(nullable.into()),
+            DataType::Utf8View => DType::Utf8(nullable.into()),
+            _ => panic!("Invalid data type for ByteViewArray"),
+        };
+
+        VarBinViewArray::new(
+            value.views().inner().clone().into_array(),
+            value
+                .data_buffers()
+                .iter()
+                .map(|b| b.clone().into_array())
+                .collect::<Vec<_>>(),
             dtype,
             nulls(value.nulls(), nullable, value.len()),
         )
@@ -189,6 +219,14 @@ impl FromArrowArray<ArrowArrayRef> for ArrayRef {
             DataType::LargeUtf8 => ArrayRef::from_arrow(array.as_string::<i64>(), nullable),
             DataType::Binary => ArrayRef::from_arrow(array.as_binary::<i32>(), nullable),
             DataType::LargeBinary => ArrayRef::from_arrow(array.as_binary::<i64>(), nullable),
+            DataType::BinaryView => ArrayRef::from_arrow(
+                array.as_any().downcast_ref::<BinaryViewArray>().unwrap(),
+                nullable,
+            ),
+            DataType::Utf8View => ArrayRef::from_arrow(
+                array.as_any().downcast_ref::<StringViewArray>().unwrap(),
+                nullable,
+            ),
             DataType::Struct(_) => ArrayRef::from_arrow(array.as_struct(), nullable),
             DataType::Null => ArrayRef::from_arrow(as_null_array(&array), nullable),
             DataType::Timestamp(u, _) => match u {

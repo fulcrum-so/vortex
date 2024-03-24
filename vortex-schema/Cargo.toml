@@ -16,14 +16,14 @@ name = "vortex_schema"
 path = "src/lib.rs"
 
 [dependencies]
-arrow-schema = "50.0.0"
-itertools = "0.12.1"
-thiserror = "1.0.58"
-flatbuffers = "23.5.26"
+arrow-schema = { workspace = true }
+flatbuffers = { workspace = true }
+itertools = { workspace = true }
+thiserror = { workspace = true }
 
 [build-dependencies]
-flatc = "0.2.2"
-walkdir = "2.4.0"
+flatc = { workspace = true }
+walkdir = { workspace = true }
 
 [lints]
 workspace = true

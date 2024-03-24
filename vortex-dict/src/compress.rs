@@ -27,8 +27,8 @@ impl EncodingCompression for DictEncoding {
         _config: &CompressConfig,
     ) -> Option<&dyn EncodingCompression> {
         // TODO(robert): Add support for VarBinView
-        if array.encoding().id() != &PrimitiveEncoding::ID
-            && array.encoding().id() != &VarBinEncoding::ID
+        if array.encoding().id() != PrimitiveEncoding::ID
+            && array.encoding().id() != VarBinEncoding::ID
         {
             return None;
         };
@@ -59,10 +59,10 @@ impl EncodingCompression for DictEncoding {
                 let (codes, dict) = dict_encode_primitive(p);
                 (
                     ctx.auxiliary("codes")
-                        .excluding(&DictEncoding::ID)
+                        .excluding(&DictEncoding)
                         .compress(&codes, dict_like.map(|dict| dict.codes()))?,
                     ctx.named("values")
-                        .excluding(&DictEncoding::ID)
+                        .excluding(&DictEncoding)
                         .compress(&dict, dict_like.map(|dict| dict.dict()))?,
                 )
             }
@@ -70,10 +70,10 @@ impl EncodingCompression for DictEncoding {
                 let (codes, dict) = dict_encode_varbin(vb);
                 (
                     ctx.auxiliary("codes")
-                        .excluding(&DictEncoding::ID)
+                        .excluding(&DictEncoding)
                         .compress(&codes, dict_like.map(|dict| dict.codes()))?,
                     ctx.named("values")
-                        .excluding(&DictEncoding::ID)
+                        .excluding(&DictEncoding)
                         .compress(&dict, dict_like.map(|dict| dict.dict()))?,
                 )
             }

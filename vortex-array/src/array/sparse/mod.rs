@@ -78,7 +78,7 @@ impl SparseArray {
 
     /// Return indices as a vector of usize with the indices_offset applied.
     pub fn resolved_indices(&self) -> Vec<usize> {
-        flatten_primitive(cast(self.indices(), &PType::U64.into()).unwrap().as_ref())
+        flatten_primitive(cast(self.indices(), PType::U64.into()).unwrap().as_ref())
             .unwrap()
             .typed_data::<u64>()
             .iter()
@@ -163,8 +163,8 @@ impl SparseEncoding {
 static ENCODINGS_SPARSE: EncodingRef = &SparseEncoding;
 
 impl Encoding for SparseEncoding {
-    fn id(&self) -> &EncodingId {
-        &Self::ID
+    fn id(&self) -> EncodingId {
+        Self::ID
     }
 
     fn compression(&self) -> Option<&dyn EncodingCompression> {

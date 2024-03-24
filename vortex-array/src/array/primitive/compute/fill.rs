@@ -19,9 +19,7 @@ impl FillForwardFn for PrimitiveArray {
             .unwrap()
             == 0usize
         {
-            return Ok(
-                PrimitiveArray::new(*self.ptype(), self.buffer().clone(), None).into_array(),
-            );
+            return Ok(PrimitiveArray::new(self.ptype(), self.buffer().clone(), None).into_array());
         } else {
             match_each_native_ptype!(self.ptype(), |$P| {
                 let validity = flatten_bool(self.validity().unwrap())?;
