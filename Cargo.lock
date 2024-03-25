@@ -2808,7 +2808,6 @@ dependencies = [
  "flatbuffers",
  "parquet2",
  "safer_owning_ref",
- "vortex-array",
  "vortex-flatbuffers",
  "vortex-schema",
 ]

@@ -1,14 +1,14 @@
 namespace Vortex.Encoding;
 
-table Encoding {
+table FBArray {
     id: uint16;
     metadata: [byte];
-    children: [Encoding];
+    children: [FBArray];
     buffers: [Buffer];
 }
 
-struct Buffer {
-    len: uint64;
+table Buffer {
+    bytes: [byte];
 }
 
-root_type Encoding;
+root_type FBArray;
