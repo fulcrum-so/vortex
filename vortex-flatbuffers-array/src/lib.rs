@@ -2,10 +2,8 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use arrow_buffer::Buffer;
-use flatbuffers::{Follow, Verifiable};
 
 use vortex_flatbuffers::encoding::FBArray;
-use vortex_schema::DType;
 
 mod fb;
 
@@ -13,18 +11,17 @@ type ArrayRef = Arc<dyn Array>;
 
 trait Array {
     fn len(&self) -> usize;
-    fn to_array(&self) -> ArrayRef;
 }
 
 trait ArrayVTable<'a> {
     fn len<'data: 'a>(&self, data: &'data ArrayData) -> usize;
-    fn to_array(&self, data: &ArrayData) -> ArrayRef;
 }
 
 struct ArrayCtx {
     encodings: Vec<EncodingRef>,
 }
 
+#[derive(Clone)]
 struct ArrayData<'a> {
     fb: FBArray<'a>,
     ctx: &'a ArrayCtx,
@@ -33,35 +30,45 @@ struct ArrayData<'a> {
 impl<'a> ArrayData<'a> {
     fn as_typed<T>(&'a self) -> TypedArray<'a, T> {
         TypedArray {
-            fb: &self.fb,
-            ctx: self.ctx,
+            data: self.clone(),
             phantom: Default::default(),
         }
+    }
+
+    fn vtable(&self) -> Option<&dyn ArrayVTable> {
+        self.ctx
+            .encodings
+            .get(self.fb.id() as usize)
+            .map(|e| e.vtable())
+    }
+
+    fn child(&self, idx: usize) -> Option<ArrayData> {
+        self.fb.children().map(|c| ArrayData {
+            fb: c.get(idx),
+            ctx: self.ctx,
+        })
+    }
+
+    fn buffer(&self, idx: usize) -> Option<&[u8]> {
+        self.fb
+            .buffers()
+            .and_then(|b| b.get(idx).bytes())
+            .map(|b| b.bytes())
     }
 }
 
 struct TypedArray<'a, T> {
-    fb: &'a FBArray<'a>,
-    ctx: &'a ArrayCtx,
+    data: ArrayData<'a>,
     phantom: PhantomData<T>,
-}
-
-impl<'a, T> TypedArray<'a, T> {
-    fn child(&self, idx: usize) -> ArrayData {
-        ArrayData {
-            fb: self.fb.children().unwrap().get(idx),
-            ctx: self.ctx,
-        }
-    }
 }
 
 impl<'a> TypedArray<'a, DictArray> {
     fn codes(&self) -> ArrayData {
-        self.child(0)
+        self.data.child(0).expect("DictArray missing codes child")
     }
 
     fn values(&self) -> ArrayData {
-        self.child(1)
+        self.data.child(1).expect("DictArray missing values child")
     }
 }
 
@@ -87,10 +94,6 @@ impl<'a> Array for TypedArray<'a, DictArray> {
     fn len(&self) -> usize {
         self.codes().len()
     }
-
-    fn to_array(&self) -> ArrayRef {
-        todo!()
-    }
 }
 
 /// Primitive Encoding
@@ -108,16 +111,12 @@ struct PrimitiveArray {
 }
 impl<'a> TypedArray<'a, PrimitiveArray> {
     fn buffer(&self) -> &[u8] {
-        self.fb.buffers().unwrap().get(0).bytes().unwrap().bytes()
+        self.data.buffer(0).expect("PrimitiveArray missing buffer")
     }
 }
 impl<'a> Array for TypedArray<'a, PrimitiveArray> {
     fn len(&self) -> usize {
         self.buffer().len() / 4
-    }
-
-    fn to_array(&self) -> ArrayRef {
-        todo!()
     }
 }
 
@@ -126,23 +125,13 @@ where
     TypedArray<'a, <T as DowncastArray>::ArrayType>: Array,
 {
     fn len<'data: 'a>(&self, data: &'data ArrayData) -> usize {
-        let typed = data.as_typed::<T::ArrayType>();
-        typed.len()
-    }
-
-    fn to_array(&self, data: &ArrayData) -> ArrayRef {
-        todo!()
+        data.as_typed::<T::ArrayType>().len()
     }
 }
 
 impl<'a> Array for ArrayData<'a> {
     fn len(&self) -> usize {
-        let encoding = self.ctx.encodings[self.fb.id() as usize].vtable();
-        encoding.len(self)
-    }
-
-    fn to_array(&self) -> ArrayRef {
-        todo!()
+        self.vtable().expect("Invalid encoding").len(self)
     }
 }
 
