@@ -16,6 +16,11 @@ trait Array {
     fn to_array(&self) -> ArrayRef;
 }
 
+trait ArrayVTable<'a> {
+    fn len<'data: 'a>(&self, data: &'data ArrayData) -> usize;
+    fn to_array(&self, data: &ArrayData) -> ArrayRef;
+}
+
 struct ArrayCtx {
     encodings: Vec<EncodingRef>,
 }
@@ -23,6 +28,16 @@ struct ArrayCtx {
 struct ArrayData<'a> {
     fb: FBArray<'a>,
     ctx: &'a ArrayCtx,
+}
+
+impl<'a> ArrayData<'a> {
+    fn as_typed<T>(&'a self) -> TypedArray<'a, T> {
+        TypedArray {
+            fb: &self.fb,
+            ctx: self.ctx,
+            phantom: Default::default(),
+        }
+    }
 }
 
 struct TypedArray<'a, T> {
@@ -50,6 +65,24 @@ impl<'a> TypedArray<'a, DictArray> {
     }
 }
 
+trait DowncastArray {
+    type ArrayType;
+}
+
+/// Dictionary Encoding
+struct DictEncodingPlugin;
+impl EncodingPlugin for DictEncodingPlugin {
+    fn vtable(&self) -> &dyn ArrayVTable {
+        self
+    }
+}
+impl DowncastArray for DictEncodingPlugin {
+    type ArrayType = DictArray;
+}
+struct DictArray {
+    codes: ArrayRef,
+    values: ArrayRef,
+}
 impl<'a> Array for TypedArray<'a, DictArray> {
     fn len(&self) -> usize {
         self.codes().len()
@@ -60,29 +93,52 @@ impl<'a> Array for TypedArray<'a, DictArray> {
     }
 }
 
-impl EncodingPlugin for DictEncodingPlugin {
-    fn array<'a>(&self, data: &'a ArrayData, out: &mut dyn Array) {
-        *out = &TypedArray {
-            fb: &data.fb,
-            ctx: data.ctx,
-            phantom: Default::default(),
-        };
+/// Primitive Encoding
+struct PrimitiveEncodingPlugin;
+impl EncodingPlugin for PrimitiveEncodingPlugin {
+    fn vtable(&self) -> &dyn ArrayVTable {
+        self
+    }
+}
+impl DowncastArray for PrimitiveEncodingPlugin {
+    type ArrayType = PrimitiveArray;
+}
+struct PrimitiveArray {
+    buffer: Buffer,
+}
+impl<'a> TypedArray<'a, PrimitiveArray> {
+    fn buffer(&self) -> &[u8] {
+        self.fb.buffers().unwrap().get(0).bytes().unwrap().bytes()
+    }
+}
+impl<'a> Array for TypedArray<'a, PrimitiveArray> {
+    fn len(&self) -> usize {
+        self.buffer().len() / 4
+    }
+
+    fn to_array(&self) -> ArrayRef {
+        todo!()
+    }
+}
+
+impl<'a, T: DowncastArray> ArrayVTable<'a> for T
+where
+    TypedArray<'a, <T as DowncastArray>::ArrayType>: Array,
+{
+    fn len<'data: 'a>(&self, data: &'data ArrayData) -> usize {
+        let typed = data.as_typed::<T::ArrayType>();
+        typed.len()
+    }
+
+    fn to_array(&self, data: &ArrayData) -> ArrayRef {
+        todo!()
     }
 }
 
 impl<'a> Array for ArrayData<'a> {
     fn len(&self) -> usize {
-        let encoding = self.ctx.encodings[self.fb.id() as usize];
-        encoding.array(self).len()
-        // match self.fb.id() {
-        //     0 => TypedArray::<DictArray> {
-        //         fb: &self.fb,
-        //         ctx: self.ctx,
-        //         phantom: Default::default(),
-        //     }
-        //     .len(),
-        //     _ => panic!("unsupported"),
-        // }
+        let encoding = self.ctx.encodings[self.fb.id() as usize].vtable();
+        encoding.len(self)
     }
 
     fn to_array(&self) -> ArrayRef {
@@ -91,120 +147,79 @@ impl<'a> Array for ArrayData<'a> {
 }
 
 trait EncodingPlugin {
-    fn array<'a>(&self, data: &'a ArrayData, out: &mut dyn Array);
+    fn vtable(&self) -> &dyn ArrayVTable;
 }
 
 type EncodingRef = &'static dyn EncodingPlugin;
 
-struct DictEncodingPlugin;
-
-struct PrimitiveArray<'a> {
-    buffer: &'a Buffer,
-}
-
-struct DictArray {
-    codes: ArrayRef,
-    values: ArrayRef,
-}
-
-struct BorrowedDictArray<'a> {
-    codes: &'a dyn Array,
-    values: &'a dyn Array,
-}
-
-struct SerializedArray {
-    dtype: DType,
-    encoding_specs: Vec<EncodingRef>,
-    encoding_idx: u16,
-    metadata: Buffer,
-    children: Vec<SerializedArray>,
-    buffers: Vec<Buffer>,
-}
-
-impl SerializedArray {
-    fn with_children<T, F: Fn(Vec<&SerializedArray>) -> T>(&self, f: F) -> T {
-        let refs = self.children.iter().map(|c| c).collect();
-        f(refs)
-    }
-}
-
-impl Array for &SerializedArray {
-    fn len(&self) -> usize {
-        todo!()
-    }
-
-    fn to_array(&self) -> ArrayRef {
-        todo!()
-    }
-}
-
-struct FlatBufferArray<T> {
-    data: SerializedArray,
-    metadata: T,
-}
-
-trait DictEncodedArray {
-    fn with_children<T, F: Fn((&dyn Array, &dyn Array)) -> T>(&self, f: F) -> T;
-}
-
-struct DictFlatBuffer<'a> {
-    codes: &'a [u8],
-    values: &'a [u8],
-}
-
-trait ArrayCompute {
-    fn take(&self, indices: &dyn Array) -> ArrayRef;
-}
-
-trait ArrayComputeDispatch<T> {
-    fn take(&self, array: T, indices: &dyn Array) -> ArrayRef;
-}
-
-//
-// impl<'a> ArrayCompute for DictArray<'a> {
-//     fn take(&self, indices: &dyn Array) -> ArrayRef {
-//         Arc::new(DictArray {
-//             codes: self.codes.take(indices),
-//             values: self.values.to_array(),
-//         })
-//     }
-// }
-
 #[cfg(test)]
 mod test {
-    use vortex_schema::DType;
-    use vortex_schema::IntWidth::_32;
-    use vortex_schema::Nullability::Nullable;
-    use vortex_schema::Signedness::Signed;
-
-    use crate::SerializedArray;
+    use crate::{Array, ArrayCtx, ArrayData, DictEncodingPlugin, PrimitiveEncodingPlugin};
+    use flatbuffers::{root, FlatBufferBuilder};
+    use vortex_flatbuffers::encoding::{Buffer, BufferArgs, FBArray, FBArrayArgs};
 
     #[test]
     pub fn test_something() {
-        let data = SerializedArray {
-            dtype: DType::Int(_32, Signed, Nullable),
-            encoding_specs: vec![],
-            encoding_idx: 0,
-            children: vec![
-                SerializedArray {
-                    dtype: DType::Int(_32, Signed, Nullable),
-                    encoding_specs: vec![],
-                    encoding_idx: 0,
-                    children: vec![],
-                    metadata: vec![].into(),
-                    buffers: vec![].into(),
-                },
-                SerializedArray {
-                    dtype: DType::Int(_32, Signed, Nullable),
-                    encoding_specs: vec![],
-                    encoding_idx: 0,
-                    children: vec![],
-                    metadata: vec![].into(),
-                    buffers: vec![].into(),
-                },
-            ],
-            metadata: vec![].into(),
-            buffers: vec![].into(),
+        let mut fbb = FlatBufferBuilder::new();
+
+        let codes_bytes = fbb.create_vector(&[0i8, 0, 0, 0, 0i8, 0, 0, 0]);
+        let codes_buffer = Buffer::create(
+            &mut fbb,
+            &BufferArgs {
+                bytes: Some(codes_bytes),
+            },
+        );
+        let codes_buffers = fbb.create_vector(&[codes_buffer]);
+        let codes = FBArray::create(
+            &mut fbb,
+            &FBArrayArgs {
+                id: 0,
+                metadata: None,
+                children: None,
+                buffers: Some(codes_buffers),
+            },
+        );
+
+        let values_bytes = fbb.create_vector(&[0i8, 0, 0, 5]);
+        let values_buffer = Buffer::create(
+            &mut fbb,
+            &BufferArgs {
+                bytes: Some(values_bytes),
+            },
+        );
+        let values_buffers = fbb.create_vector(&[values_buffer]);
+        let values = FBArray::create(
+            &mut fbb,
+            &FBArrayArgs {
+                id: 0,
+                metadata: None,
+                children: None,
+                buffers: Some(values_buffers),
+            },
+        );
+
+        let children = fbb.create_vector(&[codes, values]);
+
+        let dict_array = FBArray::create(
+            &mut fbb,
+            &FBArrayArgs {
+                id: 1,
+                metadata: None,
+                children: Some(children),
+                buffers: None,
+            },
+        );
+
+        fbb.finish_minimal(dict_array);
+        let root = root::<FBArray>(fbb.finished_data()).unwrap();
+
+        let array_data = ArrayData {
+            fb: root,
+            ctx: &ArrayCtx {
+                encodings: vec![&PrimitiveEncodingPlugin, &DictEncodingPlugin],
+            },
         };
+
+        assert_eq!(array_data.len(), 2);
     }
 }
