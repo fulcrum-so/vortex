@@ -79,7 +79,7 @@ type EncodingRef = &'static dyn EncodingPlugin;
 #[derive(Clone)]
 struct ArrayData {
     dtype: DType,
-    encoding: Buffer,
+    encoding: Buffer, // FlatBuffer encoded metadata for the array.
     buffers: Arc<[Buffer]>,
 }
 
