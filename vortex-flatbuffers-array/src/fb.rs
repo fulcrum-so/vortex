@@ -7,12 +7,12 @@ use std::convert::TryFrom;
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]
-pub struct Flat<F> {
+pub struct FlatBuffer<F> {
     buffer: Buffer,
     phantom: PhantomData<F>,
 }
 
-impl<F> Flat<F>
+impl<F> FlatBuffer<F>
 where
     F: Verifiable,
 {
@@ -26,13 +26,25 @@ where
         }
     }
 
-    pub fn try_from_buffer(buffer: Buffer) -> Result<Self, InvalidFlatbuffer> {
+    pub fn try_from_slice<'a>(buffer: &'a [u8]) -> F
+    where
+        F: 'a,
+        F: Follow<'a, Inner = F>,
+    {
+        // We verify once now and then use unchecked access later.
+        let opts = VerifierOptions::default();
+        let mut verifier = Verifier::new(&opts, buffer);
+        <ForwardsUOffset<F>>::run_verifier(&mut verifier, 0).unwrap();
+        unsafe { root_unchecked::<F>(buffer) }
+    }
+
+    pub fn try_from_buffer(buffer: &Buffer) -> Result<Self, InvalidFlatbuffer> {
         // We verify once now and then use unchecked access later.
         let opts = VerifierOptions::default();
         let mut verifier = Verifier::new(&opts, buffer.as_slice());
         <ForwardsUOffset<F>>::run_verifier(&mut verifier, 0)?;
         Ok(Self {
-            buffer,
+            buffer: buffer.clone(),
             phantom: PhantomData,
         })
     }
@@ -45,14 +57,14 @@ where
     }
 }
 
-impl<'a, F> TryFrom<Buffer> for Flat<F>
+impl<'a, F> TryFrom<&Buffer> for FlatBuffer<F>
 where
     F: Follow<'a>,
     F: Verifiable,
 {
     type Error = InvalidFlatbuffer;
 
-    fn try_from(buffer: Buffer) -> Result<Self, Self::Error> {
+    fn try_from(buffer: &Buffer) -> Result<Self, Self::Error> {
         Self::try_from_buffer(buffer)
     }
 }

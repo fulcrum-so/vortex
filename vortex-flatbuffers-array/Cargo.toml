@@ -17,6 +17,7 @@ rust-version = { workspace = true }
 [dependencies]
 arrow-buffer = "51.0.0"
 flatbuffers = "23.5.26"
+safer_owning_ref = "0.5.0"
 parquet2 = "0.17.2"
 vortex-array = { path = "../vortex-array" }
 vortex-flatbuffers = { path = "../vortex-flatbuffers" }

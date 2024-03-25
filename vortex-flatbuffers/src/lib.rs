@@ -6,18 +6,18 @@ mod gen_batch {
 }
 pub use gen_batch::vortex::batch;
 
-mod gen_column {
-    include!(concat!(env!("OUT_DIR"), "/flatbuffers/column_generated.rs"));
-}
-pub use gen_column::vortex::column;
-
-mod gen_primitive {
+mod gen_encoding {
     include!(concat!(
         env!("OUT_DIR"),
-        "/flatbuffers/primitive_generated.rs"
+        "/flatbuffers/encoding_generated.rs"
     ));
 }
-pub use gen_primitive::vortex::primitive;
+pub use gen_encoding::vortex::encoding;
+
+mod gen_flat {
+    include!(concat!(env!("OUT_DIR"), "/flatbuffers/flat_generated.rs"));
+}
+pub use gen_flat::vortex::flat;
 
 mod gen_ree {
     include!(concat!(env!("OUT_DIR"), "/flatbuffers/ree_generated.rs"));

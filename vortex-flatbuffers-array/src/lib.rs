@@ -1,23 +1,14 @@
-use std::any::Any;
-use std::fmt::{Debug, Formatter};
-use std::io::Read;
+use std::borrow::{Borrow, Cow};
 use std::sync::Arc;
 
 use arrow_buffer::Buffer;
 use flatbuffers::{root, Follow, Verifiable};
-
-use vortex::array::ArrayRef;
-use vortex::compute::patch::PatchFn;
-use vortex::compute::scalar_at::{scalar_at, ScalarAtFn};
-use vortex::compute::take::TakeFn;
 use vortex::error::VortexResult;
-use vortex::formatter::{ArrayDisplay, ArrayFormatter};
-use vortex::scalar::Scalar;
-use vortex::stats::Stats;
-use vortex_flatbuffers::column::Array;
-use vortex_schema::DType;
+use vortex::ptype::PType;
+use vortex_flatbuffers::encoding::{Buffer, Encoding};
 
-use crate::fb::Flat;
+use crate::fb::FlatBuffer;
+use vortex_schema::DType;
 
 mod fb;
 
@@ -47,13 +38,25 @@ mod fb;
 
 // MessageColumn Buffers (written immediately after the MessageColumn):
 
-struct ColumnReader {}
-
 // From the wire, we read an Array message (which holds the encodings for the entire column) as
 // well as the correct number of buffers.
 
 trait ArrayTrait {
     fn len(&self) -> usize;
+}
+
+impl ToOwned for dyn ArrayTrait {
+    type Owned = Arc<dyn ArrayTrait>;
+
+    fn to_owned(&self) -> Arc<dyn ArrayTrait> {
+        todo!()
+    }
+}
+
+impl<'a> Borrow<dyn ArrayTrait + 'a> for PrimitiveArray {
+    fn borrow(&self) -> &(dyn ArrayTrait + 'a) {
+        self
+    }
 }
 
 trait ArrayCompute {}
@@ -64,127 +67,141 @@ trait WithCompute {
         F: FnOnce(&dyn ArrayCompute) -> T;
 }
 
-trait Encoding: Sync {
-    fn compute(&self, array_data: &ArrayData) -> Box<dyn ArrayCompute>;
+trait EncodingPlugin: Sync {
+    fn as_array<'a>(
+        &self,
+        children: Vec<Cow<'a, dyn ArrayTrait>>,
+    ) -> VortexResult<Cow<'a, dyn ArrayTrait>>;
 }
 
-type EncodingRef = &'static dyn Encoding;
+type EncodingRef = &'static dyn EncodingPlugin;
 
 #[derive(Clone)]
-struct ReaderCtx {
+struct ArrayData {
     dtype: DType,
-    encodings: Vec<EncodingRef>,
-}
-
-struct VortexArray<M> {
-    metadata: M,
-}
-
-#[derive(Clone)]
-struct ArrayData<'a> {
-    ctx: Arc<ReaderCtx>,
-    metadata: Array<'a>,
+    encoding: Buffer,
     buffers: Arc<[Buffer]>,
-    encoding: EncodingRef,
 }
 
-impl<'a> ArrayData<'a> {
-    fn new(ctx: Arc<ReaderCtx>, metadata: Array<'a>, buffers: Arc<[Buffer]>) -> Self {
-        Self {
-            ctx,
-            metadata,
-            buffers,
-            encoding: ctx.encodings[0],
-        }
+impl ArrayData {
+    fn encoding(&self) -> Encoding {
+        FlatBuffer::<Encoding>::try_from_slice(&self.encoding)
     }
 
-    fn with_child<T, F>(&self, _child_idx: usize, closure: F) -> T
-    where
-        F: FnOnce(ArrayData<'a>) -> T,
-    {
-        // TODO(ngates): construct the child
-        let child = self.clone();
-        closure(child)
-    }
-
-    fn as_array(&self) -> ArrayRef {
+    fn as_array(&self) -> &dyn ArrayTrait {
         todo!()
     }
 }
 
-impl<'a> ArrayDisplay for ArrayData<'a> {
-    fn fmt(&self, fmt: &'_ mut ArrayFormatter) -> std::fmt::Result {
+fn as_array<'a>(buffers: &[Buffer], encoding: Encoding<'a>) -> &'a dyn ArrayTrait {
+    // Switch on ID encoding.id()
+    let buffer_meta = encoding.buffers().unwrap();
+
+    // How many children?
+    let mut buffer_idx = 0;
+    let mut children = Vec::with_capacity(encoding.children().unwrap().len());
+    for child in encoding.children().unwrap() {
+        let nbuffers = child.buffers().unwrap().len();
+        children.push(as_array(&buffers[buffer_idx..][0..nbuffers], child));
+        buffer_idx += nbuffers;
+    }
+
+    DictEncodingPlugin::as_array(children)
+}
+
+struct PrimitiveEncodingPlugin;
+struct DictEncodingPlugin;
+
+impl EncodingPlugin for PrimitiveEncodingPlugin {
+    fn as_array(&self, children: Vec<Cow<dyn ArrayTrait>>) -> VortexResult<Cow<dyn ArrayTrait>> {
         todo!()
     }
 }
 
-impl<'a> WithCompute for ArrayData<'a> {
-    fn with_compute<T, F>(&self, closure: F) -> T
-    where
-        F: FnOnce(&dyn ArrayCompute) -> T,
-    {
-        let array_compute = self.encoding.compute(self);
-        closure(array_compute.as_ref())
+impl EncodingPlugin for DictEncodingPlugin {
+    fn as_array(&self, children: Vec<Cow<dyn ArrayTrait>>) -> VortexResult<Cow<dyn ArrayTrait>> {
+        todo!()
     }
 }
 
-impl<'a> ArrayCompute for ArrayData<'a> {}
+trait HasArrayData {
+    fn data(&self) -> &ArrayData;
+}
+
+trait FlatBufferArray<F: Verifiable>: HasArrayData {
+    fn flatbuffer_metadata<'a>(&'a self) -> F
+    where
+        F: 'a,
+        F: Default,
+        F: Follow<'a, Inner = F>,
+    {
+        self.data()
+            .encoding()
+            .metadata()
+            .map(|buffer| root::<F>(buffer.bytes()).unwrap())
+            .unwrap_or_else(move || F::default())
+    }
+}
+
+impl<A, F> FlatBufferArray<F> for A
+where
+    A: HasArrayData,
+    F: Verifiable,
+{
+}
+
+struct PrimitiveArray {
+    ptype: PType,
+    buffer: Buffer,
+    validity: Option<Buffer>,
+}
+
+impl HasArrayData for PrimitiveArray {
+    fn data(&self) -> &ArrayData {
+        &self.0
+    }
+}
+
+//
+// struct PrimitiveArray<'a> {
+//     encoding: FlatBuffer<PrimitiveEncoding<'a>>,
+//     buffer: Buffer,
+//     validity: Option<Buffer>,
+// }
 
 // Say we have some DictArray and we want to scan it.
-struct DictArrayData<'a>(ArrayData<'a>);
-
-impl<'a> DictArrayData<'a> {
-    fn codes(&self) -> ArrayData {
-        ArrayData::new(
-            self.0.ctx.clone(),
-            self.0.metadata.codes().unwrap(),
-            self.0.buffers.clone(),
-        )
-    }
-
-    fn with_codes<T>(&self, closure: impl FnOnce(ArrayData<'a>) -> T) -> T {
-        self.0.with_child(0, closure)
-    }
-
-    fn with_values<T>(&self, closure: impl FnOnce(ArrayData<'a>) -> T) -> T {
-        self.0.with_child(1, closure)
-    }
-}
-
-impl<'a> ScalarAtFn for DictArrayData<'a> {
-    fn scalar_at(&self, index: usize) -> VortexResult<Scalar> {
-        let code: usize = self
-            .with_codes(|codes| scalar_at(&codes, index))?
-            .try_into()?;
-        self.with_values(|values| scalar_at(&values, code))
-    }
-}
+struct DictEncoding {}
 
 #[cfg(test)]
 mod test {
     use flatbuffers::FlatBufferBuilder;
+    use vortex_flatbuffers::flat::{
+        FlatEncoding, FlatEncodingArgs, FlatUnion, PType, PrimitiveEncoding, PrimitiveEncodingArgs,
+    };
 
-    use vortex_flatbuffers::column::{Column, ColumnArgs};
+    use crate::fb::FlatBuffer;
 
-    use crate::fb::Flat;
-
-    fn write_column<'a>() -> Flat<Column<'a>> {
+    fn write_encoding<'a>() -> FlatBuffer<FlatEncoding<'a>> {
         let mut fb = FlatBufferBuilder::new();
-        let col = Column::create(
+        let primitive =
+            PrimitiveEncoding::create(&mut fb, &PrimitiveEncodingArgs { ptype: PType::I64 });
+
+        let col = FlatEncoding::create(
             &mut fb,
-            &ColumnArgs {
-                array: None,
-                buffer_lens: None,
+            &FlatEncodingArgs {
+                flat_type: FlatUnion::PrimitiveEncoding,
+                flat: Some(primitive.as_union_value()),
             },
         );
-        Flat::<Column>::from_root(fb, col)
+
+        FlatBuffer::<FlatEncoding>::from_root(fb, col)
     }
 
     #[test]
     pub fn test_something() {
-        let col_buf = write_column();
+        let col_buf = write_encoding();
         println!("Buffer {:?}", col_buf);
-        let col: Flat<Column> = col_buf.try_into().unwrap();
+        let col: FlatBuffer<FlatEncoding> = col_buf.try_into().unwrap();
         println!("Col {:?}", col);
 
         let c = col.as_typed();

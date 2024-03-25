@@ -1,0 +1,29 @@
+namespace Vortex.Flat;
+
+enum PType : byte {
+    I8,
+    U8,
+    I16,
+    U16,
+    I32,
+    U32,
+    I64,
+    U64,
+    F16,
+    F32,
+    F64,
+}
+
+table PrimitiveEncoding {
+    ptype: PType;
+}
+
+union FlatUnion {
+    PrimitiveEncoding,
+}
+
+table FlatEncoding {
+    flat: FlatUnion;
+}
+
+root_type FlatEncoding;

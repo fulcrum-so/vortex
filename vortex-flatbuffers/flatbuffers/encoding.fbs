@@ -1,0 +1,14 @@
+namespace Vortex.Encoding;
+
+table Encoding {
+    id: uint16;
+    metadata: [byte];
+    children: [Encoding];
+    buffers: [Buffer];
+}
+
+struct Buffer {
+    len: uint64;
+}
+
+root_type Encoding;
