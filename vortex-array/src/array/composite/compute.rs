@@ -1,3 +1,8 @@
+use arrow_array::ArrayRef as ArrowArrayRef;
+use itertools::Itertools;
+
+use vortex_error::{VortexError, VortexResult};
+
 use crate::array::composite::array::CompositeArray;
 use crate::array::downcast::DowncastArrayBuiltin;
 use crate::array::{Array, ArrayRef};
@@ -6,10 +11,7 @@ use crate::compute::as_contiguous::{as_contiguous, AsContiguousFn};
 use crate::compute::flatten::{FlattenFn, FlattenedArray};
 use crate::compute::scalar_at::{scalar_at, ScalarAtFn};
 use crate::compute::ArrayCompute;
-use crate::error::{VortexError, VortexResult};
 use crate::scalar::Scalar;
-use arrow_array::ArrayRef as ArrowArrayRef;
-use itertools::Itertools;
 
 impl ArrayCompute for CompositeArray {
     fn as_arrow(&self) -> Option<&dyn AsArrowArray> {

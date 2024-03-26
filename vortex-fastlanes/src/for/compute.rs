@@ -2,7 +2,7 @@ use crate::r#for::compress::decompress;
 use crate::FoRArray;
 use vortex::compute::flatten::{FlattenFn, FlattenedArray};
 use vortex::compute::ArrayCompute;
-use vortex::error::VortexResult;
+use vortex_error::VortexResult;
 
 impl ArrayCompute for FoRArray {
     fn flatten(&self) -> Option<&dyn FlattenFn> {

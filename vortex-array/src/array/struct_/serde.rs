@@ -1,8 +1,9 @@
+use vortex_error::{VortexError, VortexResult};
+use vortex_schema::DType;
+
 use crate::array::struct_::{StructArray, StructEncoding};
 use crate::array::{Array, ArrayRef};
-use crate::error::{VortexError, VortexResult};
 use crate::serde::{ArraySerde, EncodingSerde, ReadCtx, WriteCtx};
-use vortex_schema::DType;
 
 impl ArraySerde for StructArray {
     fn write(&self, ctx: &mut WriteCtx) -> VortexResult<()> {

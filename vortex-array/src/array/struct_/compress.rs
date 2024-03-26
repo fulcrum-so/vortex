@@ -1,9 +1,11 @@
+use itertools::Itertools;
+
+use vortex_error::VortexResult;
+
 use crate::array::downcast::DowncastArrayBuiltin;
 use crate::array::struct_::{StructArray, StructEncoding};
 use crate::array::{Array, ArrayRef};
 use crate::compress::{CompressConfig, CompressCtx, EncodingCompression};
-use crate::error::VortexResult;
-use itertools::Itertools;
 
 impl EncodingCompression for StructEncoding {
     fn can_compress(

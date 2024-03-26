@@ -1,13 +1,15 @@
-use crate::array::bool::BoolArray;
+use itertools::Itertools;
+
+use vortex_alloc::{AlignedVec, ALIGNED_ALLOCATOR};
+use vortex_error::{VortexError, VortexResult};
+
 use crate::array::downcast::DowncastArrayBuiltin;
 use crate::array::primitive::PrimitiveArray;
 use crate::array::{Array, ArrayRef};
-use crate::compute::as_contiguous::{as_contiguous, AsContiguousFn};
-use crate::error::{VortexError, VortexResult};
+use crate::compute::as_contiguous::AsContiguousFn;
 use crate::match_each_native_ptype;
 use crate::ptype::NativePType;
-use itertools::Itertools;
-use vortex_alloc::{AlignedVec, ALIGNED_ALLOCATOR};
+use crate::validity::{ArrayValidity, Validity};
 
 impl AsContiguousFn for PrimitiveArray {
     fn as_contiguous(&self, arrays: Vec<ArrayRef>) -> VortexResult<ArrayRef> {
@@ -22,20 +24,12 @@ impl AsContiguousFn for PrimitiveArray {
         }
         let ptype = arrays[0].as_primitive().ptype();
 
-        let validity = if arrays.iter().all(|a| a.as_primitive().validity().is_none()) {
-            None
+        let validity = if self.dtype().is_nullable() {
+            Some(Validity::from_iter(arrays.iter().map(|v| {
+                v.validity().unwrap_or_else(|| Validity::valid(v.len()))
+            })))
         } else {
-            Some(as_contiguous(
-                arrays
-                    .iter()
-                    .map(|a| {
-                        a.as_primitive()
-                            .validity()
-                            .cloned()
-                            .unwrap_or_else(|| BoolArray::from(vec![true; a.len()]).into_array())
-                    })
-                    .collect_vec(),
-            )?)
+            None
         };
 
         Ok(match_each_native_ptype!(ptype, |$P| {

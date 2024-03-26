@@ -11,12 +11,13 @@ use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
 use vortex::compute::cast::cast;
 use vortex::compute::flatten::flatten_primitive;
 use vortex::compute::patch::patch;
-use vortex::error::VortexResult;
 use vortex::match_each_integer_ptype;
 use vortex::ptype::PType::{I16, I32, I64, I8, U16, U32, U64, U8};
 use vortex::ptype::{NativePType, PType};
 use vortex::scalar::ListScalarVec;
 use vortex::stats::Stat;
+use vortex::validity::ArrayValidity;
+use vortex_error::VortexResult;
 
 impl EncodingCompression for BitPackedEncoding {
     fn cost(&self) -> u8 {
@@ -75,13 +76,7 @@ impl EncodingCompression for BitPackedEncoding {
 
         let packed = bitpack(parray, bit_width);
 
-        let validity = parray
-            .validity()
-            .map(|v| {
-                ctx.auxiliary("validity")
-                    .compress(v.as_ref(), like_bp.and_then(|bp| bp.validity()))
-            })
-            .transpose()?;
+        let validity = ctx.compress_validity(parray.validity())?;
 
         let patches = if num_exceptions > 0 {
             Some(ctx.auxiliary("patches").compress(
@@ -176,19 +171,19 @@ pub fn bitunpack(array: &BitPackedArray) -> VortexResult<PrimitiveArray> {
     let mut unpacked = match ptype {
         I8 | U8 => PrimitiveArray::from_nullable(
             bitunpack_primitive::<u8>(encoded.typed_data::<u8>(), bit_width, length),
-            array.validity().cloned(),
+            array.validity(),
         ),
         I16 | U16 => PrimitiveArray::from_nullable(
             bitunpack_primitive::<u16>(encoded.typed_data::<u8>(), bit_width, length),
-            array.validity().cloned(),
+            array.validity(),
         ),
         I32 | U32 => PrimitiveArray::from_nullable(
             bitunpack_primitive::<u32>(encoded.typed_data::<u8>(), bit_width, length),
-            array.validity().cloned(),
+            array.validity(),
         ),
         I64 | U64 => PrimitiveArray::from_nullable(
             bitunpack_primitive::<u64>(encoded.typed_data::<u8>(), bit_width, length),
-            array.validity().cloned(),
+            array.validity(),
         ),
         _ => panic!("Unsupported ptype {:?}", ptype),
     }

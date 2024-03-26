@@ -1,5 +1,6 @@
+use vortex_error::VortexResult;
+
 use crate::array::chunked::ChunkedArray;
-use crate::error::VortexResult;
 use crate::stats::{Stat, StatsCompute, StatsSet};
 
 impl StatsCompute for ChunkedArray {

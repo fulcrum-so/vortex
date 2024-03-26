@@ -3,11 +3,12 @@ use std::sync::Arc;
 use arrow_schema::TimeUnit as ArrowTimeUnit;
 use arrow_schema::{DataType, Field, SchemaRef};
 use itertools::Itertools;
+
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::{DType, FloatWidth, IntWidth, Nullability};
 
 use crate::arrow::FromArrowType;
 use crate::datetime::{LocalDateTimeExtension, TimeUnit};
-use crate::error::{VortexError, VortexResult};
 use crate::ptype::PType;
 
 impl TryFrom<&DataType> for PType {

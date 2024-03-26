@@ -1,5 +1,9 @@
 use itertools::Itertools;
 
+use crate::alp::ALPFloat;
+use crate::array::{ALPArray, ALPEncoding};
+use crate::downcast::DowncastALP;
+use crate::Exponents;
 use vortex::array::downcast::DowncastArrayBuiltin;
 use vortex::array::primitive::PrimitiveArray;
 use vortex::array::sparse::SparseArray;
@@ -7,25 +11,21 @@ use vortex::array::{Array, ArrayRef};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
 use vortex::compute::flatten::flatten_primitive;
 use vortex::compute::patch::patch;
-use vortex::error::{VortexError, VortexResult};
 use vortex::ptype::{NativePType, PType};
-
-use crate::alp::ALPFloat;
-use crate::array::{ALPArray, ALPEncoding};
-use crate::downcast::DowncastALP;
-use crate::Exponents;
+use vortex::validity::ArrayValidity;
+use vortex_error::VortexResult;
 
 #[macro_export]
 macro_rules! match_each_alp_float_ptype {
     ($self:expr, | $_:tt $enc:ident | $($body:tt)*) => ({
         macro_rules! __with__ {( $_ $enc:ident ) => ( $($body)* )}
-        use vortex::error::VortexError;
         use vortex::ptype::PType;
+        use vortex_error::VortexError;
         let ptype = $self;
         match ptype {
             PType::F32 => Ok(__with__! { f32 }),
             PType::F64 => Ok(__with__! { f64 }),
-            _ => Err(VortexError::InvalidPType(ptype))
+            _ => Err(VortexError::InvalidArgument("ALP can only encode f32 and f64".into())),
         }
     })
 }
@@ -108,7 +108,7 @@ pub(crate) fn alp_encode(parray: &PrimitiveArray) -> VortexResult<ALPArray> {
     let (exponents, encoded, patches) = match parray.ptype() {
         PType::F32 => encode_to_array(parray.typed_data::<f32>(), None),
         PType::F64 => encode_to_array(parray.typed_data::<f64>(), None),
-        _ => return Err(VortexError::InvalidPType(parray.ptype())),
+        _ => return Err("ALP can only encode f32 and f64".into()),
     };
     Ok(ALPArray::new(encoded, exponents, patches))
 }
@@ -118,7 +118,7 @@ pub fn decompress(array: &ALPArray) -> VortexResult<PrimitiveArray> {
     let decoded = match_each_alp_float_ptype!(array.dtype().try_into().unwrap(), |$T| {
         PrimitiveArray::from_nullable(
             decompress_primitive::<$T>(encoded.typed_data(), array.exponents()),
-            encoded.validity().cloned(),
+            encoded.validity(),
         )
     })?;
 

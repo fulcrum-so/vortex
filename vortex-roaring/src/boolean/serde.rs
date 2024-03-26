@@ -4,8 +4,8 @@ use std::io::ErrorKind;
 use croaring::{Bitmap, Portable};
 
 use vortex::array::{Array, ArrayRef};
-use vortex::error::VortexResult;
 use vortex::serde::{ArraySerde, EncodingSerde, ReadCtx, WriteCtx};
+use vortex_error::VortexResult;
 
 use crate::{RoaringBoolArray, RoaringBoolEncoding};
 

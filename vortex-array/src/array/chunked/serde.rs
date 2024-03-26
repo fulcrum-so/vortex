@@ -1,6 +1,7 @@
+use vortex_error::VortexResult;
+
 use crate::array::chunked::{ChunkedArray, ChunkedEncoding};
 use crate::array::{Array, ArrayRef};
-use crate::error::VortexResult;
 use crate::serde::{ArraySerde, EncodingSerde, ReadCtx, WriteCtx};
 
 impl ArraySerde for ChunkedArray {
@@ -27,12 +28,13 @@ impl EncodingSerde for ChunkedEncoding {
 
 #[cfg(test)]
 mod test {
+    use vortex_schema::{DType, IntWidth, Nullability, Signedness};
+
     use crate::array::chunked::ChunkedArray;
     use crate::array::downcast::DowncastArrayBuiltin;
     use crate::array::primitive::PrimitiveArray;
     use crate::array::Array;
     use crate::serde::test::roundtrip_array;
-    use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 
     #[test]
     fn roundtrip() {

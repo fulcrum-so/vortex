@@ -1,13 +1,14 @@
 use vortex::array::{Array, ArrayRef};
-use vortex::error::VortexResult;
 use vortex::serde::{ArraySerde, EncodingSerde, ReadCtx, WriteCtx};
+use vortex::validity::ArrayValidity;
+use vortex_error::VortexResult;
 
 use crate::{REEArray, REEEncoding};
 
 impl ArraySerde for REEArray {
     fn write(&self, ctx: &mut WriteCtx) -> VortexResult<()> {
         ctx.write_usize(self.len())?;
-        ctx.write_optional_array(self.validity())?;
+        ctx.write_validity(self.validity())?;
         // TODO(robert): Stop writing this
         ctx.dtype(self.ends().dtype())?;
         ctx.write(self.ends())?;
@@ -18,7 +19,7 @@ impl ArraySerde for REEArray {
 impl EncodingSerde for REEEncoding {
     fn read(&self, ctx: &mut ReadCtx) -> VortexResult<ArrayRef> {
         let len = ctx.read_usize()?;
-        let validity = ctx.validity().read_optional_array()?;
+        let validity = ctx.read_validity()?;
         let ends_dtype = ctx.dtype()?;
         let ends = ctx.with_schema(&ends_dtype).read()?;
         let values = ctx.read()?;
@@ -32,8 +33,8 @@ mod test {
     use vortex::array::downcast::DowncastArrayBuiltin;
     use vortex::array::IntoArray;
     use vortex::array::{Array, ArrayRef};
-    use vortex::error::VortexResult;
     use vortex::serde::{ReadCtx, WriteCtx};
+    use vortex_error::VortexResult;
 
     use crate::downcast::DowncastREE;
     use crate::REEArray;

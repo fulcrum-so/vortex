@@ -2,16 +2,18 @@ use std::sync::{Arc, RwLock};
 
 use itertools::Itertools;
 use linkme::distributed_slice;
+
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::DType;
 
 use crate::array::{
     check_slice_bounds, Array, ArrayRef, Encoding, EncodingId, EncodingRef, ENCODINGS,
 };
-use crate::error::{VortexError, VortexResult};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::impl_array;
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsSet};
+use crate::validity::{ArrayValidity, Validity};
 
 mod compute;
 mod serde;
@@ -152,6 +154,20 @@ impl Array for ChunkedArray {
     }
 }
 
+impl ArrayValidity for ChunkedArray {
+    fn validity(&self) -> Option<Validity> {
+        if !self.dtype.is_nullable() {
+            return None;
+        }
+
+        Some(Validity::from_iter(self.chunks.iter().map(|chunk| {
+            chunk
+                .validity()
+                .unwrap_or_else(|| Validity::valid(chunk.len()))
+        })))
+    }
+}
+
 impl FromIterator<ArrayRef> for ChunkedArray {
     fn from_iter<T: IntoIterator<Item = ArrayRef>>(iter: T) -> Self {
         let chunks: Vec<ArrayRef> = iter.into_iter().collect();
@@ -194,11 +210,11 @@ impl Encoding for ChunkedEncoding {
 
 #[cfg(test)]
 mod test {
-    use crate::array::{Array, ArrayRef};
     use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 
     use crate::array::chunked::ChunkedArray;
     use crate::array::IntoArray;
+    use crate::array::{Array, ArrayRef};
     use crate::compute::flatten::{flatten, flatten_primitive, FlattenedArray};
     use crate::ptype::NativePType;
 

@@ -1,9 +1,10 @@
+use vortex_error::VortexResult;
+use vortex_schema::DType;
+
 use crate::array::constant::ConstantArray;
 use crate::array::Array;
-use crate::error::VortexResult;
 use crate::scalar::Scalar;
 use crate::stats::{Stat, StatsCompute, StatsSet};
-use vortex_schema::DType;
 
 impl StatsCompute for ConstantArray {
     fn compute(&self, _stat: &Stat) -> VortexResult<StatsSet> {

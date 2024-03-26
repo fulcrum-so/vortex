@@ -5,26 +5,25 @@ use std::panic::RefUnwindSafe;
 use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
 
-use crate::accessor::ArrayAccessor;
 use allocator_api2::alloc::Allocator;
 use arrow_buffer::buffer::{Buffer, ScalarBuffer};
 use linkme::distributed_slice;
+
+use vortex_error::VortexResult;
 use vortex_schema::DType;
 
-use crate::array::bool::BoolArray;
+use crate::accessor::ArrayAccessor;
 use crate::array::IntoArray;
 use crate::array::{
-    check_slice_bounds, check_validity_buffer, Array, ArrayRef, Encoding, EncodingId, EncodingRef,
-    ENCODINGS,
+    check_slice_bounds, Array, ArrayRef, Encoding, EncodingId, EncodingRef, ENCODINGS,
 };
-use crate::compute::scalar_at::scalar_at;
-use crate::error::VortexResult;
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::impl_array;
 use crate::iterator::ArrayIter;
 use crate::ptype::{match_each_native_ptype, NativePType, PType};
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsSet};
+use crate::validity::{ArrayValidity, Validity};
 
 mod compute;
 mod serde;
@@ -35,24 +34,20 @@ pub struct PrimitiveArray {
     buffer: Buffer,
     ptype: PType,
     dtype: DType,
-    validity: Option<ArrayRef>,
+    validity: Option<Validity>,
     stats: Arc<RwLock<StatsSet>>,
 }
 
 impl PrimitiveArray {
-    pub fn new(ptype: PType, buffer: Buffer, validity: Option<ArrayRef>) -> Self {
+    pub fn new(ptype: PType, buffer: Buffer, validity: Option<Validity>) -> Self {
         Self::try_new(ptype, buffer, validity).unwrap()
     }
 
-    pub fn try_new(ptype: PType, buffer: Buffer, validity: Option<ArrayRef>) -> VortexResult<Self> {
-        let validity = validity.filter(|v| !v.is_empty());
-        check_validity_buffer(validity.as_ref(), buffer.len() / ptype.byte_width())?;
-        let dtype = if validity.is_some() {
-            DType::from(ptype).as_nullable()
-        } else {
-            DType::from(ptype)
-        };
-
+    pub fn try_new(ptype: PType, buffer: Buffer, validity: Option<Validity>) -> VortexResult<Self> {
+        if let Some(v) = &validity {
+            assert_eq!(v.len(), buffer.len() / ptype.byte_width());
+        }
+        let dtype = DType::from(ptype).with_nullability(validity.is_some().into());
         Ok(Self {
             buffer,
             ptype,
@@ -75,7 +70,7 @@ impl PrimitiveArray {
         A: Allocator + RefUnwindSafe + Send + Sync + 'static,
     >(
         values: allocator_api2::vec::Vec<T, A>,
-        validity: Option<ArrayRef>,
+        validity: Option<Validity>,
     ) -> Self {
         let ptr = values.as_ptr();
         let buffer = unsafe {
@@ -88,16 +83,9 @@ impl PrimitiveArray {
         Self::new(T::PTYPE, buffer, validity)
     }
 
-    pub fn from_nullable<T: NativePType>(values: Vec<T>, validity: Option<ArrayRef>) -> Self {
+    pub fn from_nullable<T: NativePType>(values: Vec<T>, validity: Option<Validity>) -> Self {
         let buffer = Buffer::from_vec::<T>(values);
         Self::new(T::PTYPE, buffer, validity)
-    }
-
-    pub fn is_valid(&self, index: usize) -> bool {
-        self.validity
-            .as_deref()
-            .map(|v| scalar_at(v, index).unwrap().try_into().unwrap())
-            .unwrap_or(true)
     }
 
     pub fn from_value<T: NativePType>(value: T, n: usize) -> Self {
@@ -107,7 +95,7 @@ impl PrimitiveArray {
     pub fn null<T: NativePType>(n: usize) -> Self {
         PrimitiveArray::from_nullable(
             iter::repeat(T::zero()).take(n).collect::<Vec<_>>(),
-            Some(BoolArray::from(vec![false; n]).into_array()),
+            Some(Validity::invalid(n)),
         )
     }
 
@@ -119,11 +107,6 @@ impl PrimitiveArray {
     #[inline]
     pub fn buffer(&self) -> &Buffer {
         &self.buffer
-    }
-
-    #[inline]
-    pub fn validity(&self) -> Option<&ArrayRef> {
-        self.validity.as_ref()
     }
 
     pub fn scalar_buffer<T: NativePType>(&self) -> ScalarBuffer<T> {
@@ -174,11 +157,7 @@ impl Array for PrimitiveArray {
         Ok(Self {
             buffer: self.buffer.slice_with_length(byte_start, byte_length),
             ptype: self.ptype,
-            validity: self
-                .validity
-                .as_ref()
-                .map(|v| v.slice(start, stop))
-                .transpose()?,
+            validity: self.validity.as_ref().map(|v| v.slice(start, stop)),
             dtype: self.dtype.clone(),
             stats: Arc::new(RwLock::new(StatsSet::new())),
         }
@@ -197,6 +176,12 @@ impl Array for PrimitiveArray {
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
         Some(self)
+    }
+}
+
+impl ArrayValidity for PrimitiveArray {
+    fn validity(&self) -> Option<Validity> {
+        self.validity.clone()
     }
 }
 
@@ -271,7 +256,7 @@ impl<T: NativePType> FromIterator<Option<T>> for PrimitiveArray {
         PrimitiveArray::from_nullable(
             values,
             if !validity.is_empty() {
-                Some(validity.into_array())
+                Some(validity.into())
             } else {
                 None
             },
@@ -286,12 +271,13 @@ impl ArrayDisplay for PrimitiveArray {
                 &self.buffer().typed_data::<$P>()[..min(10, self.len())],
                 if self.len() > 10 { "..." } else { "" }))
         })?;
-        f.maybe_child("validity", self.validity())
+        f.validity(self.validity())
     }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::compute::scalar_at::scalar_at;
     use vortex_schema::{IntWidth, Nullability, Signedness};
 
     use super::*;

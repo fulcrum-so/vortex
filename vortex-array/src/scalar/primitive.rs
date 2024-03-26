@@ -2,9 +2,10 @@ use std::fmt::{Display, Formatter};
 use std::mem::size_of;
 
 use half::f16;
+
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::DType;
 
-use crate::error::{VortexError, VortexResult};
 use crate::ptype::{NativePType, PType};
 use crate::scalar::composite::CompositeScalar;
 use crate::scalar::Scalar;
@@ -349,10 +350,11 @@ impl Display for PScalar {
 
 #[cfg(test)]
 mod test {
-    use crate::error::VortexError;
+    use vortex_error::VortexError;
+    use vortex_schema::{DType, IntWidth, Nullability, Signedness};
+
     use crate::ptype::PType;
     use crate::scalar::Scalar;
-    use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 
     #[test]
     fn into_from() {

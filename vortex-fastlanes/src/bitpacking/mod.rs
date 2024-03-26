@@ -1,13 +1,13 @@
 use std::sync::{Arc, RwLock};
 
-use vortex::array::{check_validity_buffer, Array, ArrayRef, Encoding, EncodingId, EncodingRef};
+use vortex::array::{Array, ArrayRef, Encoding, EncodingId, EncodingRef};
 use vortex::compress::EncodingCompression;
-use vortex::compute::scalar_at::scalar_at;
-use vortex::error::VortexResult;
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::impl_array;
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stat, Stats, StatsCompute, StatsSet};
+use vortex::validity::{ArrayValidity, Validity};
+use vortex_error::VortexResult;
 use vortex_schema::DType;
 
 mod compress;
@@ -17,7 +17,7 @@ mod serde;
 #[derive(Debug, Clone)]
 pub struct BitPackedArray {
     encoded: ArrayRef,
-    validity: Option<ArrayRef>,
+    validity: Option<Validity>,
     patches: Option<ArrayRef>,
     len: usize,
     bit_width: usize,
@@ -28,15 +28,15 @@ pub struct BitPackedArray {
 impl BitPackedArray {
     pub fn try_new(
         encoded: ArrayRef,
-        validity: Option<ArrayRef>,
+        validity: Option<Validity>,
         patches: Option<ArrayRef>,
         bit_width: usize,
         dtype: DType,
         len: usize,
     ) -> VortexResult<Self> {
-        let validity = validity.filter(|v| !v.is_empty());
-        check_validity_buffer(validity.as_ref(), len)?;
-
+        if let Some(v) = &validity {
+            assert_eq!(v.len(), len);
+        }
         // TODO(ngates): check encoded has type u8
 
         Ok(Self {
@@ -61,19 +61,8 @@ impl BitPackedArray {
     }
 
     #[inline]
-    pub fn validity(&self) -> Option<&ArrayRef> {
-        self.validity.as_ref()
-    }
-
-    #[inline]
     pub fn patches(&self) -> Option<&ArrayRef> {
         self.patches.as_ref()
-    }
-
-    pub fn is_valid(&self, index: usize) -> bool {
-        self.validity()
-            .map(|v| scalar_at(v, index).and_then(|v| v.try_into()).unwrap())
-            .unwrap_or(true)
     }
 }
 
@@ -128,7 +117,13 @@ impl ArrayDisplay for BitPackedArray {
         f.property("packed", format!("u{}", self.bit_width()))?;
         f.child("encoded", self.encoded())?;
         f.maybe_child("patches", self.patches())?;
-        f.maybe_child("validity", self.validity())
+        f.validity(self.validity())
+    }
+}
+
+impl ArrayValidity for BitPackedArray {
+    fn validity(&self) -> Option<Validity> {
+        self.validity.clone()
     }
 }
 

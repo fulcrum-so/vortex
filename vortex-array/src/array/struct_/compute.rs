@@ -6,6 +6,8 @@ use arrow_array::{
 use arrow_schema::{Field, Fields};
 use itertools::Itertools;
 
+use vortex_error::VortexResult;
+
 use crate::array::downcast::DowncastArrayBuiltin;
 use crate::array::struct_::StructArray;
 use crate::array::{Array, ArrayRef};
@@ -14,7 +16,6 @@ use crate::compute::as_contiguous::{as_contiguous, AsContiguousFn};
 use crate::compute::flatten::{flatten, FlattenFn, FlattenedArray};
 use crate::compute::scalar_at::{scalar_at, ScalarAtFn};
 use crate::compute::ArrayCompute;
-use crate::error::VortexResult;
 use crate::scalar::{Scalar, StructScalar};
 
 impl ArrayCompute for StructArray {

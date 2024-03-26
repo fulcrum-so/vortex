@@ -3,8 +3,8 @@ use zigzag::ZigZag;
 use vortex::array::Array;
 use vortex::compute::scalar_at::{scalar_at, ScalarAtFn};
 use vortex::compute::ArrayCompute;
-use vortex::error::{VortexError, VortexResult};
 use vortex::scalar::{PScalar, Scalar};
+use vortex_error::{VortexError, VortexResult};
 
 use crate::ZigZagArray;
 

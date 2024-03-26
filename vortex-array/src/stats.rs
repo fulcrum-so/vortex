@@ -4,9 +4,10 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 
 use itertools::Itertools;
+
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::DType;
 
-use crate::error::{VortexError, VortexResult};
 use crate::ptype::NativePType;
 use crate::scalar::{ListScalarVec, Scalar};
 

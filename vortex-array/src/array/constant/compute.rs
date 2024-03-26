@@ -1,3 +1,7 @@
+use itertools::Itertools;
+
+use vortex_error::VortexResult;
+
 use crate::array::bool::BoolArray;
 use crate::array::constant::ConstantArray;
 use crate::array::downcast::DowncastArrayBuiltin;
@@ -8,10 +12,8 @@ use crate::compute::flatten::{FlattenFn, FlattenedArray};
 use crate::compute::scalar_at::ScalarAtFn;
 use crate::compute::take::TakeFn;
 use crate::compute::ArrayCompute;
-use crate::error::VortexResult;
 use crate::match_each_native_ptype;
 use crate::scalar::Scalar;
-use itertools::Itertools;
 
 impl ArrayCompute for ConstantArray {
     fn as_contiguous(&self) -> Option<&dyn AsContiguousFn> {

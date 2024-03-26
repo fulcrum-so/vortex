@@ -34,6 +34,6 @@ num_enum = { workspace = true }
 paste = { workspace = true }
 rand = { workspace = true }
 thiserror = { workspace = true }
-vortex-schema = { path = "../vortex-schema" }
 vortex-alloc = { path = "../vortex-alloc" }
-vortex-flatbuffers = { path = "../vortex-flatbuffers" }
+vortex-error = { path = "../vortex-error" }
+vortex-schema = { path = "../vortex-schema" }

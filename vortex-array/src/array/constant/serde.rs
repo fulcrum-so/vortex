@@ -1,6 +1,7 @@
+use vortex_error::VortexResult;
+
 use crate::array::constant::{ConstantArray, ConstantEncoding};
 use crate::array::{Array, ArrayRef};
-use crate::error::VortexResult;
 use crate::serde::{ArraySerde, EncodingSerde, ReadCtx, WriteCtx};
 
 impl ArraySerde for ConstantArray {
@@ -23,12 +24,11 @@ mod test {
     use crate::array::constant::ConstantArray;
     use crate::array::downcast::DowncastArrayBuiltin;
     use crate::array::Array;
-    use crate::scalar::{PScalar, PrimitiveScalar};
     use crate::serde::test::roundtrip_array;
 
     #[test]
     fn roundtrip() {
-        let arr = ConstantArray::new(PrimitiveScalar::some(PScalar::I32(42)).into(), 100);
+        let arr = ConstantArray::new(42i32, 100);
         let read_arr = roundtrip_array(&arr).unwrap();
 
         assert_eq!(arr.scalar(), read_arr.as_constant().scalar());

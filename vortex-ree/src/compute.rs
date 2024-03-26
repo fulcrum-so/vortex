@@ -5,9 +5,10 @@ use vortex::compute::cast::cast;
 use vortex::compute::flatten::{flatten, flatten_primitive, FlattenFn, FlattenedArray};
 use vortex::compute::scalar_at::{scalar_at, ScalarAtFn};
 use vortex::compute::ArrayCompute;
-use vortex::error::{VortexError, VortexResult};
 use vortex::ptype::PType;
 use vortex::scalar::Scalar;
+use vortex::validity::ArrayValidity;
+use vortex_error::{VortexError, VortexResult};
 
 use crate::compress::ree_decode;
 use crate::REEArray;
@@ -36,7 +37,7 @@ impl FlattenFn for REEArray {
 
         let values = flatten(self.values())?;
         if let FlattenedArray::Primitive(pvalues) = values {
-            ree_decode(&ends, &pvalues, self.validity().cloned()).map(FlattenedArray::Primitive)
+            ree_decode(&ends, &pvalues, self.validity()).map(FlattenedArray::Primitive)
         } else {
             Err(VortexError::InvalidArgument(
                 "Cannot yet flatten non-primitive REE array".into(),

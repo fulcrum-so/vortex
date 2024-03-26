@@ -1,10 +1,11 @@
 use std::io;
 use std::io::ErrorKind;
+
+use vortex_error::VortexResult;
 use vortex_schema::DType;
 
 use crate::array::sparse::{SparseArray, SparseEncoding};
 use crate::array::{Array, ArrayRef};
-use crate::error::VortexResult;
 use crate::serde::{ArraySerde, EncodingSerde, ReadCtx, WriteCtx};
 
 impl ArraySerde for SparseArray {

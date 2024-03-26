@@ -2,25 +2,25 @@ use std::sync::{Arc, RwLock};
 
 use linkme::distributed_slice;
 use num_traits::{FromPrimitive, Unsigned};
+
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 
-use crate::array::bool::BoolArray;
 use crate::array::downcast::DowncastArrayBuiltin;
 use crate::array::primitive::PrimitiveArray;
 use crate::array::varbin::values_iter::{VarBinIter, VarBinPrimitiveIter};
 use crate::array::{
-    check_slice_bounds, check_validity_buffer, Array, ArrayRef, Encoding, EncodingId, EncodingRef,
-    ENCODINGS,
+    check_slice_bounds, Array, ArrayRef, Encoding, EncodingId, EncodingRef, ENCODINGS,
 };
 use crate::compress::EncodingCompression;
 use crate::compute::flatten::flatten_primitive;
 use crate::compute::scalar_at::scalar_at;
-use crate::error::{VortexError, VortexResult};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::impl_array;
 use crate::ptype::NativePType;
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsSet};
+use crate::validity::{ArrayValidity, Validity};
 
 mod compress;
 mod compute;
@@ -33,7 +33,7 @@ pub struct VarBinArray {
     offsets: ArrayRef,
     bytes: ArrayRef,
     dtype: DType,
-    validity: Option<ArrayRef>,
+    validity: Option<Validity>,
     stats: Arc<RwLock<StatsSet>>,
 }
 
@@ -42,7 +42,7 @@ impl VarBinArray {
         offsets: ArrayRef,
         bytes: ArrayRef,
         dtype: DType,
-        validity: Option<ArrayRef>,
+        validity: Option<Validity>,
     ) -> Self {
         Self::try_new(offsets, bytes, dtype, validity).unwrap()
     }
@@ -51,7 +51,7 @@ impl VarBinArray {
         offsets: ArrayRef,
         bytes: ArrayRef,
         dtype: DType,
-        validity: Option<ArrayRef>,
+        validity: Option<Validity>,
     ) -> VortexResult<Self> {
         if !matches!(offsets.dtype(), DType::Int(_, _, Nullability::NonNullable)) {
             return Err(VortexError::UnsupportedOffsetsArrayDType(
@@ -70,9 +70,9 @@ impl VarBinArray {
             return Err(VortexError::InvalidDType(dtype));
         }
 
-        let validity = validity.filter(|v| !v.is_empty());
-        check_validity_buffer(validity.as_ref(), offsets.len() - 1)?;
-
+        if let Some(v) = &validity {
+            assert_eq!(v.len(), offsets.len() - 1);
+        }
         let dtype = if validity.is_some() && !dtype.is_nullable() {
             dtype.as_nullable()
         } else {
@@ -86,13 +86,6 @@ impl VarBinArray {
             validity,
             stats: Arc::new(RwLock::new(StatsSet::new())),
         })
-    }
-
-    fn is_valid(&self, index: usize) -> bool {
-        self.validity
-            .as_deref()
-            .map(|v| scalar_at(v, index).unwrap().try_into().unwrap())
-            .unwrap_or(true)
     }
 
     #[inline]
@@ -115,11 +108,6 @@ impl VarBinArray {
         let first_offset: usize = scalar_at(self.offsets(), 0)?.try_into()?;
         let last_offset: usize = scalar_at(self.offsets(), self.offsets().len() - 1)?.try_into()?;
         self.bytes().slice(first_offset, last_offset)
-    }
-
-    #[inline]
-    pub fn validity(&self) -> Option<&ArrayRef> {
-        self.validity.as_ref()
     }
 
     pub fn from_vec<T: AsRef<[u8]>>(vec: Vec<T>, dtype: DType) -> Self {
@@ -183,7 +171,7 @@ impl VarBinArray {
                 offsets_ref,
                 bytes_ref,
                 dtype.as_nullable(),
-                Some(BoolArray::from(validity).into_array()),
+                Some(validity.into()),
             )
         }
     }
@@ -242,10 +230,7 @@ impl Array for VarBinArray {
             self.offsets.slice(start, stop + 1)?,
             self.bytes.clone(),
             self.dtype.clone(),
-            self.validity
-                .as_ref()
-                .map(|v| v.slice(start, stop))
-                .transpose()?,
+            self.validity.as_ref().map(|v| v.slice(start, stop)),
         )
         .into_array())
     }
@@ -262,6 +247,12 @@ impl Array for VarBinArray {
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
         Some(self)
+    }
+}
+
+impl ArrayValidity for VarBinArray {
+    fn validity(&self) -> Option<Validity> {
+        self.validity.clone()
     }
 }
 
@@ -293,7 +284,7 @@ impl ArrayDisplay for VarBinArray {
     fn fmt(&self, f: &mut ArrayFormatter) -> std::fmt::Result {
         f.child("offsets", self.offsets())?;
         f.child("bytes", self.bytes())?;
-        f.maybe_child("validity", self.validity())
+        f.validity(self.validity())
     }
 }
 
@@ -347,11 +338,12 @@ impl<'a> FromIterator<Option<&'a str>> for VarBinArray {
 
 #[cfg(test)]
 mod test {
+    use vortex_schema::{DType, Nullability};
+
     use crate::array::primitive::PrimitiveArray;
     use crate::array::varbin::VarBinArray;
     use crate::array::Array;
     use crate::compute::scalar_at::scalar_at;
-    use vortex_schema::{DType, Nullability};
 
     fn binary_array() -> VarBinArray {
         let values = PrimitiveArray::from(

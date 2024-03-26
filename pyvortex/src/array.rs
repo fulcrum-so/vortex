@@ -24,6 +24,7 @@ use crate::dtype::PyDType;
 use crate::error::PyVortexError;
 use crate::vortex_arrow;
 use std::sync::Arc;
+
 #[pyclass(name = "Array", module = "vortex", sequence, subclass)]
 pub struct PyArray {
     inner: ArrayRef,

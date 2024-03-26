@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::DType;
 
-use crate::error::{VortexError, VortexResult};
 use crate::scalar::Scalar;
 
 #[derive(Debug, Clone, PartialEq)]

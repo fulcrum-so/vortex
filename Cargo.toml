@@ -8,6 +8,7 @@ members = [
     "vortex-array",
     "vortex-datetime",
     "vortex-dict",
+    "vortex-error",
     "vortex-fastlanes",
     "vortex-flatbuffers",
     "vortex-flatbuffers-array",

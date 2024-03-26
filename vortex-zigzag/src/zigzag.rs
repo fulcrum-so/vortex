@@ -2,11 +2,12 @@ use std::sync::{Arc, RwLock};
 
 use vortex::array::{Array, ArrayKind, ArrayRef, Encoding, EncodingId, EncodingRef};
 use vortex::compress::EncodingCompression;
-use vortex::error::{VortexError, VortexResult};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::impl_array;
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stats, StatsSet};
+use vortex::validity::{ArrayValidity, Validity};
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::{DType, Signedness};
 
 use crate::compress::zigzag_encode;
@@ -40,7 +41,7 @@ impl ZigZagArray {
     pub fn encode(array: &dyn Array) -> VortexResult<ArrayRef> {
         match ArrayKind::from(array) {
             ArrayKind::Primitive(p) => Ok(zigzag_encode(p)?.into_array()),
-            _ => Err(VortexError::InvalidEncoding(array.encoding().id())),
+            _ => Err("ZigZag can only encoding primitive arrays".into()),
         }
     }
 
@@ -94,6 +95,12 @@ impl Array for ZigZagArray {
 impl ArrayDisplay for ZigZagArray {
     fn fmt(&self, f: &mut ArrayFormatter) -> std::fmt::Result {
         f.child("zigzag", self.encoded())
+    }
+}
+
+impl ArrayValidity for ZigZagArray {
+    fn validity(&self) -> Option<Validity> {
+        self.encoded().validity()
     }
 }
 

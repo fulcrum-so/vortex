@@ -4,6 +4,8 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use linkme::distributed_slice;
+
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::{DType, Nullability};
 
 use crate::array::bool::{BoolArray, BoolEncoding};
@@ -27,7 +29,6 @@ use crate::compute::scalar_at::ScalarAtFn;
 use crate::compute::search_sorted::SearchSortedFn;
 use crate::compute::take::TakeFn;
 use crate::compute::ArrayCompute;
-use crate::error::{VortexError, VortexResult};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::Stats;
@@ -37,7 +38,6 @@ pub mod chunked;
 pub mod composite;
 pub mod constant;
 pub mod downcast;
-pub mod lazy;
 pub mod primitive;
 pub mod sparse;
 pub mod struct_;
@@ -54,7 +54,7 @@ pub type ArrayRef = Arc<dyn Array>;
 ///
 /// This differs from Apache Arrow where logical and physical are combined in
 /// the data type, e.g. LargeString, RunEndEncoded.
-pub trait Array: ArrayCompute + ArrayDisplay + Debug + Send + Sync {
+pub trait Array: ArrayCompute + ArrayValidity + ArrayDisplay + Debug + Send + Sync {
     /// Converts itself to a reference of [`Any`], which enables downcasting to concrete types.
     fn as_any(&self) -> &dyn Any;
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
@@ -110,6 +110,7 @@ macro_rules! impl_array {
     };
 }
 
+use crate::validity::{ArrayValidity, Validity};
 pub use impl_array;
 
 impl ArrayCompute for ArrayRef {
@@ -200,6 +201,12 @@ impl Array for ArrayRef {
     }
 }
 
+impl ArrayValidity for ArrayRef {
+    fn validity(&self) -> Option<Validity> {
+        self.as_ref().validity()
+    }
+}
+
 impl ArrayDisplay for ArrayRef {
     fn fmt(&self, fmt: &'_ mut ArrayFormatter) -> std::fmt::Result {
         ArrayDisplay::fmt(self.as_ref(), fmt)
@@ -249,7 +256,7 @@ impl EncodingId {
     }
 
     #[inline]
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &'static str {
         self.0
     }
 }

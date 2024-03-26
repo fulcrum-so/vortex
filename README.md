@@ -1,15 +1,17 @@
 # Vortex
 
-[![Build Status](https://github.com/fulcrum-so/vortex/actions/workflows/rust.yml/badge.svg)](https://github.com/fulcrum-so/vortex/actions)
+[![Build Status](https://github.com/fulcrum-so/vortex/actions/workflows/ci.yml/badge.svg)](https://github.com/fulcrum-so/vortex/actions)
 [![Crates.io](https://img.shields.io/crates/v/vortex-array.svg)](https://crates.io/crates/vortex-array)
 [![Documentation](https://docs.rs/vortex-rs/badge.svg)](https://docs.rs/vortex-array)
 [![Rust](https://img.shields.io/badge/rust-1.76.0%2B-blue.svg?maxAge=3600)](https://github.com/fulcrum-so/vortex)
 
 Vortex is an Apache Arrow-compatible toolkit for working with compressed array data. We are using Vortex to develop a
-next-generation file format for multidimensional arrays called Spiral.
+next-generation columnar file format for multidimensional arrays called Spiral.
 
 > [!CAUTION]
-> This library is very much a work in progress! 
+> This library is still under rapid development and is very much a work in progress!
+>
+> Some key features are not yet implemented, the API will almost certainly change in breaking ways, and we cannot yet guarantee correctness in all cases.
 
 The major components of Vortex are (will be!):
 
@@ -89,13 +91,14 @@ compression. These are:
 
 Vortex's compression scheme is based on the [BtrBlocks](https://www.cs.cit.tum.de/fileadmin/w00cfj/dis/papers/btrblocks.pdf) paper.
 
-Roughly, for each chunk of data a sample is taken and a set of encodings are attempted. The best-performing encoding
-is then chosen to encode the entire chunk. This sounds like it would be very expensive, but given basic statistics
-about a chunk, it is possible to cheaply rule out many encodings and ensure the search space does not explode in size.
+Roughly, for each chunk of data, a sample of at least ~1% of the data is taken. Compression is then attempted (recursively)
+with a set of lightweight encodings. The best-performing combination of encodings is then chosen to encode the entire chunk.
+This sounds like it would be very expensive, but given basic statistics about a chunk, it is possible to cheaply prune
+many encodings and ensure the search space does not explode in size.
 
 ### Compute
 
-Vortex provides the ability for each encoding to override the implementation of a compute function to avoid
+Vortex provides the ability for each encoding to specialize the implementation of a compute function to avoid
 decompressing where possible. For example, filtering a dictionary-encoded UTF8 array can be more cheaply performed by
 filtering the dictionary first.
 
@@ -131,7 +134,7 @@ It is important to note that Vortex and Arrow have different design goals. As su
 unfair to make any comparison at all. But given both can be used as array libraries, it is worth noting the differences.
 
 Vortex is designed to be maximally compatible with Apache Arrow. All Arrow arrays can be converted into Vortex arrays
-with zero-copy. And a Vortex array constructed from an Arrow array can be converted back to Arrow, again with zero-copy.
+with zero-copy, and a Vortex array constructed from an Arrow array can be converted back to Arrow, again with zero-copy.
 
 Vortex explicitly separates logical types from physical encodings, distinguishing it from Arrow. This allows
 Vortex to model more complex arrays while still exposing a logical interface. For example, Vortex can model a UTF8

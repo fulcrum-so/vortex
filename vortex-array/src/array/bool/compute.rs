@@ -1,17 +1,19 @@
-use arrow_buffer::buffer::BooleanBuffer;
-use itertools::Itertools;
 use std::sync::Arc;
+
+use arrow_buffer::buffer::BooleanBuffer;
+
+use vortex_error::VortexResult;
 
 use crate::array::bool::BoolArray;
 use crate::array::downcast::DowncastArrayBuiltin;
 use crate::array::{Array, ArrayRef};
-use crate::compute::as_contiguous::{as_contiguous, AsContiguousFn};
+use crate::compute::as_contiguous::AsContiguousFn;
 use crate::compute::fill::FillForwardFn;
-use crate::compute::flatten::{flatten_bool, FlattenFn, FlattenedArray};
+use crate::compute::flatten::{FlattenFn, FlattenedArray};
 use crate::compute::scalar_at::ScalarAtFn;
 use crate::compute::ArrayCompute;
-use crate::error::VortexResult;
 use crate::scalar::{BoolScalar, Scalar};
+use crate::validity::{ArrayValidity, Validity};
 
 impl ArrayCompute for BoolArray {
     fn as_contiguous(&self) -> Option<&dyn AsContiguousFn> {
@@ -34,20 +36,12 @@ impl ArrayCompute for BoolArray {
 impl AsContiguousFn for BoolArray {
     fn as_contiguous(&self, arrays: Vec<ArrayRef>) -> VortexResult<ArrayRef> {
         // TODO(ngates): implement a HasValidity trait to avoid this duplicate code.
-        let validity = if arrays.iter().all(|a| a.as_bool().validity().is_none()) {
-            None
+        let validity: Option<Validity> = if self.dtype().is_nullable() {
+            Some(Validity::from_iter(arrays.iter().map(|a| a.as_bool()).map(
+                |a| a.validity().unwrap_or_else(|| Validity::valid(a.len())),
+            )))
         } else {
-            Some(as_contiguous(
-                arrays
-                    .iter()
-                    .map(|a| {
-                        a.as_bool()
-                            .validity()
-                            .cloned()
-                            .unwrap_or_else(|| BoolArray::from(vec![true; a.len()]).into_array())
-                    })
-                    .collect_vec(),
-            )?)
+            None
         };
 
         Ok(BoolArray::new(
@@ -82,23 +76,23 @@ impl ScalarAtFn for BoolArray {
 impl FillForwardFn for BoolArray {
     fn fill_forward(&self) -> VortexResult<ArrayRef> {
         if self.validity().is_none() {
-            Ok(Arc::new(self.clone()))
-        } else {
-            let validity = flatten_bool(self.validity().unwrap())?;
-            let bools = self.buffer();
-            let mut last_value = false;
-            let filled = bools
-                .iter()
-                .zip(validity.buffer().iter())
-                .map(|(v, valid)| {
-                    if valid {
-                        last_value = v;
-                    }
-                    last_value
-                })
-                .collect::<Vec<_>>();
-            Ok(BoolArray::from(filled).into_array())
+            return Ok(Arc::new(self.clone()));
         }
+
+        let validity = self.validity().unwrap().to_bool_array();
+        let bools = self.buffer();
+        let mut last_value = false;
+        let filled = bools
+            .iter()
+            .zip(validity.buffer().iter())
+            .map(|(v, valid)| {
+                if valid {
+                    last_value = v;
+                }
+                last_value
+            })
+            .collect::<Vec<_>>();
+        Ok(BoolArray::from(filled).into_array())
     }
 }
 
@@ -107,6 +101,7 @@ mod test {
     use crate::array::bool::BoolArray;
     use crate::array::downcast::DowncastArrayBuiltin;
     use crate::compute;
+    use crate::validity::ArrayValidity;
 
     #[test]
     fn fill_forward() {

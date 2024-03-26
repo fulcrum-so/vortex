@@ -3,11 +3,12 @@ use std::sync::{Arc, RwLock};
 use vortex::array::{Array, ArrayRef, Encoding, EncodingId, EncodingRef};
 use vortex::compress::EncodingCompression;
 use vortex::compute::ArrayCompute;
-use vortex::error::{VortexError, VortexResult};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::impl_array;
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stats, StatsCompute, StatsSet};
+use vortex::validity::{ArrayValidity, Validity};
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::DType;
 
 /// An array that decomposes a datetime into days, seconds, and nanoseconds.
@@ -16,7 +17,7 @@ pub struct DateTimeArray {
     days: ArrayRef,
     seconds: ArrayRef,
     subsecond: ArrayRef,
-    validity: Option<ArrayRef>,
+    validity: Option<Validity>,
     dtype: DType,
     stats: Arc<RwLock<StatsSet>>,
 }
@@ -26,7 +27,7 @@ impl DateTimeArray {
         days: ArrayRef,
         seconds: ArrayRef,
         subsecond: ArrayRef,
-        validity: Option<ArrayRef>,
+        validity: Option<Validity>,
         dtype: DType,
     ) -> Self {
         Self::try_new(days, seconds, subsecond, validity, dtype).unwrap()
@@ -36,7 +37,7 @@ impl DateTimeArray {
         days: ArrayRef,
         seconds: ArrayRef,
         subsecond: ArrayRef,
-        validity: Option<ArrayRef>,
+        validity: Option<Validity>,
         dtype: DType,
     ) -> VortexResult<Self> {
         if !matches!(days.dtype(), DType::Int(_, _, _)) {
@@ -73,11 +74,6 @@ impl DateTimeArray {
     pub fn subsecond(&self) -> &ArrayRef {
         &self.subsecond
     }
-
-    #[inline]
-    pub fn validity(&self) -> Option<&ArrayRef> {
-        self.validity.as_ref()
-    }
 }
 
 impl Array for DateTimeArray {
@@ -104,10 +100,7 @@ impl Array for DateTimeArray {
             self.days.slice(start, stop)?,
             self.seconds.slice(start, stop)?,
             self.subsecond.slice(start, stop)?,
-            self.validity
-                .as_ref()
-                .map(|v| v.slice(start, stop))
-                .transpose()?,
+            self.validity().map(|v| v.slice(start, stop)),
             self.dtype.clone(),
         )
         .into_array())
@@ -135,6 +128,12 @@ impl ArrayDisplay for DateTimeArray {
         f.child("days", self.days())?;
         f.child("seconds", self.seconds())?;
         f.child("subsecond", self.subsecond())
+    }
+}
+
+impl ArrayValidity for DateTimeArray {
+    fn validity(&self) -> Option<Validity> {
+        self.validity.clone()
     }
 }
 

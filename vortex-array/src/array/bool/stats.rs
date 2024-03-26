@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
+use vortex_error::VortexResult;
+
 use crate::array::bool::BoolArray;
 use crate::array::Array;
-use crate::error::VortexResult;
 use crate::stats::{Stat, StatsCompute, StatsSet};
 
 impl StatsCompute for BoolArray {

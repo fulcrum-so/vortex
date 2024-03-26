@@ -1,5 +1,6 @@
+use vortex_error::{VortexError, VortexResult};
+
 use crate::array::Array;
-use crate::error::{VortexError, VortexResult};
 use crate::scalar::Scalar;
 
 pub trait ScalarAtFn {
@@ -17,7 +18,7 @@ pub fn scalar_at(array: &dyn Array, index: usize) -> VortexResult<Scalar> {
         .unwrap_or_else(|| {
             Err(VortexError::NotImplemented(
                 "scalar_at",
-                array.encoding().id(),
+                array.encoding().id().name(),
             ))
         })
 }

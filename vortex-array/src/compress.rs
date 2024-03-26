@@ -4,6 +4,8 @@ use std::sync::Arc;
 
 use log::{debug, info, warn};
 
+use vortex_error::VortexResult;
+
 use crate::array::chunked::{ChunkedArray, ChunkedEncoding};
 use crate::array::composite::CompositeEncoding;
 use crate::array::constant::ConstantArray;
@@ -13,9 +15,9 @@ use crate::array::varbin::VarBinEncoding;
 use crate::array::{Array, ArrayKind, ArrayRef, Encoding, EncodingRef, ENCODINGS};
 use crate::compute;
 use crate::compute::scalar_at::scalar_at;
-use crate::error::VortexResult;
 use crate::sampling::stratified_slices;
 use crate::stats::Stat;
+use crate::validity::Validity;
 
 pub trait EncodingCompression: Encoding {
     fn cost(&self) -> u8 {
@@ -174,7 +176,9 @@ impl CompressCtx {
                 .compression()
                 .map(|c| c.compress(arr, Some(l), self.for_encoding(c)))
             {
-                return compressed;
+                let compressed = compressed?;
+                assert_eq!(compressed.dtype(), arr.dtype());
+                return Ok(compressed);
             } else {
                 warn!(
                     "{} cannot find compressor to compress {} like {}",
@@ -184,7 +188,20 @@ impl CompressCtx {
         }
 
         // Otherwise, attempt to compress the array
-        self.compress_array(arr)
+        let compressed = self.compress_array(arr)?;
+        assert_eq!(compressed.dtype(), arr.dtype());
+        Ok(compressed)
+    }
+
+    pub fn compress_validity(&self, validity: Option<Validity>) -> VortexResult<Option<Validity>> {
+        if let Some(validity) = validity {
+            match validity {
+                Validity::Valid(_) | Validity::Invalid(_) => Ok(Some(validity)),
+                Validity::Array(a) => Ok(Some(Validity::array(self.compress(&a, None)?))),
+            }
+        } else {
+            Ok(None)
+        }
     }
 
     fn compress_array(&self, arr: &dyn Array) -> VortexResult<ArrayRef> {

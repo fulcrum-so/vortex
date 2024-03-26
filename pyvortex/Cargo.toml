@@ -23,6 +23,7 @@ arrow = { workspace = true }
 vortex-array = { path = "../vortex-array" }
 vortex-alp = { path = "../vortex-alp" }
 vortex-dict = { path = "../vortex-dict" }
+vortex-error = { path = "../vortex-error" }
 vortex-fastlanes = { path = "../vortex-fastlanes" }
 vortex-ree = { path = "../vortex-ree" }
 vortex-roaring = { path = "../vortex-roaring" }

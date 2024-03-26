@@ -3,16 +3,17 @@ use std::io::{ErrorKind, Read, Write};
 
 use arrow_buffer::buffer::{Buffer, MutableBuffer};
 
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::{
     DType, FbDeserialize, FbSerialize, IntWidth, Nullability, SchemaError, Signedness,
 };
 
 use crate::array::composite::find_extension_id;
 use crate::array::{Array, ArrayRef, EncodingId, ENCODINGS};
-use crate::error::{VortexError, VortexResult};
 use crate::ptype::PType;
 use crate::scalar::{Scalar, ScalarReader, ScalarWriter};
 use crate::serde::ptype::PTypeTag;
+use crate::validity::Validity;
 
 mod ptype;
 
@@ -73,11 +74,6 @@ impl<'a> ReadCtx<'a> {
             Signedness::Unsigned,
             Nullability::NonNullable,
         ))
-    }
-
-    #[inline]
-    pub fn validity(&mut self) -> ReadCtx {
-        self.with_schema(&DType::Bool(Nullability::NonNullable))
     }
 
     #[inline]
@@ -143,6 +139,21 @@ impl<'a> ReadCtx<'a> {
     pub fn read_optional_array(&mut self) -> VortexResult<Option<ArrayRef>> {
         if self.read_option_tag()? {
             self.read().map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn read_validity(&mut self) -> VortexResult<Option<Validity>> {
+        if self.read_option_tag()? {
+            match self.read_nbytes::<1>()? {
+                [0u8] => Ok(Some(Validity::valid(self.read_usize()?))),
+                [1u8] => Ok(Some(Validity::invalid(self.read_usize()?))),
+                [2u8] => Ok(Some(Validity::array(
+                    self.with_schema(&Validity::DTYPE).read()?,
+                ))),
+                _ => panic!("Invalid validity tag"),
+            }
         } else {
             Ok(None)
         }
@@ -236,6 +247,29 @@ impl<'a> WriteCtx<'a> {
         }
     }
 
+    pub fn write_validity(&mut self, validity: Option<Validity>) -> VortexResult<()> {
+        match validity {
+            None => self.write_option_tag(false),
+            Some(v) => {
+                self.write_option_tag(true)?;
+                match v {
+                    Validity::Valid(len) => {
+                        self.write_fixed_slice([0u8])?;
+                        self.write_usize(len)
+                    }
+                    Validity::Invalid(len) => {
+                        self.write_fixed_slice([1u8])?;
+                        self.write_usize(len)
+                    }
+                    Validity::Array(a) => {
+                        self.write_fixed_slice([2u8])?;
+                        self.write(&a)
+                    }
+                }
+            }
+        }
+    }
+
     pub fn write(&mut self, array: &dyn Array) -> VortexResult<()> {
         let encoding_id = self
             .available_encodings
@@ -253,8 +287,9 @@ impl<'a> WriteCtx<'a> {
 
 #[cfg(test)]
 pub mod test {
+    use vortex_error::VortexResult;
+
     use crate::array::{Array, ArrayRef};
-    use crate::error::VortexResult;
     use crate::serde::{ReadCtx, WriteCtx};
 
     pub fn roundtrip_array(array: &dyn Array) -> VortexResult<ArrayRef> {

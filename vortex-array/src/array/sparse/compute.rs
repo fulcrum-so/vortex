@@ -1,7 +1,8 @@
 use arrow_buffer::BooleanBufferBuilder;
 use itertools::Itertools;
 
-use crate::array::bool::BoolArray;
+use vortex_error::{VortexError, VortexResult};
+
 use crate::array::downcast::DowncastArrayBuiltin;
 use crate::array::primitive::PrimitiveArray;
 use crate::array::sparse::SparseArray;
@@ -11,7 +12,6 @@ use crate::compute::flatten::{flatten, FlattenFn, FlattenedArray};
 use crate::compute::scalar_at::{scalar_at, ScalarAtFn};
 use crate::compute::search_sorted::{search_sorted, SearchSortedSide};
 use crate::compute::ArrayCompute;
-use crate::error::{VortexError, VortexResult};
 use crate::match_each_native_ptype;
 use crate::scalar::Scalar;
 
@@ -73,11 +73,11 @@ impl FlattenFn for SparseArray {
                     offset += 1;
                 }
 
-                let validity = BoolArray::new(validity.finish(), None);
+                let validity = validity.finish();
 
                 Ok(FlattenedArray::Primitive(PrimitiveArray::from_nullable(
                     values,
-                    Some(validity.into_array()),
+                    Some(validity.into()),
                 )))
             })
         } else {

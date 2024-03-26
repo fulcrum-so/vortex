@@ -19,6 +19,7 @@ linkme = { workspace = true }
 log = { workspace = true }
 num-traits = { workspace = true }
 vortex-array = { path = "../vortex-array" }
+vortex-error = { path = "../vortex-error" }
 vortex-schema = { path = "../vortex-schema" }
 
 [lints]

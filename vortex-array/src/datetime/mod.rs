@@ -1,9 +1,11 @@
-mod localdatetime;
-
-use crate::error::VortexResult;
-use crate::serde::BytesSerde;
-pub use localdatetime::*;
 use std::fmt::{Display, Formatter};
+
+pub use localdatetime::*;
+use vortex_error::VortexResult;
+
+use crate::serde::BytesSerde;
+
+mod localdatetime;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum TimeUnit {

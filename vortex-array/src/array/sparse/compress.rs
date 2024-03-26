@@ -1,8 +1,9 @@
+use vortex_error::VortexResult;
+
 use crate::array::downcast::DowncastArrayBuiltin;
 use crate::array::sparse::{SparseArray, SparseEncoding};
 use crate::array::{Array, ArrayRef};
 use crate::compress::{CompressConfig, CompressCtx, EncodingCompression};
-use crate::error::VortexResult;
 
 impl EncodingCompression for SparseEncoding {
     fn cost(&self) -> u8 {

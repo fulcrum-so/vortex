@@ -1,10 +1,12 @@
+use vortex_error::{VortexError, VortexResult};
+use vortex_schema::DType;
+
 use crate::array::primitive::PrimitiveArray;
 use crate::array::{Array, ArrayRef};
 use crate::compute::cast::CastFn;
-use crate::error::{VortexError, VortexResult};
 use crate::match_each_native_ptype;
 use crate::ptype::{NativePType, PType};
-use vortex_schema::DType;
+use crate::validity::ArrayValidity;
 
 impl CastFn for PrimitiveArray {
     fn cast(&self, dtype: &DType) -> VortexResult<ArrayRef> {
@@ -16,7 +18,7 @@ impl CastFn for PrimitiveArray {
             match_each_native_ptype!(ptype, |$T| {
                 Ok(PrimitiveArray::from_nullable(
                     cast::<$T>(self)?,
-                    self.validity().cloned(),
+                    self.validity(),
                 ).into_array())
             })
         }
@@ -40,10 +42,11 @@ fn cast<T: NativePType>(array: &PrimitiveArray) -> VortexResult<Vec<T>> {
 
 #[cfg(test)]
 mod test {
+    use vortex_error::VortexError;
+
     use crate::array::downcast::DowncastArrayBuiltin;
     use crate::array::IntoArray;
     use crate::compute;
-    use crate::error::VortexError;
     use crate::ptype::PType;
 
     #[test]

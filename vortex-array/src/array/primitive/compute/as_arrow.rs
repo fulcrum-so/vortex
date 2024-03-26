@@ -5,12 +5,14 @@ use arrow_array::{
 };
 use arrow_buffer::ScalarBuffer;
 
+use vortex_error::VortexResult;
+
 use crate::array::primitive::PrimitiveArray;
 use crate::array::Array;
 use crate::arrow::wrappers::as_nulls;
 use crate::compute::as_arrow::AsArrowArray;
-use crate::error::VortexResult;
 use crate::ptype::PType;
+use crate::validity::ArrayValidity;
 
 impl AsArrowArray for PrimitiveArray {
     fn as_arrow(&self) -> VortexResult<ArrowArrayRef> {

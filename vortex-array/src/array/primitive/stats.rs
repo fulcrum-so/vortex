@@ -3,22 +3,22 @@ use std::mem::size_of;
 
 use arrow_buffer::buffer::BooleanBuffer;
 
+use vortex_error::VortexResult;
+
 use crate::array::primitive::PrimitiveArray;
-use crate::compute::flatten::flatten_bool;
-use crate::error::VortexResult;
 use crate::match_each_native_ptype;
 use crate::ptype::NativePType;
 use crate::scalar::{ListScalarVec, PScalar};
 use crate::stats::{Stat, StatsCompute, StatsSet};
+use crate::validity::ArrayValidity;
 
 impl StatsCompute for PrimitiveArray {
     fn compute(&self, stat: &Stat) -> VortexResult<StatsSet> {
         match_each_native_ptype!(self.ptype(), |$P| {
-            match self.validity() {
+            match self.logical_validity() {
                 None => self.typed_data::<$P>().compute(stat),
                 Some(validity_array) => {
-                    let validity = flatten_bool(validity_array)?;
-                    NullableValues(self.typed_data::<$P>(), validity.buffer()).compute(stat)
+                    NullableValues(self.typed_data::<$P>(), validity_array.to_bool_array().buffer()).compute(stat)
                 }
             }
         })

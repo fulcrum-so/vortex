@@ -2,17 +2,19 @@ use std::fmt::{Debug, Display};
 use std::sync::{Arc, RwLock};
 
 use linkme::distributed_slice;
+
+use vortex_error::VortexResult;
 use vortex_schema::{CompositeID, DType};
 
 use crate::array::composite::{find_extension, CompositeExtensionRef, TypedCompositeArray};
 use crate::array::{Array, ArrayRef, Encoding, EncodingId, EncodingRef, ENCODINGS};
 use crate::compress::EncodingCompression;
 use crate::compute::ArrayCompute;
-use crate::error::VortexResult;
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::impl_array;
 use crate::serde::{ArraySerde, BytesSerde, EncodingSerde};
 use crate::stats::{Stats, StatsCompute, StatsSet};
+use crate::validity::{ArrayValidity, Validity};
 
 pub trait CompositeMetadata: Debug + Display + Send + Sync + Sized + Clone + BytesSerde {
     fn id(&self) -> CompositeID;
@@ -119,6 +121,12 @@ impl Array for CompositeArray {
 }
 
 impl StatsCompute for CompositeArray {}
+
+impl ArrayValidity for CompositeArray {
+    fn validity(&self) -> Option<Validity> {
+        self.underlying().validity()
+    }
+}
 
 impl ArrayDisplay for CompositeArray {
     fn fmt(&self, f: &mut ArrayFormatter) -> std::fmt::Result {

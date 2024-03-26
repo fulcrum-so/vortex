@@ -7,12 +7,13 @@ use vortex::array::{
     check_slice_bounds, Array, ArrayKind, ArrayRef, Encoding, EncodingId, EncodingRef,
 };
 use vortex::compress::EncodingCompression;
-use vortex::error::{VortexError, VortexResult};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::impl_array;
 use vortex::ptype::PType;
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stats, StatsSet};
+use vortex::validity::{ArrayValidity, Validity};
+use vortex_error::VortexResult;
 use vortex_schema::DType;
 
 mod compress;
@@ -34,7 +35,7 @@ impl RoaringIntArray {
 
     pub fn try_new(bitmap: Bitmap, ptype: PType) -> VortexResult<Self> {
         if !ptype.is_unsigned_int() {
-            return Err(VortexError::InvalidPType(ptype));
+            return Err("RoaringInt expected unsigned int".into());
         }
 
         Ok(Self {
@@ -55,7 +56,7 @@ impl RoaringIntArray {
     pub fn encode(array: &dyn Array) -> VortexResult<Self> {
         match ArrayKind::from(array) {
             ArrayKind::Primitive(p) => Ok(roaring_encode(p)),
-            _ => Err(VortexError::InvalidEncoding(array.encoding().id())),
+            _ => Err("RoaringInt can only encode primitive arrays".into()),
         }
     }
 }
@@ -108,6 +109,15 @@ impl ArrayDisplay for RoaringIntArray {
     }
 }
 
+impl ArrayValidity for RoaringIntArray {
+    fn validity(&self) -> Option<Validity> {
+        match self.dtype().is_nullable() {
+            true => Some(Validity::valid(self.len())),
+            false => None,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct RoaringIntEncoding;
 
@@ -133,7 +143,7 @@ impl Encoding for RoaringIntEncoding {
 mod test {
     use vortex::array::primitive::PrimitiveArray;
     use vortex::compute::scalar_at::scalar_at;
-    use vortex::error::VortexResult;
+    use vortex_error::VortexResult;
 
     use crate::RoaringIntArray;
 

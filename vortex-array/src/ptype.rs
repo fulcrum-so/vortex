@@ -5,10 +5,10 @@ use arrow_buffer::ArrowNativeType;
 use half::f16;
 use num_traits::{Num, NumCast};
 
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::DType::*;
 use vortex_schema::{DType, FloatWidth, IntWidth};
 
-use crate::error::{VortexError, VortexResult};
 use crate::scalar::{PScalar, Scalar};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Hash)]

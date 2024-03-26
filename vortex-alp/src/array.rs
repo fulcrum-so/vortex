@@ -3,11 +3,12 @@ use std::sync::{Arc, RwLock};
 use crate::alp::Exponents;
 use vortex::array::{Array, ArrayKind, ArrayRef, Encoding, EncodingId, EncodingRef};
 use vortex::compress::EncodingCompression;
-use vortex::error::{VortexError, VortexResult};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::impl_array;
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stats, StatsSet};
+use vortex::validity::{ArrayValidity, Validity};
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::{DType, IntWidth, Signedness};
 
 use crate::compress::alp_encode;
@@ -51,7 +52,7 @@ impl ALPArray {
     pub fn encode(array: &dyn Array) -> VortexResult<ArrayRef> {
         match ArrayKind::from(array) {
             ArrayKind::Primitive(p) => Ok(alp_encode(p)?.into_array()),
-            _ => Err(VortexError::InvalidEncoding(array.encoding().id())),
+            _ => Err("ALP can only encoding primitive arrays".into()),
         }
     }
 
@@ -120,6 +121,12 @@ impl ArrayDisplay for ALPArray {
         f.property("exponents", format!("{:?}", self.exponents()))?;
         f.child("encoded", self.encoded())?;
         f.maybe_child("patches", self.patches())
+    }
+}
+
+impl ArrayValidity for ALPArray {
+    fn validity(&self) -> Option<Validity> {
+        self.encoded().validity()
     }
 }
 

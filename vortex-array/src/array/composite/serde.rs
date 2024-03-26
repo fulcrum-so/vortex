@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
+use vortex_error::VortexResult;
 use vortex_schema::DType;
 
 use crate::array::composite::{CompositeArray, CompositeEncoding};
 use crate::array::{Array, ArrayRef};
-use crate::error::VortexResult;
 use crate::serde::{ArraySerde, EncodingSerde, ReadCtx, WriteCtx};
 
 impl ArraySerde for CompositeArray {

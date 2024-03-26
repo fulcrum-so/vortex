@@ -1,9 +1,10 @@
+use num_traits::AsPrimitive;
+
 use crate::array::primitive::PrimitiveArray;
 use crate::array::Array;
 use crate::compute::flatten::flatten_primitive;
 use crate::compute::scalar_at::scalar_at;
 use crate::match_each_native_ptype;
-use num_traits::AsPrimitive;
 
 #[derive(Debug)]
 pub struct VarBinPrimitiveIter<'a> {

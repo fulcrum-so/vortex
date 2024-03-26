@@ -1,3 +1,5 @@
+use vortex_error::{VortexError, VortexResult};
+
 use crate::array::bool::BoolArray;
 use crate::array::chunked::ChunkedArray;
 use crate::array::composite::CompositeArray;
@@ -6,7 +8,6 @@ use crate::array::struct_::StructArray;
 use crate::array::varbin::VarBinArray;
 use crate::array::varbinview::VarBinViewArray;
 use crate::array::{Array, ArrayRef};
-use crate::error::{VortexError, VortexResult};
 
 pub trait FlattenFn {
     fn flatten(&self) -> VortexResult<FlattenedArray>;
@@ -43,7 +44,7 @@ pub fn flatten(array: &dyn Array) -> VortexResult<FlattenedArray> {
     array.flatten().map(|f| f.flatten()).unwrap_or_else(|| {
         Err(VortexError::NotImplemented(
             "flatten",
-            array.encoding().id(),
+            array.encoding().id().name(),
         ))
     })
 }

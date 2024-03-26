@@ -1,16 +1,16 @@
 use std::sync::{Arc, RwLock};
 
 use vortex::array::{
-    check_slice_bounds, check_validity_buffer, Array, ArrayKind, ArrayRef, Encoding, EncodingId,
-    EncodingRef,
+    check_slice_bounds, Array, ArrayKind, ArrayRef, Encoding, EncodingId, EncodingRef,
 };
 use vortex::compress::EncodingCompression;
 use vortex::compute::search_sorted::SearchSortedSide;
-use vortex::error::{VortexError, VortexResult};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stat, Stats, StatsCompute, StatsSet};
+use vortex::validity::{ArrayValidity, Validity};
 use vortex::{compute, impl_array};
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::DType;
 
 use crate::compress::ree_encode;
@@ -19,7 +19,7 @@ use crate::compress::ree_encode;
 pub struct REEArray {
     ends: ArrayRef,
     values: ArrayRef,
-    validity: Option<ArrayRef>,
+    validity: Option<Validity>,
     offset: usize,
     length: usize,
     stats: Arc<RwLock<StatsSet>>,
@@ -29,7 +29,7 @@ impl REEArray {
     pub fn new(
         ends: ArrayRef,
         values: ArrayRef,
-        validity: Option<ArrayRef>,
+        validity: Option<Validity>,
         length: usize,
     ) -> Self {
         Self::try_new(ends, values, validity, length).unwrap()
@@ -38,10 +38,12 @@ impl REEArray {
     pub fn try_new(
         ends: ArrayRef,
         values: ArrayRef,
-        validity: Option<ArrayRef>,
+        validity: Option<Validity>,
         length: usize,
     ) -> VortexResult<Self> {
-        check_validity_buffer(validity.as_ref(), length)?;
+        if let Some(v) = &validity {
+            assert_eq!(v.len(), length);
+        }
 
         if !ends
             .stats()
@@ -77,12 +79,12 @@ impl REEArray {
                 Ok(REEArray::new(
                     ends.into_array(),
                     values.into_array(),
-                    p.validity().cloned(),
+                    p.validity(),
                     p.len(),
                 )
                 .into_array())
             }
-            _ => Err(VortexError::InvalidEncoding(array.encoding().id())),
+            _ => Err("REE can only encode primitive arrays".into()),
         }
     }
 
@@ -99,11 +101,6 @@ impl REEArray {
     #[inline]
     pub fn values(&self) -> &ArrayRef {
         &self.values
-    }
-
-    #[inline]
-    pub fn validity(&self) -> Option<&ArrayRef> {
-        self.validity.as_ref()
     }
 }
 
@@ -137,10 +134,7 @@ impl Array for REEArray {
         Ok(Self {
             ends: self.ends.slice(slice_begin, slice_end + 1)?,
             values: self.values.slice(slice_begin, slice_end + 1)?,
-            validity: self
-                .validity()
-                .map(|v| v.slice(slice_begin, slice_end + 1))
-                .transpose()?,
+            validity: self.validity().map(|v| v.slice(slice_begin, slice_end + 1)),
             offset: start,
             length: stop - start,
             stats: Arc::new(RwLock::new(StatsSet::new())),
@@ -165,6 +159,12 @@ impl Array for REEArray {
 }
 
 impl StatsCompute for REEArray {}
+
+impl ArrayValidity for REEArray {
+    fn validity(&self) -> Option<Validity> {
+        self.validity.clone()
+    }
+}
 
 #[derive(Debug)]
 pub struct REEEncoding;

@@ -1,7 +1,7 @@
 [package]
-name = "vortex-roaring"
+name = "vortex-error"
 version = { workspace = true }
-description = "Vortex roaring bitmap arrays"
+description = "Vortex errors"
 homepage = { workspace = true }
 repository = { workspace = true }
 authors = { workspace = true }
@@ -11,14 +11,14 @@ include = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }
 
+[lib]
+name = "vortex_error"
+path = "src/lib.rs"
+
 [dependencies]
-vortex-array = { path = "../vortex-array" }
-vortex-error = { path = "../vortex-error" }
+arrow-schema = { workspace = true }
 vortex-schema = { path = "../vortex-schema" }
-linkme = { workspace = true }
-croaring = { workspace = true }
-num-traits = { workspace = true }
-log = { workspace = true }
+thiserror = { workspace = true }
 
 [lints]
 workspace = true

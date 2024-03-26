@@ -1,5 +1,6 @@
-use crate::accessor::ArrayAccessor;
 use std::marker::PhantomData;
+
+use crate::accessor::ArrayAccessor;
 
 pub struct ArrayIter<A: ArrayAccessor<T>, T> {
     array: A,

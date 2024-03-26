@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use vortex::error::VortexResult;
+use vortex_error::VortexResult;
 
 use crate::ALPArray;
 use vortex::stats::{Stat, StatsCompute, StatsSet};

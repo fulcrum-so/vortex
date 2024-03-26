@@ -1,7 +1,8 @@
 use std::fmt::{Display, Formatter};
+
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::{DType, Nullability};
 
-use crate::error::{VortexError, VortexResult};
 use crate::scalar::Scalar;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]

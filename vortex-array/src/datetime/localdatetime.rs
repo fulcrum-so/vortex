@@ -6,6 +6,7 @@ use arrow_array::{
     TimestampNanosecondArray, TimestampSecondArray,
 };
 
+use vortex_error::VortexResult;
 use vortex_schema::CompositeID;
 
 use crate::array::composite::{composite_impl, TypedCompositeArray};
@@ -14,9 +15,9 @@ use crate::compute::as_arrow::AsArrowArray;
 use crate::compute::cast::cast;
 use crate::compute::flatten::flatten_primitive;
 use crate::datetime::TimeUnit;
-use crate::error::VortexResult;
 use crate::ptype::PType;
 use crate::serde::BytesSerde;
+use crate::validity::ArrayValidity;
 
 #[derive(Debug, Clone)]
 pub struct LocalDateTime {

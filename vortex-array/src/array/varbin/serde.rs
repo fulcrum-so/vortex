@@ -1,11 +1,13 @@
+use vortex_error::VortexResult;
+
 use crate::array::varbin::{VarBinArray, VarBinEncoding};
 use crate::array::{Array, ArrayRef};
-use crate::error::VortexResult;
 use crate::serde::{ArraySerde, EncodingSerde, ReadCtx, WriteCtx};
+use crate::validity::ArrayValidity;
 
 impl ArraySerde for VarBinArray {
     fn write(&self, ctx: &mut WriteCtx) -> VortexResult<()> {
-        ctx.write_optional_array(self.validity())?;
+        ctx.write_validity(self.validity())?;
         ctx.dtype(self.offsets().dtype())?;
         ctx.write(self.offsets())?;
         ctx.write(self.bytes())
@@ -14,7 +16,7 @@ impl ArraySerde for VarBinArray {
 
 impl EncodingSerde for VarBinEncoding {
     fn read(&self, ctx: &mut ReadCtx) -> VortexResult<ArrayRef> {
-        let validity = ctx.validity().read_optional_array()?;
+        let validity = ctx.read_validity()?;
         // TODO(robert): Stop writing this
         let offsets_dtype = ctx.dtype()?;
         let offsets = ctx.with_schema(&offsets_dtype).read()?;

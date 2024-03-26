@@ -1,11 +1,12 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
+
+use vortex_error::VortexResult;
 use vortex_schema::DType;
 
 use crate::array::varbin::VarBinArray;
 use crate::array::varbinview::VarBinViewArray;
 use crate::array::Array;
-use crate::error::VortexResult;
 use crate::stats::{Stat, StatsCompute, StatsSet};
 
 pub trait BinaryArray {
@@ -79,11 +80,12 @@ impl BinaryArray for VarBinViewArray {
 
 #[cfg(test)]
 mod test {
+    use vortex_schema::{DType, Nullability};
+
     use crate::array::primitive::PrimitiveArray;
     use crate::array::varbin::VarBinArray;
     use crate::array::Array;
     use crate::stats::Stat;
-    use vortex_schema::{DType, Nullability};
 
     fn array(dtype: DType) -> VarBinArray {
         let values = PrimitiveArray::from(

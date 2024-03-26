@@ -1,9 +1,10 @@
 use std::fmt::{Display, Formatter};
 
 use itertools::Itertools;
+
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::DType;
 
-use crate::error::{VortexError, VortexResult};
 use crate::scalar::Scalar;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]

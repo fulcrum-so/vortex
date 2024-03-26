@@ -3,9 +3,10 @@ use std::sync::Arc;
 
 use half::f16;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+
+use vortex_error::VortexResult;
 use vortex_schema::DType;
 
-use crate::error::VortexResult;
 use crate::ptype::PType;
 use crate::scalar::composite::CompositeScalar;
 use crate::scalar::{

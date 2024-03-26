@@ -36,6 +36,7 @@ use crate::datetime::{LocalDateTime, LocalDateTimeArray};
 use crate::ptype::{NativePType, PType};
 use crate::scalar::NullScalar;
 use crate::stats::Stat;
+use crate::validity::Validity;
 
 pub trait FromArrowArray<A> {
     fn from_arrow(array: A, nullable: bool) -> Self;
@@ -177,16 +178,22 @@ impl FromArrowArray<&ArrowStructArray> for ArrayRef {
 impl FromArrowArray<&ArrowNullArray> for ArrayRef {
     fn from_arrow(value: &ArrowNullArray, nullable: bool) -> Self {
         assert!(nullable);
-        ConstantArray::new(NullScalar::new().into(), value.len()).into_array()
+        ConstantArray::new(NullScalar::new(), value.len()).into_array()
     }
 }
 
-fn nulls(nulls: Option<&NullBuffer>, nullable: bool, len: usize) -> Option<ArrayRef> {
+fn nulls(nulls: Option<&NullBuffer>, nullable: bool, len: usize) -> Option<Validity> {
     if nullable {
         Some(
             nulls
-                .map(|n| n.clone().into_array())
-                .unwrap_or_else(|| ConstantArray::new(true.into(), len).into_array()),
+                .map(|nulls| {
+                    if nulls.null_count() == nulls.len() {
+                        Validity::invalid(len)
+                    } else {
+                        Validity::from(nulls.inner().clone())
+                    }
+                })
+                .unwrap_or_else(|| Validity::valid(len)),
         )
     } else {
         assert!(nulls.is_none());

@@ -2,12 +2,12 @@ use std::sync::{Arc, RwLock};
 
 use vortex::array::{Array, ArrayRef, Encoding, EncodingId, EncodingRef};
 use vortex::compress::EncodingCompression;
-use vortex::compute::scalar_at::scalar_at;
-use vortex::error::{VortexError, VortexResult};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stat, Stats, StatsCompute, StatsSet};
+use vortex::validity::{ArrayValidity, Validity};
 use vortex::{impl_array, match_each_integer_ptype};
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::DType;
 
 mod compress;
@@ -19,7 +19,7 @@ pub struct DeltaArray {
     len: usize,
     bases: ArrayRef,
     deltas: ArrayRef,
-    validity: Option<ArrayRef>,
+    validity: Option<Validity>,
     stats: Arc<RwLock<StatsSet>>,
 }
 
@@ -28,7 +28,7 @@ impl DeltaArray {
         len: usize,
         bases: ArrayRef,
         deltas: ArrayRef,
-        validity: Option<ArrayRef>,
+        validity: Option<Validity>,
     ) -> VortexResult<Self> {
         if bases.dtype() != deltas.dtype() {
             return Err(VortexError::InvalidArgument(
@@ -96,17 +96,6 @@ impl DeltaArray {
             <$T as fastlanez_sys::Delta>::lanes()
         })
     }
-
-    #[inline]
-    pub fn validity(&self) -> Option<&ArrayRef> {
-        self.validity.as_ref()
-    }
-
-    pub fn is_valid(&self, index: usize) -> bool {
-        self.validity()
-            .map(|v| scalar_at(v, index).and_then(|v| v.try_into()).unwrap())
-            .unwrap_or(true)
-    }
 }
 
 impl Array for DeltaArray {
@@ -163,7 +152,13 @@ impl ArrayDisplay for DeltaArray {
     fn fmt(&self, f: &mut ArrayFormatter) -> std::fmt::Result {
         f.child("bases", self.bases())?;
         f.child("deltas", self.deltas())?;
-        f.maybe_child("validity", self.validity())
+        f.validity(self.validity())
+    }
+}
+
+impl ArrayValidity for DeltaArray {
+    fn validity(&self) -> Option<Validity> {
+        self.validity.clone()
     }
 }
 

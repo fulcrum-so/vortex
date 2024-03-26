@@ -2,19 +2,19 @@ use std::mem;
 use std::sync::{Arc, RwLock};
 
 use linkme::distributed_slice;
+
+use vortex_error::{VortexError, VortexResult};
 use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 
 use crate::array::{
-    check_slice_bounds, check_validity_buffer, Array, ArrayRef, Encoding, EncodingId, EncodingRef,
-    ENCODINGS,
+    check_slice_bounds, Array, ArrayRef, Encoding, EncodingId, EncodingRef, ENCODINGS,
 };
 use crate::compute::flatten::flatten_primitive;
-use crate::compute::scalar_at::scalar_at;
-use crate::error::{VortexError, VortexResult};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::impl_array;
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsSet};
+use crate::validity::{ArrayValidity, Validity};
 
 mod compute;
 mod serde;
@@ -79,7 +79,7 @@ pub struct VarBinViewArray {
     views: ArrayRef,
     data: Vec<ArrayRef>,
     dtype: DType,
-    validity: Option<ArrayRef>,
+    validity: Option<Validity>,
     stats: Arc<RwLock<StatsSet>>,
 }
 
@@ -88,7 +88,7 @@ impl VarBinViewArray {
         views: ArrayRef,
         data: Vec<ArrayRef>,
         dtype: DType,
-        validity: Option<ArrayRef>,
+        validity: Option<Validity>,
     ) -> Self {
         Self::try_new(views, data, dtype, validity).unwrap()
     }
@@ -97,7 +97,7 @@ impl VarBinViewArray {
         views: ArrayRef,
         data: Vec<ArrayRef>,
         dtype: DType,
-        validity: Option<ArrayRef>,
+        validity: Option<Validity>,
     ) -> VortexResult<Self> {
         if !matches!(
             views.dtype(),
@@ -120,9 +120,6 @@ impl VarBinViewArray {
         if !matches!(dtype, DType::Binary(_) | DType::Utf8(_)) {
             return Err(VortexError::InvalidDType(dtype));
         }
-        let validity = validity.filter(|v| !v.is_empty());
-        check_validity_buffer(validity.as_ref(), views.len())?;
-
         let dtype = if validity.is_some() && !dtype.is_nullable() {
             dtype.as_nullable()
         } else {
@@ -136,13 +133,6 @@ impl VarBinViewArray {
             validity,
             stats: Arc::new(RwLock::new(StatsSet::new())),
         })
-    }
-
-    fn is_valid(&self, index: usize) -> bool {
-        self.validity
-            .as_deref()
-            .map(|v| scalar_at(v, index).unwrap().try_into().unwrap())
-            .unwrap_or(true)
     }
 
     pub fn plain_size(&self) -> usize {
@@ -171,11 +161,6 @@ impl VarBinViewArray {
     #[inline]
     pub fn data(&self) -> &[ArrayRef] {
         &self.data
-    }
-
-    #[inline]
-    pub fn validity(&self) -> Option<&ArrayRef> {
-        self.validity.as_ref()
     }
 
     pub fn bytes_at(&self, index: usize) -> VortexResult<Vec<u8>> {
@@ -231,11 +216,7 @@ impl Array for VarBinViewArray {
             views: self.views.slice(start * VIEW_SIZE, stop * VIEW_SIZE)?,
             data: self.data.clone(),
             dtype: self.dtype.clone(),
-            validity: self
-                .validity
-                .as_ref()
-                .map(|v| v.slice(start, stop))
-                .transpose()?,
+            validity: self.validity.as_ref().map(|v| v.slice(start, stop)),
             stats: Arc::new(RwLock::new(StatsSet::new())),
         }
         .into_array())
@@ -252,6 +233,12 @@ impl Array for VarBinViewArray {
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
         Some(self)
+    }
+}
+
+impl ArrayValidity for VarBinViewArray {
+    fn validity(&self) -> Option<Validity> {
+        self.validity.clone()
     }
 }
 
@@ -281,13 +268,14 @@ impl ArrayDisplay for VarBinViewArray {
         for (i, d) in self.data().iter().enumerate() {
             f.child(&format!("data_{}", i), d.as_ref())?;
         }
-        f.maybe_child("validity", self.validity())
+        f.validity(self.validity())
     }
 }
 
 #[cfg(test)]
 mod test {
     use crate::array::primitive::PrimitiveArray;
+    use crate::compute::scalar_at::scalar_at;
 
     use super::*;
 

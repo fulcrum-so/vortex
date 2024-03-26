@@ -1,18 +1,19 @@
 use itertools::Itertools;
 use num_traits::PrimInt;
 
+use crate::{FoRArray, FoREncoding};
+use vortex::array::constant::ConstantArray;
 use vortex::array::downcast::DowncastArrayBuiltin;
 use vortex::array::primitive::PrimitiveArray;
 use vortex::array::{Array, ArrayRef};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
 use vortex::compute::flatten::flatten_primitive;
-use vortex::error::VortexResult;
 use vortex::match_each_integer_ptype;
 use vortex::ptype::{NativePType, PType};
 use vortex::scalar::ListScalarVec;
 use vortex::stats::Stat;
-
-use crate::{FoRArray, FoREncoding};
+use vortex::validity::ArrayValidity;
+use vortex_error::VortexResult;
 
 impl EncodingCompression for FoREncoding {
     fn cost(&self) -> u8 {
@@ -51,7 +52,11 @@ impl EncodingCompression for FoREncoding {
         let parray = array.as_primitive();
         let shift = trailing_zeros(parray);
         let child = match_each_integer_ptype!(parray.ptype(), |$T| {
-            compress_primitive::<$T>(parray, shift)
+            if shift == <$T>::PTYPE.bit_width() as u8 {
+                ConstantArray::new($T::default(), parray.len()).into_array()
+            } else {
+                compress_primitive::<$T>(parray, shift).into_array()
+            }
         });
 
         // TODO(ngates): remove FoR as a potential encoding from the ctx
@@ -70,6 +75,7 @@ fn compress_primitive<T: NativePType + PrimInt>(
     parray: &PrimitiveArray,
     shift: u8,
 ) -> PrimitiveArray {
+    assert!(shift < T::PTYPE.bit_width() as u8);
     let min = parray
         .stats()
         .get_or_compute_as::<T>(&Stat::Min)
@@ -102,7 +108,7 @@ pub fn decompress(array: &FoRArray) -> VortexResult<PrimitiveArray> {
         let reference: $T = array.reference().try_into()?;
         PrimitiveArray::from_nullable(
             decompress_primitive(encoded.typed_data::<$T>(), reference, shift),
-            encoded.validity().cloned(),
+            encoded.validity(),
         )
     }))
 }
@@ -130,7 +136,7 @@ fn trailing_zeros(array: &dyn Array) -> u8 {
         .iter()
         .enumerate()
         .find_or_first(|(_, &v)| v > 0)
-        .map(|(i, _freq)| i)
+        .map(|(i, _)| i)
         .unwrap_or(0) as u8
 }
 

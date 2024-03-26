@@ -3,20 +3,17 @@ use std::sync::{Arc, RwLock};
 use arrow_buffer::buffer::BooleanBuffer;
 use linkme::distributed_slice;
 
-use crate::array::IntoArray;
-use crate::impl_array;
+use vortex_error::VortexResult;
 use vortex_schema::{DType, Nullability};
 
-use crate::compute::scalar_at::scalar_at;
-use crate::error::VortexResult;
+use crate::array::IntoArray;
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
+use crate::impl_array;
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stat, Stats, StatsSet};
+use crate::validity::{ArrayValidity, Validity};
 
-use super::{
-    check_slice_bounds, check_validity_buffer, Array, ArrayRef, Encoding, EncodingId, EncodingRef,
-    ENCODINGS,
-};
+use super::{check_slice_bounds, Array, ArrayRef, Encoding, EncodingId, EncodingRef, ENCODINGS};
 
 mod compute;
 mod flatten;
@@ -27,18 +24,18 @@ mod stats;
 pub struct BoolArray {
     buffer: BooleanBuffer,
     stats: Arc<RwLock<StatsSet>>,
-    validity: Option<ArrayRef>,
+    validity: Option<Validity>,
 }
 
 impl BoolArray {
-    pub fn new(buffer: BooleanBuffer, validity: Option<ArrayRef>) -> Self {
+    pub fn new(buffer: BooleanBuffer, validity: Option<Validity>) -> Self {
         Self::try_new(buffer, validity).unwrap()
     }
 
-    pub fn try_new(buffer: BooleanBuffer, validity: Option<ArrayRef>) -> VortexResult<Self> {
-        let validity = validity.filter(|v| !v.is_empty());
-        check_validity_buffer(validity.as_ref(), buffer.len())?;
-
+    pub fn try_new(buffer: BooleanBuffer, validity: Option<Validity>) -> VortexResult<Self> {
+        if let Some(v) = &validity {
+            assert_eq!(v.len(), buffer.len());
+        }
         Ok(Self {
             buffer,
             stats: Arc::new(RwLock::new(StatsSet::new())),
@@ -46,17 +43,11 @@ impl BoolArray {
         })
     }
 
-    fn is_valid(&self, index: usize) -> bool {
-        self.validity
-            .as_deref()
-            .map(|v| scalar_at(v, index).unwrap().try_into().unwrap())
-            .unwrap_or(true)
-    }
-
+    /// Create an all-null boolean array.
     pub fn null(n: usize) -> Self {
         BoolArray::new(
             BooleanBuffer::from(vec![false; n]),
-            Some(BoolArray::from(vec![false; n]).into_array()),
+            Some(Validity::invalid(n)),
         )
     }
 
@@ -65,9 +56,8 @@ impl BoolArray {
         &self.buffer
     }
 
-    #[inline]
-    pub fn validity(&self) -> Option<&ArrayRef> {
-        self.validity.as_ref()
+    pub fn into_buffer(self) -> BooleanBuffer {
+        self.buffer
     }
 }
 
@@ -104,11 +94,7 @@ impl Array for BoolArray {
         Ok(Self {
             buffer: self.buffer.slice(start, stop - start),
             stats: Arc::new(RwLock::new(StatsSet::new())),
-            validity: self
-                .validity
-                .as_ref()
-                .map(|v| v.slice(start, stop))
-                .transpose()?,
+            validity: self.validity.as_ref().map(|v| v.slice(start, stop)),
         }
         .into_array())
     }
@@ -125,6 +111,12 @@ impl Array for BoolArray {
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
         Some(self)
+    }
+}
+
+impl ArrayValidity for BoolArray {
+    fn validity(&self) -> Option<Validity> {
+        self.validity.clone()
     }
 }
 
@@ -154,7 +146,7 @@ impl ArrayDisplay for BoolArray {
         let false_count = self.len() - true_count;
         f.property("n_true", true_count)?;
         f.property("n_false", false_count)?;
-        f.maybe_child("validity", self.validity())
+        f.validity(self.validity())
     }
 }
 
@@ -191,10 +183,7 @@ impl FromIterator<Option<bool>> for BoolArray {
         if validity.is_empty() {
             BoolArray::from(values)
         } else {
-            BoolArray::new(
-                BooleanBuffer::from(values),
-                Some(BoolArray::from(validity).into_array()),
-            )
+            BoolArray::new(BooleanBuffer::from(values), Some(Validity::from(validity)))
         }
     }
 }
@@ -202,6 +191,7 @@ impl FromIterator<Option<bool>> for BoolArray {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::compute::scalar_at::scalar_at;
 
     #[test]
     fn slice() {

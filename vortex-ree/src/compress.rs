@@ -6,9 +6,10 @@ use vortex::array::{Array, ArrayRef, Encoding};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
 use vortex::compute::cast::cast;
 use vortex::compute::flatten::flatten_primitive;
-use vortex::error::VortexResult;
 use vortex::ptype::{match_each_native_ptype, NativePType};
 use vortex::stats::Stat;
+use vortex::validity::{ArrayValidity, Validity};
+use vortex_error::VortexResult;
 
 use crate::downcast::DowncastREE;
 use crate::{REEArray, REEEncoding};
@@ -55,10 +56,7 @@ impl EncodingCompression for REEEncoding {
         Ok(REEArray::new(
             compressed_ends,
             compressed_values,
-            primitive_array
-                .validity()
-                .map(|v| ctx.compress(v, ree_like.and_then(|r| r.validity())))
-                .transpose()?,
+            ctx.compress_validity(primitive_array.validity())?,
             array.len(),
         )
         .into_array())
@@ -83,6 +81,7 @@ pub fn ree_encode(array: &PrimitiveArray) -> (PrimitiveArray, PrimitiveArray) {
         compressed_ends.stats().set(Stat::Max, array.len().into());
         compressed_ends.stats().set(Stat::RunCount, compressed_ends.len().into());
 
+        assert_eq!(array.dtype(), compressed_values.dtype());
         (compressed_ends, compressed_values)
     })
 }
@@ -115,7 +114,7 @@ fn ree_encode_primitive<T: NativePType>(elements: &[T]) -> (Vec<u64>, Vec<T>) {
 pub fn ree_decode(
     ends: &PrimitiveArray,
     values: &PrimitiveArray,
-    validity: Option<ArrayRef>,
+    validity: Option<Validity>,
 ) -> VortexResult<PrimitiveArray> {
     // TODO(ngates): switch over ends without necessarily casting
     match_each_native_ptype!(values.ptype(), |$P| {
@@ -136,13 +135,10 @@ pub fn ree_decode_primitive<T: NativePType>(run_ends: &[u64], values: &[T]) -> V
 
 #[cfg(test)]
 mod test {
-    use arrow_buffer::buffer::BooleanBuffer;
-
-    use vortex::array::bool::BoolArray;
     use vortex::array::downcast::DowncastArrayBuiltin;
     use vortex::array::primitive::PrimitiveArray;
-    use vortex::array::Array;
     use vortex::array::IntoArray;
+    use vortex::validity::{ArrayValidity, Validity};
 
     use crate::compress::{ree_decode, ree_encode};
     use crate::REEArray;
@@ -174,19 +170,19 @@ mod test {
             let mut validity = vec![true; 10];
             validity[2] = false;
             validity[7] = false;
-            BoolArray::from(validity)
+            Validity::from(validity)
         };
         let arr = REEArray::new(
             vec![2u32, 5, 10].into_array(),
             vec![1i32, 2, 3].into_array(),
-            Some(validity.into_array()),
+            Some(validity),
             10,
         );
 
         let decoded = ree_decode(
             arr.ends().as_primitive(),
             arr.values().as_primitive(),
-            arr.validity().cloned(),
+            arr.validity(),
         )
         .unwrap();
 
@@ -195,10 +191,10 @@ mod test {
             vec![1i32, 1, 2, 2, 2, 3, 3, 3, 3, 3].as_slice()
         );
         assert_eq!(
-            decoded.validity().unwrap().as_bool().buffer(),
-            &BooleanBuffer::from(vec![
+            decoded.validity(),
+            Some(Validity::from(vec![
                 true, true, false, true, true, true, true, false, true, true,
-            ])
+            ]))
         );
     }
 }

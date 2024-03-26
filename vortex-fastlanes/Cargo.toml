@@ -16,8 +16,9 @@ workspace = true
 
 [dependencies]
 arrayref = { workspace = true }
-vortex-schema = { path = "../vortex-schema" }
 vortex-array = { path = "../vortex-array" }
+vortex-error = { path = "../vortex-error" }
+vortex-schema = { path = "../vortex-schema" }
 linkme = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }

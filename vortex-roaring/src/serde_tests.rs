@@ -1,8 +1,8 @@
 #[cfg(test)]
 pub mod test {
     use vortex::array::{Array, ArrayRef};
-    use vortex::error::VortexResult;
     use vortex::serde::{ReadCtx, WriteCtx};
+    use vortex_error::VortexResult;
 
     pub fn roundtrip_array(array: &dyn Array) -> VortexResult<ArrayRef> {
         let mut buf = Vec::<u8>::new();

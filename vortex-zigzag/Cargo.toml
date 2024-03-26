@@ -15,6 +15,7 @@ rust-version = { workspace = true }
 linkme = { workspace = true }
 vortex-alloc = { path = "../vortex-alloc" }
 vortex-array = { path = "../vortex-array" }
+vortex-error = { path = "../vortex-error" }
 vortex-schema = { path = "../vortex-schema" }
 zigzag = { workspace = true }
 
