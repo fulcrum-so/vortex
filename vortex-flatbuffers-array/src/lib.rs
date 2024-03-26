@@ -21,6 +21,14 @@ struct ArrayCtx {
     encodings: Vec<EncodingRef>,
 }
 
+trait AsArray {
+    type Array;
+
+    fn as_array<F, T>(&self, f: F) -> T
+    where
+        F: FnOnce(Self::Array) -> T;
+}
+
 #[derive(Clone)]
 struct ArrayData<'a> {
     fb: FBArray<'a>,
@@ -62,7 +70,24 @@ struct TypedArray<'a, T> {
     phantom: PhantomData<T>,
 }
 
-impl<'a> TypedArray<'a, DictArray> {
+/// Dictionary Encoding
+struct DictEncodingPlugin;
+impl EncodingPlugin for DictEncodingPlugin {
+    fn vtable(&self) -> &dyn ArrayVTable {
+        self
+    }
+}
+struct DictArray<'a> {
+    codes: &'a dyn Array,
+    values: &'a dyn Array,
+}
+impl<'a> DictArray<'a> {
+    fn new(codes: &'a dyn Array, values: &'a dyn Array) -> Self {
+        Self { codes, values }
+    }
+}
+type DictArrayData<'a> = TypedArray<'a, DictEncodingPlugin>;
+impl<'a> DictArrayData<'a> {
     fn codes(&self) -> ArrayData {
         self.data.child(0).expect("DictArray missing codes child")
     }
@@ -71,28 +96,27 @@ impl<'a> TypedArray<'a, DictArray> {
         self.data.child(1).expect("DictArray missing values child")
     }
 }
-
-trait DowncastArray {
-    type ArrayType;
-}
-
-/// Dictionary Encoding
-struct DictEncodingPlugin;
-impl EncodingPlugin for DictEncodingPlugin {
-    fn vtable(&self) -> &dyn ArrayVTable {
-        self
-    }
-}
-impl DowncastArray for DictEncodingPlugin {
-    type ArrayType = DictArray;
-}
-struct DictArray {
-    codes: ArrayRef,
-    values: ArrayRef,
-}
-impl<'a> Array for TypedArray<'a, DictArray> {
+impl<'a> Array for DictArrayData<'a> {
     fn len(&self) -> usize {
         self.codes().len()
+    }
+}
+
+impl<'a> AsArray for &'a DictArrayData<'_> {
+    type Array = DictArray<'a>;
+
+    fn as_array<F, T>(&self, f: F) -> T
+    where
+        Self: 'a,
+        F: FnOnce(Self::Array) -> T,
+    {
+        let codes = self.codes();
+        let values = self.values();
+        let dict = DictArray {
+            codes: &codes,
+            values: &values,
+        };
+        return f(dict);
     }
 }
 
@@ -103,29 +127,26 @@ impl EncodingPlugin for PrimitiveEncodingPlugin {
         self
     }
 }
-impl DowncastArray for PrimitiveEncodingPlugin {
-    type ArrayType = PrimitiveArray;
-}
 struct PrimitiveArray {
     buffer: Buffer,
 }
-impl<'a> TypedArray<'a, PrimitiveArray> {
+impl<'a> TypedArray<'a, PrimitiveEncodingPlugin> {
     fn buffer(&self) -> &[u8] {
         self.data.buffer(0).expect("PrimitiveArray missing buffer")
     }
 }
-impl<'a> Array for TypedArray<'a, PrimitiveArray> {
+impl<'a> Array for TypedArray<'a, PrimitiveEncodingPlugin> {
     fn len(&self) -> usize {
         self.buffer().len() / 4
     }
 }
 
-impl<'a, T: DowncastArray> ArrayVTable<'a> for T
+impl<'a, T> ArrayVTable<'a> for T
 where
-    TypedArray<'a, <T as DowncastArray>::ArrayType>: Array,
+    TypedArray<'a, T>: Array,
 {
     fn len<'data: 'a>(&self, data: &'data ArrayData) -> usize {
-        data.as_typed::<T::ArrayType>().len()
+        data.as_typed::<T>().len()
     }
 }
 
