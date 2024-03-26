@@ -1,12 +1,10 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use arrow_buffer::Buffer;
+use arrow_buffer::{Buffer, ToByteSlice};
+use flatbuffers::root;
 
 use vortex_flatbuffers::encoding::FBArray;
-
-mod array2;
-mod fb;
 
 type ArrayRef = Arc<dyn Array>;
 
@@ -15,28 +13,47 @@ trait Array {
 }
 
 trait ArrayVTable<'a> {
-    fn len<'data: 'a>(&self, data: &'data ArrayData) -> usize;
+    fn len<'data: 'a>(&self, data: &'data ArrayView) -> usize;
 }
 
 struct ArrayCtx {
     encodings: Vec<EncodingRef>,
 }
 
-trait AsArray {
-    type Array;
+struct ArrayData {
+    data: Buffer,
+    ctx: Arc<ArrayCtx>,
+}
 
-    fn as_array<F, T>(&self, f: F) -> T
-    where
-        F: FnOnce(Self::Array) -> T;
+impl ArrayData {
+    // Take an immutable view over the ArrayData.
+    fn as_view(&self) -> Result<ArrayView, ()> {
+        let fbarray = root::<FBArray>(self.data.to_byte_slice()).map_err(|_| ())?;
+        Ok(ArrayView {
+            fb: fbarray,
+            ctx: self.ctx.as_ref(),
+        })
+    }
 }
 
 #[derive(Clone)]
-struct ArrayData<'a> {
+struct ArrayView<'a> {
     fb: FBArray<'a>,
-    ctx: &'a ArrayCtx,
+    data: &'a ArrayData,
 }
 
-impl<'a> ArrayData<'a> {
+impl ToOwned for ArrayView {
+    type Owned = ArrayData;
+
+    fn to_owned(&self) -> Self::Owned {
+        ArrayData {
+            data: ,
+            ctx: Arc::new(ArrayCtx {}),
+        }
+    }
+}
+
+impl<'a> ArrayView<'a> {
     fn as_typed<T>(&'a self) -> TypedArray<'a, T> {
         TypedArray {
             data: self.clone(),
@@ -51,8 +68,8 @@ impl<'a> ArrayData<'a> {
             .map(|e| e.vtable())
     }
 
-    fn child(&self, idx: usize) -> Option<ArrayData> {
-        self.fb.children().map(|c| ArrayData {
+    fn child(&self, idx: usize) -> Option<ArrayView> {
+        self.fb.children().map(|c| ArrayView {
             fb: c.get(idx),
             ctx: self.ctx,
         })
@@ -67,7 +84,7 @@ impl<'a> ArrayData<'a> {
 }
 
 struct TypedArray<'a, T> {
-    data: ArrayData<'a>,
+    data: ArrayView<'a>,
     phantom: PhantomData<T>,
 }
 
@@ -89,11 +106,11 @@ impl<'a> DictArray<'a> {
 }
 type DictArrayData<'a> = TypedArray<'a, DictEncodingPlugin>;
 impl<'a> DictArrayData<'a> {
-    fn codes(&self) -> ArrayData {
+    fn codes(&self) -> ArrayView {
         self.data.child(0).expect("DictArray missing codes child")
     }
 
-    fn values(&self) -> ArrayData {
+    fn values(&self) -> ArrayView {
         self.data.child(1).expect("DictArray missing values child")
     }
 }
@@ -102,24 +119,6 @@ impl<'a> Array for DictArrayData<'a> {
         self.codes().len()
     }
 }
-
-// impl<'a> AsArray for &'a DictArrayData<'_> {
-//     type Array = DictArray<'a>;
-//
-//     fn as_array<F, T>(&self, f: F) -> T
-//     where
-//         Self: 'a,
-//         F: FnOnce(Self::Array) -> T,
-//     {
-//         let codes = self.codes();
-//         let values = self.values();
-//         let dict = DictArray {
-//             codes: &codes,
-//             values: &values,
-//         };
-//         return f(dict);
-//     }
-// }
 
 /// Primitive Encoding
 struct PrimitiveEncodingPlugin;
@@ -146,12 +145,12 @@ impl<'a, T> ArrayVTable<'a> for T
 where
     TypedArray<'a, T>: Array,
 {
-    fn len<'data: 'a>(&self, data: &'data ArrayData) -> usize {
+    fn len<'data: 'a>(&self, data: &'data ArrayView) -> usize {
         data.as_typed::<T>().len()
     }
 }
 
-impl<'a> Array for ArrayData<'a> {
+impl<'a> Array for ArrayView<'a> {
     fn len(&self) -> usize {
         self.vtable().expect("Invalid encoding").len(self)
     }
@@ -165,9 +164,11 @@ type EncodingRef = &'static dyn EncodingPlugin;
 
 #[cfg(test)]
 mod test {
-    use crate::{Array, ArrayCtx, ArrayData, DictEncodingPlugin, PrimitiveEncodingPlugin};
-    use flatbuffers::{root, FlatBufferBuilder};
+    use flatbuffers::{FlatBufferBuilder, root};
+
     use vortex_flatbuffers::encoding::{Buffer, BufferArgs, FBArray, FBArrayArgs};
+
+    use crate::{Array, ArrayCtx, ArrayData, DictEncodingPlugin, PrimitiveEncodingPlugin};
 
     #[test]
     pub fn test_something() {
