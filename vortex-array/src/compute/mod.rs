@@ -1,3 +1,4 @@
+use crate::array::{Array, ArrayRef};
 use as_arrow::AsArrowArray;
 use as_contiguous::AsContiguousFn;
 use cast::CastFn;
@@ -7,6 +8,7 @@ use patch::PatchFn;
 use scalar_at::ScalarAtFn;
 use search_sorted::SearchSortedFn;
 use take::TakeFn;
+use vortex_error::VortexResult;
 
 pub mod add;
 pub mod as_arrow;
@@ -56,4 +58,14 @@ pub trait ArrayCompute {
     fn take(&self) -> Option<&dyn TakeFn> {
         None
     }
+}
+
+pub trait ComputeVTable<A> {
+    fn take(&self) -> Option<&dyn VTakeFn<A>> {
+        None
+    }
+}
+
+pub trait VTakeFn<A> {
+    fn take(&self, array: A, indices: &dyn Array) -> VortexResult<ArrayRef>;
 }

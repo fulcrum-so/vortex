@@ -13,10 +13,12 @@ use vortex_error::VortexResult;
 use vortex_schema::{DType, Nullability};
 
 use crate::accessor::ArrayAccessor;
+use crate::array::primitive::compute2::PrimitiveTrait;
 use crate::array::IntoArray;
 use crate::array::{
     check_slice_bounds, Array, ArrayRef, Encoding, EncodingId, EncodingRef, ENCODINGS,
 };
+use crate::compute::ComputeVTable;
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::impl_array;
 use crate::iterator::ArrayIter;
@@ -26,6 +28,7 @@ use crate::stats::{Stats, StatsSet};
 use crate::validity::{ArrayValidity, Validity};
 
 mod compute;
+mod compute2;
 mod serde;
 mod stats;
 
@@ -146,6 +149,10 @@ impl PrimitiveArray {
         }
         self.buffer().typed_data()
     }
+
+    pub fn as_trait<T: NativePType>(&self) -> &dyn PrimitiveTrait<T> {
+        self
+    }
 }
 
 impl Array for PrimitiveArray {
@@ -195,6 +202,10 @@ impl Array for PrimitiveArray {
     #[inline]
     fn nbytes(&self) -> usize {
         self.buffer.len()
+    }
+
+    fn compute<'a>(&self) -> Option<&dyn ComputeVTable<&'a dyn Array>> {
+        Some(&PrimitiveEncoding)
     }
 
     fn serde(&self) -> Option<&dyn ArraySerde> {

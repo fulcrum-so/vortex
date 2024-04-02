@@ -28,7 +28,7 @@ use crate::compute::patch::PatchFn;
 use crate::compute::scalar_at::ScalarAtFn;
 use crate::compute::search_sorted::SearchSortedFn;
 use crate::compute::take::TakeFn;
-use crate::compute::ArrayCompute;
+use crate::compute::{ArrayCompute, ComputeVTable};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::Stats;
@@ -76,6 +76,10 @@ pub trait Array: ArrayCompute + ArrayValidity + ArrayDisplay + Debug + Send + Sy
     fn encoding(&self) -> EncodingRef;
     /// Approximate size in bytes of the array. Only takes into account variable size portion of the array
     fn nbytes(&self) -> usize;
+
+    fn compute<'a>(&self) -> Option<&dyn ComputeVTable<&'a dyn Array>> {
+        None
+    }
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
         None
