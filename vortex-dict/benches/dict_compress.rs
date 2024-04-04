@@ -2,7 +2,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::distributions::{Alphanumeric, Uniform};
 use rand::prelude::SliceRandom;
 use rand::{thread_rng, Rng};
-use vortex::array::primitive::PrimitiveArray;
+use vortex::array::primitive::{PrimitiveArray, PrimitiveTrait};
 use vortex::array::varbin::VarBinArray;
 use vortex::array::Array;
 use vortex::match_each_native_ptype;
