@@ -8,7 +8,7 @@ use vortex_error::{vortex_bail, VortexResult};
 use vortex_schema::DType;
 
 use crate::array::downcast::DowncastArrayBuiltin;
-use crate::array::primitive::PrimitiveArray;
+use crate::array::primitive::{PrimitiveArray, PrimitiveTrait, TypedPrimitiveTrait};
 use crate::array::validity::Validity;
 use crate::array::varbin::VarBinArray;
 use crate::array::{Array, ArrayRef};

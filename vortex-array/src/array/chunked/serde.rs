@@ -44,7 +44,7 @@ mod test {
 
     use crate::array::chunked::ChunkedArray;
     use crate::array::downcast::DowncastArrayBuiltin;
-    use crate::array::primitive::PrimitiveArray;
+    use crate::array::primitive::{PrimitiveArray, TypedPrimitiveTrait};
     use crate::array::Array;
     use crate::serde::test::roundtrip_array;
 
@@ -62,10 +62,9 @@ mod test {
 
         for (i, chunk) in arr.chunks().iter().enumerate() {
             assert_eq!(
-                chunk.as_primitive().buffer().typed_data::<i32>(),
+                chunk.as_primitive().typed_data::<i32>(),
                 read_arr.as_chunked().chunks()[i]
                     .as_primitive()
-                    .buffer()
                     .typed_data::<i32>()
             );
         }

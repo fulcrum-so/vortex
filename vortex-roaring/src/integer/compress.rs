@@ -2,7 +2,9 @@ use croaring::Bitmap;
 use log::debug;
 use num_traits::NumCast;
 use vortex::array::downcast::DowncastArrayBuiltin;
-use vortex::array::primitive::{PrimitiveArray, PrimitiveEncoding};
+use vortex::array::primitive::{
+    PrimitiveArray, PrimitiveEncoding, PrimitiveTrait, TypedPrimitiveTrait,
+};
 use vortex::array::{Array, ArrayRef};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
 use vortex::ptype::{NativePType, PType};
@@ -61,10 +63,10 @@ impl EncodingCompression for RoaringIntEncoding {
 
 pub fn roaring_encode(primitive_array: &PrimitiveArray) -> RoaringIntArray {
     match primitive_array.ptype() {
-        PType::U8 => roaring_encode_primitive::<u8>(primitive_array.buffer().typed_data()),
-        PType::U16 => roaring_encode_primitive::<u16>(primitive_array.buffer().typed_data()),
-        PType::U32 => roaring_encode_primitive::<u32>(primitive_array.buffer().typed_data()),
-        PType::U64 => roaring_encode_primitive::<u64>(primitive_array.buffer().typed_data()),
+        PType::U8 => roaring_encode_primitive::<u8>(primitive_array.typed_data()),
+        PType::U16 => roaring_encode_primitive::<u16>(primitive_array.typed_data()),
+        PType::U32 => roaring_encode_primitive::<u32>(primitive_array.typed_data()),
+        PType::U64 => roaring_encode_primitive::<u64>(primitive_array.typed_data()),
         _ => panic!("Unsupported ptype"),
     }
 }

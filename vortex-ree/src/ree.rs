@@ -199,6 +199,7 @@ impl ArrayDisplay for REEArray {
 
 #[cfg(test)]
 mod test {
+    use vortex::array::primitive::TypedPrimitiveTrait;
     use vortex::array::Array;
     use vortex::array::IntoArray;
     use vortex::compute::flatten::flatten_primitive;

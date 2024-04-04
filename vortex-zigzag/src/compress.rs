@@ -1,5 +1,5 @@
 use vortex::array::downcast::DowncastArrayBuiltin;
-use vortex::array::primitive::PrimitiveArray;
+use vortex::array::primitive::{PrimitiveArray, PrimitiveTrait, TypedPrimitiveTrait};
 use vortex::array::validity::Validity;
 use vortex::array::{Array, ArrayKind, ArrayRef};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
@@ -57,16 +57,10 @@ impl EncodingCompression for ZigZagEncoding {
 
 pub fn zigzag_encode(parray: &PrimitiveArray) -> VortexResult<ZigZagArray> {
     let encoded = match parray.ptype() {
-        PType::I8 => zigzag_encode_primitive::<i8>(parray.buffer().typed_data(), parray.validity()),
-        PType::I16 => {
-            zigzag_encode_primitive::<i16>(parray.buffer().typed_data(), parray.validity())
-        }
-        PType::I32 => {
-            zigzag_encode_primitive::<i32>(parray.buffer().typed_data(), parray.validity())
-        }
-        PType::I64 => {
-            zigzag_encode_primitive::<i64>(parray.buffer().typed_data(), parray.validity())
-        }
+        PType::I8 => zigzag_encode_primitive::<i8>(parray.typed_data(), parray.validity()),
+        PType::I16 => zigzag_encode_primitive::<i16>(parray.typed_data(), parray.validity()),
+        PType::I32 => zigzag_encode_primitive::<i32>(parray.typed_data(), parray.validity()),
+        PType::I64 => zigzag_encode_primitive::<i64>(parray.typed_data(), parray.validity()),
         _ => panic!("Unsupported ptype"),
     };
     ZigZagArray::try_new(encoded.into_array())
@@ -87,16 +81,10 @@ where
 #[allow(dead_code)]
 pub fn zigzag_decode(parray: &PrimitiveArray) -> PrimitiveArray {
     match parray.ptype() {
-        PType::U8 => zigzag_decode_primitive::<i8>(parray.buffer().typed_data(), parray.validity()),
-        PType::U16 => {
-            zigzag_decode_primitive::<i16>(parray.buffer().typed_data(), parray.validity())
-        }
-        PType::U32 => {
-            zigzag_decode_primitive::<i32>(parray.buffer().typed_data(), parray.validity())
-        }
-        PType::U64 => {
-            zigzag_decode_primitive::<i64>(parray.buffer().typed_data(), parray.validity())
-        }
+        PType::U8 => zigzag_decode_primitive::<i8>(parray.typed_data(), parray.validity()),
+        PType::U16 => zigzag_decode_primitive::<i16>(parray.typed_data(), parray.validity()),
+        PType::U32 => zigzag_decode_primitive::<i32>(parray.typed_data(), parray.validity()),
+        PType::U64 => zigzag_decode_primitive::<i64>(parray.typed_data(), parray.validity()),
         _ => panic!("Unsupported ptype"),
     }
 }

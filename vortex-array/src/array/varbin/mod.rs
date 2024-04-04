@@ -6,7 +6,7 @@ use vortex_error::{vortex_bail, vortex_err, VortexResult};
 use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 
 use crate::array::downcast::DowncastArrayBuiltin;
-use crate::array::primitive::PrimitiveArray;
+use crate::array::primitive::{PrimitiveArray, TypedPrimitiveTrait};
 use crate::array::validity::Validity;
 use crate::array::{check_slice_bounds, Array, ArrayRef};
 use crate::compress::EncodingCompression;

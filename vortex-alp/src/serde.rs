@@ -48,7 +48,7 @@ impl EncodingSerde for ALPEncoding {
 #[cfg(test)]
 mod test {
     use vortex::array::downcast::DowncastArrayBuiltin;
-    use vortex::array::primitive::PrimitiveArray;
+    use vortex::array::primitive::{PrimitiveArray, TypedPrimitiveTrait};
     use vortex::array::{Array, ArrayRef};
     use vortex::serde::{ReadCtx, WriteCtx};
     use vortex_error::VortexResult;
@@ -78,12 +78,8 @@ mod test {
 
         let read_alp = read_arr.as_alp();
         assert_eq!(
-            arr.encoded().as_primitive().buffer().typed_data::<i8>(),
-            read_alp
-                .encoded()
-                .as_primitive()
-                .buffer()
-                .typed_data::<i8>()
+            arr.encoded().as_primitive().typed_data::<i8>(),
+            read_alp.encoded().as_primitive().typed_data::<i8>()
         );
 
         assert_eq!(arr.exponents().e, read_alp.exponents().e);

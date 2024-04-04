@@ -5,7 +5,7 @@ use hashbrown::hash_map::{Entry, RawEntryMut};
 use hashbrown::HashMap;
 use num_traits::AsPrimitive;
 use vortex::array::bool::BoolArray;
-use vortex::array::primitive::{PrimitiveArray, PrimitiveEncoding};
+use vortex::array::primitive::{PrimitiveArray, PrimitiveEncoding, PrimitiveTrait};
 use vortex::array::validity::Validity;
 use vortex::array::varbin::{VarBinArray, VarBinEncoding};
 use vortex::array::{Array, ArrayKind, ArrayRef};
@@ -242,7 +242,7 @@ where
 mod test {
     use std::str;
 
-    use vortex::array::primitive::PrimitiveArray;
+    use vortex::array::primitive::{PrimitiveArray, TypedPrimitiveTrait};
     use vortex::array::varbin::VarBinArray;
     use vortex::compute::scalar_at::scalar_at;
     use vortex::scalar::PrimitiveScalar;
@@ -253,8 +253,8 @@ mod test {
     fn encode_primitive() {
         let arr = PrimitiveArray::from(vec![1, 1, 3, 3, 3]);
         let (codes, values) = dict_encode_typed_primitive::<i32>(&arr);
-        assert_eq!(codes.buffer().typed_data::<u64>(), &[0, 0, 1, 1, 1]);
-        assert_eq!(values.buffer().typed_data::<i32>(), &[1, 3]);
+        assert_eq!(codes.typed_data::<u64>(), &[0, 0, 1, 1, 1]);
+        assert_eq!(values.typed_data::<i32>(), &[1, 3]);
     }
 
     #[test]
@@ -270,10 +270,7 @@ mod test {
             None,
         ]);
         let (codes, values) = dict_encode_typed_primitive::<i32>(&arr);
-        assert_eq!(
-            codes.buffer().typed_data::<u64>(),
-            &[1, 1, 0, 2, 2, 0, 2, 0]
-        );
+        assert_eq!(codes.typed_data::<u64>(), &[1, 1, 0, 2, 2, 0, 2, 0]);
         assert_eq!(
             scalar_at(&values, 0).unwrap(),
             PrimitiveScalar::nullable::<i32>(None).into()
@@ -292,7 +289,7 @@ mod test {
     fn encode_varbin() {
         let arr = VarBinArray::from(vec!["hello", "world", "hello", "again", "world"]);
         let (codes, values) = dict_encode_varbin(&arr);
-        assert_eq!(codes.buffer().typed_data::<u64>(), &[0, 1, 0, 2, 1]);
+        assert_eq!(codes.typed_data::<u64>(), &[0, 1, 0, 2, 1]);
         assert_eq!(
             values
                 .iter_primitive()
@@ -319,10 +316,7 @@ mod test {
         .into_iter()
         .collect();
         let (codes, values) = dict_encode_varbin(&arr);
-        assert_eq!(
-            codes.buffer().typed_data::<u64>(),
-            &[1, 0, 2, 1, 0, 3, 2, 0]
-        );
+        assert_eq!(codes.typed_data::<u64>(), &[1, 0, 2, 1, 0, 3, 2, 0]);
         assert_eq!(
             values
                 .iter_primitive()

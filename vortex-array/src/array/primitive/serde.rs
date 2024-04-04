@@ -1,6 +1,6 @@
 use vortex_error::VortexResult;
 
-use crate::array::primitive::{PrimitiveArray, PrimitiveEncoding, PrimitiveView};
+use crate::array::primitive::{PrimitiveArray, PrimitiveEncoding, PrimitiveTrait, PrimitiveView};
 use crate::array::{Array, ArrayRef};
 use crate::serde::{ArraySerde, ArrayView, EncodingSerde, ReadCtx, WriteCtx};
 
@@ -36,7 +36,7 @@ impl EncodingSerde for PrimitiveEncoding {
 #[cfg(test)]
 mod test {
     use crate::array::downcast::DowncastArrayBuiltin;
-    use crate::array::primitive::PrimitiveArray;
+    use crate::array::primitive::{PrimitiveArray, TypedPrimitiveTrait};
     use crate::array::Array;
     use crate::serde::test::roundtrip_array;
 
@@ -45,8 +45,8 @@ mod test {
         let arr = PrimitiveArray::from_iter(vec![Some(0), None, Some(2), Some(42)]);
         let read_arr = roundtrip_array(&arr).unwrap();
         assert_eq!(
-            arr.buffer().typed_data::<i32>(),
-            read_arr.as_primitive().buffer().typed_data::<i32>()
+            arr.typed_data::<i32>(),
+            read_arr.as_primitive().typed_data::<i32>()
         );
         assert_eq!(arr.validity(), read_arr.validity());
     }

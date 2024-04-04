@@ -1,6 +1,6 @@
 use vortex::array::composite::CompositeEncoding;
 use vortex::array::downcast::DowncastArrayBuiltin;
-use vortex::array::primitive::PrimitiveArray;
+use vortex::array::primitive::{PrimitiveArray, TypedPrimitiveTrait};
 use vortex::array::{Array, ArrayRef};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
 use vortex::compute::cast::cast;

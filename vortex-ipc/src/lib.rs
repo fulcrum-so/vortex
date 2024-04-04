@@ -40,7 +40,7 @@ mod tests {
     use std::io::{Cursor, Write};
 
     use vortex::array::downcast::DowncastArrayBuiltin;
-    use vortex::array::primitive::PrimitiveArray;
+    use vortex::array::primitive::{PrimitiveArray, TypedPrimitiveTrait};
     use vortex::compute::take::take;
     use vortex::serde::context::SerdeContext;
 

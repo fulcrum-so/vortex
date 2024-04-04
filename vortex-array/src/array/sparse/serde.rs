@@ -43,7 +43,7 @@ impl EncodingSerde for SparseEncoding {
 #[cfg(test)]
 mod test {
     use crate::array::downcast::DowncastArrayBuiltin;
-    use crate::array::primitive::PrimitiveArray;
+    use crate::array::primitive::{PrimitiveArray, TypedPrimitiveTrait};
     use crate::array::sparse::SparseArray;
     use crate::array::Array;
     use crate::array::IntoArray;
@@ -60,22 +60,20 @@ mod test {
         let read_arr = roundtrip_array(&arr).unwrap();
 
         assert_eq!(
-            arr.indices().as_primitive().buffer().typed_data::<u8>(),
+            arr.indices().as_primitive().typed_data::<u8>(),
             read_arr
                 .as_sparse()
                 .indices()
                 .as_primitive()
-                .buffer()
                 .typed_data::<u8>()
         );
 
         assert_eq!(
-            arr.values().as_primitive().buffer().typed_data::<i32>(),
+            arr.values().as_primitive().typed_data::<i32>(),
             read_arr
                 .as_sparse()
                 .values()
                 .as_primitive()
-                .buffer()
                 .typed_data::<i32>()
         );
     }

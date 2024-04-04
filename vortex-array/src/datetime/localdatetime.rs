@@ -9,6 +9,7 @@ use vortex_error::VortexResult;
 use vortex_schema::CompositeID;
 
 use crate::array::composite::{composite_impl, TypedCompositeArray};
+use crate::array::primitive::TypedPrimitiveTrait;
 use crate::array::Array;
 use crate::arrow::wrappers::as_nulls;
 use crate::compute::as_arrow::AsArrowArray;

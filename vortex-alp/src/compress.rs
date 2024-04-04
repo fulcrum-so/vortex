@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use vortex::array::downcast::DowncastArrayBuiltin;
-use vortex::array::primitive::PrimitiveArray;
+use vortex::array::primitive::{PrimitiveArray, PrimitiveTrait, TypedPrimitiveTrait};
 use vortex::array::sparse::SparseArray;
 use vortex::array::{Array, ArrayRef};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};

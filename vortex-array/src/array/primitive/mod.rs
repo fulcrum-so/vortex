@@ -189,8 +189,8 @@ impl Array for PrimitiveArray {
         &self,
         f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
     ) -> VortexResult<()> {
-        let primitive_trait = &self.as_trait();
-        f(primitive_trait)
+        let primitive_trait: &dyn PrimitiveTrait = self;
+        f(&primitive_trait)
     }
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
@@ -300,7 +300,7 @@ impl ArrayDisplay for PrimitiveArray {
     fn fmt(&self, f: &mut ArrayFormatter) -> std::fmt::Result {
         match_each_native_ptype!(self.ptype(), |$P| {
             f.property("values", format!("{:?}{}",
-                &self.buffer().typed_data::<$P>()[..min(10, Array::len(self))],
+                &self.typed_data::<$P>()[..min(10, Array::len(self))],
                 if Array::len(self) > 10 { "..." } else { "" }))
         })?;
         f.validity(self.validity())

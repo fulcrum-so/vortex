@@ -38,7 +38,7 @@ mod test {
     use vortex_schema::{DType, Nullability};
 
     use crate::array::downcast::DowncastArrayBuiltin;
-    use crate::array::primitive::PrimitiveArray;
+    use crate::array::primitive::{PrimitiveArray, TypedPrimitiveTrait};
     use crate::array::varbinview::{BinaryView, Inlined, Ref, VarBinViewArray};
     use crate::array::Array;
     use crate::serde::test::roundtrip_array;
@@ -77,20 +77,18 @@ mod test {
         let read_arr = roundtrip_array(&arr).unwrap();
 
         assert_eq!(
-            arr.views().as_primitive().buffer().typed_data::<u8>(),
+            arr.views().as_primitive().typed_data::<u8>(),
             read_arr
                 .as_varbinview()
                 .views()
                 .as_primitive()
-                .buffer()
                 .typed_data::<u8>()
         );
 
         assert_eq!(
-            arr.data()[0].as_primitive().buffer().typed_data::<u8>(),
+            arr.data()[0].as_primitive().typed_data::<u8>(),
             read_arr.as_varbinview().data()[0]
                 .as_primitive()
-                .buffer()
                 .typed_data::<u8>()
         );
     }

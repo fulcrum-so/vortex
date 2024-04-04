@@ -32,7 +32,7 @@ fn encoded_dtype(schema: &DType) -> DType {
 #[cfg(test)]
 mod test {
     use vortex::array::downcast::DowncastArrayBuiltin;
-    use vortex::array::primitive::PrimitiveArray;
+    use vortex::array::primitive::{PrimitiveArray, TypedPrimitiveTrait};
     use vortex::array::{Array, ArrayRef};
     use vortex::serde::{ReadCtx, WriteCtx};
     use vortex_error::VortexResult;
@@ -56,12 +56,8 @@ mod test {
 
         let read_zigzag = read_arr.as_zigzag();
         assert_eq!(
-            arr.encoded().as_primitive().buffer().typed_data::<u8>(),
-            read_zigzag
-                .encoded()
-                .as_primitive()
-                .buffer()
-                .typed_data::<u8>()
+            arr.encoded().as_primitive().typed_data::<u8>(),
+            read_zigzag.encoded().as_primitive().typed_data::<u8>()
         );
     }
 }

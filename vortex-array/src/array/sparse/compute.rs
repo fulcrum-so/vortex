@@ -3,7 +3,7 @@ use itertools::Itertools;
 use vortex_error::{vortex_err, VortexResult};
 
 use crate::array::downcast::DowncastArrayBuiltin;
-use crate::array::primitive::PrimitiveArray;
+use crate::array::primitive::{PrimitiveArray, PrimitiveTrait, TypedPrimitiveTrait};
 use crate::array::sparse::SparseArray;
 use crate::array::{Array, ArrayRef};
 use crate::compute::as_contiguous::{as_contiguous, AsContiguousFn};

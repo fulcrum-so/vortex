@@ -210,6 +210,7 @@ mod test {
     use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 
     use crate::array::chunked::ChunkedArray;
+    use crate::array::primitive::TypedPrimitiveTrait;
     use crate::array::IntoArray;
     use crate::array::{Array, ArrayRef};
     use crate::compute::flatten::{flatten, flatten_primitive, FlattenedArray};

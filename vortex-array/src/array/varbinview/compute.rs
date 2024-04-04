@@ -6,6 +6,7 @@ use itertools::Itertools;
 use vortex_error::{vortex_bail, VortexResult};
 use vortex_schema::DType;
 
+use crate::array::primitive::PrimitiveTrait;
 use crate::array::varbinview::VarBinViewArray;
 use crate::array::Array;
 use crate::arrow::wrappers::as_nulls;

@@ -1,7 +1,7 @@
 use arrayref::array_ref;
 use fastlanez::TryBitPack;
 use vortex::array::downcast::DowncastArrayBuiltin;
-use vortex::array::primitive::PrimitiveArray;
+use vortex::array::primitive::{PrimitiveArray, PrimitiveTrait, TypedPrimitiveTrait};
 use vortex::array::sparse::SparseArray;
 use vortex::array::IntoArray;
 use vortex::array::{Array, ArrayRef};
@@ -105,10 +105,10 @@ fn bitpack(parray: &PrimitiveArray, bit_width: usize) -> ArrayRef {
     // TODO(ngates): we should implement this using a vortex cast to centralize this hack.
     use PType::*;
     let bytes = match parray.ptype() {
-        I8 | U8 => bitpack_primitive(parray.buffer().typed_data::<u8>(), bit_width),
-        I16 | U16 => bitpack_primitive(parray.buffer().typed_data::<u16>(), bit_width),
-        I32 | U32 => bitpack_primitive(parray.buffer().typed_data::<u32>(), bit_width),
-        I64 | U64 => bitpack_primitive(parray.buffer().typed_data::<u64>(), bit_width),
+        I8 | U8 => bitpack_primitive(parray.typed_data::<u8>(), bit_width),
+        I16 | U16 => bitpack_primitive(parray.typed_data::<u16>(), bit_width),
+        I32 | U32 => bitpack_primitive(parray.typed_data::<u32>(), bit_width),
+        I64 | U64 => bitpack_primitive(parray.typed_data::<u64>(), bit_width),
         _ => panic!("Unsupported ptype {:?}", parray.ptype()),
     };
     PrimitiveArray::from(bytes).into_array()
@@ -151,7 +151,7 @@ fn bitpack_patches(
     match_each_integer_ptype!(parray.ptype(), |$T| {
         let mut indices: Vec<u64> = Vec::with_capacity(num_exceptions_hint);
         let mut values: Vec<$T> = Vec::with_capacity(num_exceptions_hint);
-        for (i, v) in parray.buffer().typed_data::<$T>().iter().enumerate() {
+        for (i, v) in parray.typed_data::<$T>().iter().enumerate() {
             if (v.leading_zeros() as usize) < parray.ptype().bit_width() - bit_width {
                 indices.push(i as u64);
                 values.push(*v);

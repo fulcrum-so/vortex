@@ -55,6 +55,7 @@ impl TakeFn for ChunkedArray {
 mod test {
     use crate::array::chunked::ChunkedArray;
     use crate::array::downcast::DowncastArrayBuiltin;
+    use crate::array::primitive::TypedPrimitiveTrait;
     use crate::array::IntoArray;
     use crate::compute::as_contiguous::as_contiguous;
     use crate::compute::take::take;

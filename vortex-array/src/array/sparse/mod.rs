@@ -5,6 +5,7 @@ use linkme::distributed_slice;
 use vortex_error::{vortex_bail, VortexResult};
 use vortex_schema::DType;
 
+use crate::array::primitive::TypedPrimitiveTrait;
 use crate::array::validity::Validity;
 use crate::array::{check_slice_bounds, Array, ArrayRef};
 use crate::compress::EncodingCompression;

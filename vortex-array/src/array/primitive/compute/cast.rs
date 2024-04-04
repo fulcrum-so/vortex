@@ -46,6 +46,7 @@ mod test {
     use vortex_error::VortexError;
 
     use crate::array::downcast::DowncastArrayBuiltin;
+    use crate::array::primitive::TypedPrimitiveTrait;
     use crate::array::IntoArray;
     use crate::compute;
     use crate::ptype::PType;

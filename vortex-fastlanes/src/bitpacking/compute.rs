@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use vortex::array::primitive::PrimitiveArray;
+use vortex::array::primitive::{PrimitiveArray, PrimitiveTrait, TypedPrimitiveTrait};
 use vortex::array::{Array, ArrayRef};
 use vortex::compute::as_contiguous::as_contiguous;
 use vortex::compute::flatten::{flatten_primitive, FlattenFn, FlattenedArray};
@@ -63,7 +63,7 @@ mod test {
     use std::sync::Arc;
 
     use vortex::array::downcast::DowncastArrayBuiltin;
-    use vortex::array::primitive::{PrimitiveArray, PrimitiveEncoding};
+    use vortex::array::primitive::{PrimitiveArray, PrimitiveEncoding, TypedPrimitiveTrait};
     use vortex::array::Array;
     use vortex::compress::{CompressConfig, CompressCtx};
     use vortex::compute::take::take;

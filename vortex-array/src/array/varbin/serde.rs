@@ -33,6 +33,7 @@ mod test {
     use vortex_schema::{DType, Nullability};
 
     use crate::array::downcast::DowncastArrayBuiltin;
+    use crate::array::primitive::TypedPrimitiveTrait;
     use crate::array::varbin::VarBinArray;
     use crate::serde::test::roundtrip_array;
 
@@ -46,22 +47,20 @@ mod test {
         let read_arr = roundtrip_array(&arr).unwrap();
 
         assert_eq!(
-            arr.offsets().as_primitive().buffer().typed_data::<u32>(),
+            arr.offsets().as_primitive().typed_data::<u32>(),
             read_arr
                 .as_varbin()
                 .offsets()
                 .as_primitive()
-                .buffer()
                 .typed_data::<u32>()
         );
 
         assert_eq!(
-            arr.bytes().as_primitive().buffer().typed_data::<u8>(),
+            arr.bytes().as_primitive().typed_data::<u8>(),
             read_arr
                 .as_varbin()
                 .bytes()
                 .as_primitive()
-                .buffer()
                 .typed_data::<u8>()
         );
     }

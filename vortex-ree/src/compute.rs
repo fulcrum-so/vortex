@@ -1,4 +1,4 @@
-use vortex::array::primitive::PrimitiveArray;
+use vortex::array::primitive::{PrimitiveArray, PrimitiveTrait, TypedPrimitiveTrait};
 use vortex::array::{Array, ArrayRef};
 use vortex::compute::flatten::{flatten, flatten_primitive, FlattenFn, FlattenedArray};
 use vortex::compute::scalar_at::{scalar_at, ScalarAtFn};
@@ -68,7 +68,7 @@ impl TakeFn for REEArray {
 #[cfg(test)]
 mod test {
     use vortex::array::downcast::DowncastArrayBuiltin;
-    use vortex::array::primitive::PrimitiveArray;
+    use vortex::array::primitive::{PrimitiveArray, TypedPrimitiveTrait};
     use vortex::compute::take::take;
 
     use crate::REEArray;

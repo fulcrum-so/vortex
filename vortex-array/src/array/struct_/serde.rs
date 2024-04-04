@@ -64,7 +64,7 @@ mod test {
     use std::sync::Arc;
 
     use crate::array::downcast::DowncastArrayBuiltin;
-    use crate::array::primitive::PrimitiveArray;
+    use crate::array::primitive::{PrimitiveArray, TypedPrimitiveTrait};
     use crate::array::struct_::StructArray;
     use crate::array::Array;
     use crate::array::IntoArray;
@@ -87,18 +87,16 @@ mod test {
         let read_arr = roundtrip_array(&arr).unwrap();
 
         assert_eq!(
-            arr.fields()[0].as_primitive().buffer().typed_data::<u8>(),
+            arr.fields()[0].as_primitive().typed_data::<u8>(),
             read_arr.as_struct().fields()[0]
                 .as_primitive()
-                .buffer()
                 .typed_data::<u8>()
         );
 
         assert_eq!(
-            arr.fields()[1].as_primitive().buffer().typed_data::<i32>(),
+            arr.fields()[1].as_primitive().typed_data::<i32>(),
             read_arr.as_struct().fields()[1]
                 .as_primitive()
-                .buffer()
                 .typed_data::<i32>()
         );
     }

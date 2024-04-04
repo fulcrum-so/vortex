@@ -4,7 +4,7 @@ use arrayref::array_ref;
 use fastlanez::{transpose, untranspose_into, Delta};
 use num_traits::{WrappingAdd, WrappingSub};
 use vortex::array::downcast::DowncastArrayBuiltin;
-use vortex::array::primitive::PrimitiveArray;
+use vortex::array::primitive::{PrimitiveArray, PrimitiveTrait, TypedPrimitiveTrait};
 use vortex::array::validity::Validity;
 use vortex::array::{Array, ArrayRef};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};

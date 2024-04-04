@@ -46,7 +46,7 @@ impl TakeFn for DictArray {
 #[cfg(test)]
 mod test {
     use vortex::array::downcast::DowncastArrayBuiltin;
-    use vortex::array::primitive::PrimitiveArray;
+    use vortex::array::primitive::{PrimitiveArray, PrimitiveTrait};
     use vortex::array::varbin::VarBinArray;
     use vortex::array::Array;
     use vortex::compute::flatten::{flatten_primitive, flatten_varbin};

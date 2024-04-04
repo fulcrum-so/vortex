@@ -34,6 +34,7 @@ impl EncodingSerde for REEEncoding {
 mod test {
 
     use vortex::array::downcast::DowncastArrayBuiltin;
+    use vortex::array::primitive::TypedPrimitiveTrait;
     use vortex::array::IntoArray;
     use vortex::array::{Array, ArrayRef};
     use vortex::serde::{ReadCtx, WriteCtx};
@@ -63,16 +64,12 @@ mod test {
         let read_ree = read_arr.as_ree();
 
         assert_eq!(
-            arr.ends().as_primitive().buffer().typed_data::<u8>(),
-            read_ree.ends().as_primitive().buffer().typed_data::<u8>()
+            arr.ends().as_primitive().typed_data::<u8>(),
+            read_ree.ends().as_primitive().typed_data::<u8>()
         );
         assert_eq!(
-            arr.values().as_primitive().buffer().typed_data::<i64>(),
-            read_ree
-                .values()
-                .as_primitive()
-                .buffer()
-                .typed_data::<i64>()
+            arr.values().as_primitive().typed_data::<i64>(),
+            read_ree.values().as_primitive().typed_data::<i64>()
         );
     }
 }

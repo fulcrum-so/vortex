@@ -2,6 +2,8 @@ use num_traits::PrimInt;
 use vortex_error::VortexResult;
 use vortex_schema::DType;
 
+use crate::array::primitive::PrimitiveTrait;
+use crate::array::primitive::TypedPrimitiveTrait;
 use crate::array::validity::Validity;
 use crate::array::varbin::builder::VarBinBuilder;
 use crate::array::varbin::VarBinArray;

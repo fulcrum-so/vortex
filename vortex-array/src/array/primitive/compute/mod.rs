@@ -43,7 +43,7 @@ pub trait TypedPrimitiveTrait {
 // TODO(ngates): try implementing like this?
 // impl dyn PrimitiveTrait + '_ {
 
-impl<P: PrimitiveTrait> TypedPrimitiveTrait for P {
+impl<P: ?Sized + PrimitiveTrait> TypedPrimitiveTrait for P {
     fn scalar_buffer<T: NativePType + ArrowNativeType>(&self) -> ScalarBuffer<T> {
         assert_eq!(self.ptype(), T::PTYPE);
         ScalarBuffer::from(self.buffer().clone())
@@ -51,7 +51,7 @@ impl<P: PrimitiveTrait> TypedPrimitiveTrait for P {
 
     fn typed_data<T: NativePType>(&self) -> &[T] {
         assert_eq!(self.ptype(), T::PTYPE);
-        self.buffer().typed_data::<T>()
+        self.typed_data::<T>()
     }
 }
 

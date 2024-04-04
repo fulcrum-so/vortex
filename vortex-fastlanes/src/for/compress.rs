@@ -2,7 +2,7 @@ use itertools::Itertools;
 use num_traits::{PrimInt, WrappingAdd, WrappingSub};
 use vortex::array::constant::ConstantArray;
 use vortex::array::downcast::DowncastArrayBuiltin;
-use vortex::array::primitive::PrimitiveArray;
+use vortex::array::primitive::{PrimitiveArray, PrimitiveTrait, TypedPrimitiveTrait};
 use vortex::array::{Array, ArrayRef};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
 use vortex::compute::flatten::flatten_primitive;

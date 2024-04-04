@@ -3,7 +3,9 @@ use std::cmp::min;
 use itertools::Itertools;
 use num_traits::AsPrimitive;
 use vortex::array::downcast::DowncastArrayBuiltin;
-use vortex::array::primitive::{PrimitiveArray, PrimitiveEncoding};
+use vortex::array::primitive::{
+    PrimitiveArray, PrimitiveEncoding, PrimitiveTrait, TypedPrimitiveTrait,
+};
 use vortex::array::validity::Validity;
 use vortex::array::{Array, ArrayRef};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
@@ -155,7 +157,7 @@ pub fn ree_decode_primitive<E: NativePType + AsPrimitive<usize> + Ord, T: Native
 #[cfg(test)]
 mod test {
     use vortex::array::downcast::DowncastArrayBuiltin;
-    use vortex::array::primitive::PrimitiveArray;
+    use vortex::array::primitive::{PrimitiveArray, TypedPrimitiveTrait};
     use vortex::array::validity::Validity;
     use vortex::array::{Array, IntoArray};
 
@@ -208,7 +210,7 @@ mod test {
         .unwrap();
 
         assert_eq!(
-            decoded.buffer().typed_data::<i32>(),
+            decoded.typed_data::<i32>(),
             vec![1i32, 1, 2, 2, 2, 3, 3, 3, 3, 3].as_slice()
         );
         assert_eq!(

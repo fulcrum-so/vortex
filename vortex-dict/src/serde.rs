@@ -29,6 +29,7 @@ impl EncodingSerde for DictEncoding {
 #[cfg(test)]
 mod test {
     use vortex::array::downcast::DowncastArrayBuiltin;
+    use vortex::array::primitive::TypedPrimitiveTrait;
     use vortex::array::IntoArray;
     use vortex::array::{Array, ArrayRef};
     use vortex::serde::{ReadCtx, WriteCtx};
@@ -55,22 +56,16 @@ mod test {
         let read_arr = roundtrip_array(&arr).unwrap();
 
         assert_eq!(
-            arr.codes().as_primitive().buffer().typed_data::<u8>(),
-            read_arr
-                .as_dict()
-                .codes()
-                .as_primitive()
-                .buffer()
-                .typed_data::<u8>()
+            arr.codes().as_primitive().typed_data::<u8>(),
+            read_arr.as_dict().codes().as_primitive().typed_data::<u8>()
         );
 
         assert_eq!(
-            arr.values().as_primitive().buffer().typed_data::<i64>(),
+            arr.values().as_primitive().typed_data::<i64>(),
             read_arr
                 .as_dict()
                 .values()
                 .as_primitive()
-                .buffer()
                 .typed_data::<i64>()
         );
     }

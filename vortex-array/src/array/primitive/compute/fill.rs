@@ -41,7 +41,7 @@ impl FillForwardFn for &dyn PrimitiveTrait {
 #[cfg(test)]
 mod test {
     use crate::array::downcast::DowncastArrayBuiltin;
-    use crate::array::primitive::PrimitiveArray;
+    use crate::array::primitive::{PrimitiveArray, TypedPrimitiveTrait};
     use crate::array::Array;
     use crate::compute;
 
