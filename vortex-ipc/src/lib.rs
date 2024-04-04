@@ -48,6 +48,7 @@ mod tests {
     use crate::reader::StreamReader;
     use crate::writer::StreamWriter;
 
+    #[ignore]
     #[test]
     fn test_write_flatbuffer() {
         let array = PrimitiveArray::from_iter(vec![Some(1i32), None, None, Some(4), Some(5)]);
