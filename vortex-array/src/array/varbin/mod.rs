@@ -12,14 +12,13 @@ use crate::array::{check_slice_bounds, Array, ArrayRef};
 use crate::compress::EncodingCompression;
 use crate::compute::flatten::flatten_primitive;
 use crate::compute::scalar_at::scalar_at;
-use crate::compute::ArrayCompute;
 use crate::encoding::{Encoding, EncodingId, EncodingRef, ENCODINGS};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::iterator::ArrayIter;
 use crate::ptype::NativePType;
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsSet};
-use crate::{impl_array, ArrayWalker};
+use crate::{impl_array, impl_array_compute, ArrayWalker};
 
 mod accessor;
 mod builder;
@@ -197,6 +196,7 @@ pub type VarBinIter<'a, T> = ArrayIter<'a, VarBinArray, T>;
 
 impl Array for VarBinArray {
     impl_array!();
+    impl_array_compute!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -233,14 +233,6 @@ impl Array for VarBinArray {
     #[inline]
     fn encoding(&self) -> EncodingRef {
         &VarBinEncoding
-    }
-
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
     }
 
     fn nbytes(&self) -> usize {

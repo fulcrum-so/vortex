@@ -68,7 +68,13 @@ mod tests {
             // Read some number of chunks from the stream.
             while let Some(chunk) = array_reader.next().unwrap() {
                 println!("VIEW: {:?}", &chunk);
-                let taken = take(&chunk, &PrimitiveArray::from(vec![0, 3, 0, 1])).unwrap();
+
+                // This is how we can heap-allocate the view.
+                let _owned = chunk.with_array(|array| Ok(array.to_array())).unwrap();
+
+                let taken = chunk
+                    .with_array(|array| take(array, &PrimitiveArray::from(vec![0, 3, 0, 1])))
+                    .unwrap();
                 let taken = taken.as_primitive().typed_data::<i32>();
                 println!("Taken: {:?}", &taken);
             }

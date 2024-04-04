@@ -3,7 +3,7 @@ use vortex_error::VortexResult;
 
 use crate::array::bool::{BoolArray, BoolEncoding};
 use crate::array::{Array, ArrayRef};
-use crate::serde::{ArraySerde, ArrayView, BytesSerde, EncodingSerde, ReadCtx, WriteCtx};
+use crate::serde::{ArraySerde, BytesSerde, EncodingSerde, ReadCtx, WriteCtx};
 
 impl ArraySerde for BoolArray {
     fn write(&self, ctx: &mut WriteCtx) -> VortexResult<()> {
@@ -17,9 +17,9 @@ impl ArraySerde for BoolArray {
 }
 
 impl EncodingSerde for BoolEncoding {
-    fn len(&self, view: &ArrayView) -> usize {
-        usize::deserialize(view.metadata().unwrap()).unwrap()
-    }
+    // fn len(&self, view: &ArrayView) -> usize {
+    //     usize::deserialize(view.metadata().unwrap()).unwrap()
+    // }
 
     fn read(&self, ctx: &mut ReadCtx) -> VortexResult<ArrayRef> {
         let validity = ctx.read_validity()?;

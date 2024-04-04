@@ -6,7 +6,7 @@ use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
 
 use allocator_api2::alloc::Allocator;
-use arrow_buffer::buffer::{Buffer, ScalarBuffer};
+use arrow_buffer::buffer::Buffer;
 use linkme::distributed_slice;
 use vortex_error::{vortex_bail, VortexResult};
 use vortex_schema::{DType, Nullability};
@@ -28,9 +28,10 @@ mod serde;
 mod stats;
 mod view;
 
+pub use compute::PrimitiveTrait;
+pub use compute::TypedPrimitiveTrait;
 pub use view::*;
 
-use crate::array::primitive::compute::PrimitiveTrait;
 use crate::compute::ArrayCompute;
 
 #[derive(Debug, Clone)]
@@ -127,33 +128,8 @@ impl PrimitiveArray {
     }
 
     #[inline]
-    pub fn ptype(&self) -> PType {
-        self.ptype
-    }
-
-    #[inline]
-    pub fn buffer(&self) -> &Buffer {
-        &self.buffer
-    }
-
-    pub fn scalar_buffer<T: NativePType>(&self) -> ScalarBuffer<T> {
-        ScalarBuffer::from(self.buffer().clone())
-    }
-
-    pub fn typed_data<T: NativePType>(&self) -> &[T] {
-        if self.ptype() != T::PTYPE {
-            panic!(
-                "Invalid PType! Expected {}, got self.ptype {}",
-                T::PTYPE,
-                self.ptype()
-            );
-        }
-        self.buffer().typed_data()
-    }
-
-    pub(crate) fn as_trait<T: NativePType>(&self) -> &dyn PrimitiveTrait<T> {
-        assert_eq!(self.ptype, T::PTYPE);
-        self
+    pub fn len(&self) -> usize {
+        self.buffer.len() / self.ptype.byte_width()
     }
 }
 
@@ -209,14 +185,12 @@ impl Array for PrimitiveArray {
         self.buffer.len()
     }
 
-    #[inline]
     fn with_compute_mut(
         &self,
         f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
     ) -> VortexResult<()> {
-        match_each_native_ptype!(self.ptype(), |$P| {
-            f(&self.as_trait::<$P>())
-        })
+        let primitive_trait = &self.as_trait();
+        f(primitive_trait)
     }
 
     fn serde(&self) -> Option<&dyn ArraySerde> {
@@ -232,11 +206,7 @@ impl Array for PrimitiveArray {
     }
 }
 
-impl<T: NativePType> PrimitiveTrait<T> for PrimitiveArray {
-    fn dtype(&self) -> &DType {
-        &self.dtype
-    }
-
+impl PrimitiveTrait for PrimitiveArray {
     fn ptype(&self) -> PType {
         self.ptype
     }

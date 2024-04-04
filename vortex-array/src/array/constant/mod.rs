@@ -6,13 +6,12 @@ use vortex_schema::DType;
 
 use crate::array::validity::Validity;
 use crate::array::{check_slice_bounds, Array, ArrayRef};
-use crate::compute::ArrayCompute;
 use crate::encoding::{Encoding, EncodingId, EncodingRef, ENCODINGS};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::scalar::Scalar;
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stat, Stats, StatsSet};
-use crate::{impl_array, ArrayWalker};
+use crate::{impl_array, impl_array_compute, ArrayWalker};
 
 mod compute;
 mod serde;
@@ -55,6 +54,7 @@ impl ConstantArray {
 
 impl Array for ConstantArray {
     impl_array!();
+    impl_array_compute!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -85,14 +85,6 @@ impl Array for ConstantArray {
     #[inline]
     fn encoding(&self) -> EncodingRef {
         &ConstantEncoding
-    }
-
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
     }
 
     fn nbytes(&self) -> usize {

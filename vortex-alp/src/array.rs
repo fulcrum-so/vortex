@@ -3,12 +3,11 @@ use std::sync::{Arc, RwLock};
 use vortex::array::validity::Validity;
 use vortex::array::{Array, ArrayKind, ArrayRef};
 use vortex::compress::EncodingCompression;
-use vortex::compute::ArrayCompute;
 use vortex::encoding::{Encoding, EncodingId, EncodingRef};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stats, StatsSet};
-use vortex::{impl_array, ArrayWalker};
+use vortex::{impl_array, impl_array_compute, ArrayWalker};
 use vortex_error::{vortex_bail, vortex_err, VortexResult};
 use vortex_schema::{DType, IntWidth, Signedness};
 
@@ -74,6 +73,7 @@ impl ALPArray {
 
 impl Array for ALPArray {
     impl_array!();
+    impl_array_compute!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -95,6 +95,10 @@ impl Array for ALPArray {
         Stats::new(&self.stats, self)
     }
 
+    fn validity(&self) -> Option<Validity> {
+        self.encoded().validity()
+    }
+
     fn slice(&self, start: usize, stop: usize) -> VortexResult<ArrayRef> {
         Ok(Self::try_new(
             self.encoded().slice(start, stop)?,
@@ -102,13 +106,6 @@ impl Array for ALPArray {
             self.patches().map(|p| p.slice(start, stop)).transpose()?,
         )?
         .into_array())
-    }
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
     }
 
     #[inline]
@@ -119,10 +116,6 @@ impl Array for ALPArray {
     #[inline]
     fn nbytes(&self) -> usize {
         self.encoded().nbytes() + self.patches().map(|p| p.nbytes()).unwrap_or(0)
-    }
-
-    fn validity(&self) -> Option<Validity> {
-        self.encoded().validity()
     }
 
     fn serde(&self) -> Option<&dyn ArraySerde> {

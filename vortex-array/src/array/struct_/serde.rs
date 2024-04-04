@@ -1,10 +1,9 @@
-use itertools::Itertools;
 use vortex_error::{vortex_bail, VortexResult};
 use vortex_schema::DType;
 
 use crate::array::struct_::{StructArray, StructEncoding};
 use crate::array::{Array, ArrayRef};
-use crate::serde::{ArraySerde, ArrayView, EncodingSerde, ReadCtx, WriteCtx};
+use crate::serde::{ArraySerde, EncodingSerde, ReadCtx, WriteCtx};
 
 impl ArraySerde for StructArray {
     fn write(&self, ctx: &mut WriteCtx) -> VortexResult<()> {
@@ -23,27 +22,27 @@ impl ArraySerde for StructArray {
 }
 
 impl EncodingSerde for StructEncoding {
-    fn to_array(&self, view: &ArrayView) -> ArrayRef {
-        let DType::Struct(names, fields) = view.dtype() else {
-            panic!("Incorrect DType {}", view.dtype())
-        };
-        assert_eq!(fields.len(), view.nchildren());
-        StructArray::new(
-            names.clone(),
-            fields
-                .iter()
-                .enumerate()
-                .map(|(i, field)| view.child(i, field).unwrap().into_array())
-                .collect_vec(),
-            self.len(view),
-        )
-        .into_array()
-    }
+    // fn to_array(&self, view: &ArrayView) -> ArrayRef {
+    //     let DType::Struct(names, fields) = view.dtype() else {
+    //         panic!("Incorrect DType {}", view.dtype())
+    //     };
+    //     assert_eq!(fields.len(), view.nchildren());
+    //     StructArray::new(
+    //         names.clone(),
+    //         fields
+    //             .iter()
+    //             .enumerate()
+    //             .map(|(i, field)| view.child(i, field).unwrap().into_array())
+    //             .collect_vec(),
+    //         self.len(view),
+    //     )
+    //     .into_array()
+    // }
 
-    fn len(&self, view: &ArrayView) -> usize {
-        let length = u64::from_le_bytes(view.metadata().unwrap().try_into().unwrap());
-        length as usize
-    }
+    // fn len(&self, view: &ArrayView) -> usize {
+    //     let length = u64::from_le_bytes(view.metadata().unwrap().try_into().unwrap());
+    //     length as usize
+    // }
 
     fn read(&self, ctx: &mut ReadCtx) -> VortexResult<ArrayRef> {
         let len = ctx.read_usize()?;

@@ -14,7 +14,7 @@ use crate::encoding::{Encoding, EncodingId, EncodingRef, ENCODINGS};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::{ArraySerde, BytesSerde, EncodingSerde};
 use crate::stats::{Stats, StatsCompute, StatsSet};
-use crate::{impl_array, ArrayWalker};
+use crate::{impl_array, impl_array_compute, ArrayWalker};
 
 pub trait CompositeMetadata:
     'static + Debug + Display + Send + Sync + Sized + Clone + BytesSerde
@@ -77,6 +77,7 @@ impl CompositeArray {
 
 impl Array for CompositeArray {
     impl_array!();
+    impl_array_compute!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -110,14 +111,6 @@ impl Array for CompositeArray {
     #[inline]
     fn encoding(&self) -> EncodingRef {
         &CompositeEncoding
-    }
-
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
     }
 
     fn nbytes(&self) -> usize {

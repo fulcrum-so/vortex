@@ -2,8 +2,6 @@ use vortex_error::VortexResult;
 
 use crate::array::primitive::{PrimitiveArray, PrimitiveEncoding, PrimitiveView};
 use crate::array::{Array, ArrayRef};
-use crate::compute::ArrayCompute;
-use crate::match_each_native_ptype;
 use crate::serde::{ArraySerde, ArrayView, EncodingSerde, ReadCtx, WriteCtx};
 
 impl ArraySerde for PrimitiveArray {
@@ -19,15 +17,12 @@ impl ArraySerde for PrimitiveArray {
 }
 
 impl EncodingSerde for PrimitiveEncoding {
-    fn with_view_compute<'view>(
+    fn with_array_view<'view>(
         &self,
-        view: &'view ArrayView,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
+        view: &'view ArrayView<'view>,
+        f: &mut dyn FnMut(&dyn Array) -> VortexResult<()>,
     ) -> VortexResult<()> {
-        let view = PrimitiveView::try_new(view)?;
-        match_each_native_ptype!(view.ptype(), |$T| {
-            f(&view.as_trait::<$T>())
-        })
+        f(&PrimitiveView::try_new(view)?)
     }
 
     fn read(&self, ctx: &mut ReadCtx) -> VortexResult<ArrayRef> {

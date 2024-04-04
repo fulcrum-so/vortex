@@ -2,7 +2,6 @@ use std::io;
 use std::io::{Cursor, ErrorKind, Read, Write};
 
 use arrow_buffer::buffer::{Buffer, MutableBuffer};
-use arrow_buffer::BooleanBuffer;
 use flatbuffers::root;
 use itertools::Itertools;
 use vortex_error::{vortex_err, VortexResult};
@@ -25,9 +24,6 @@ pub mod view;
 pub use view::*;
 use vortex_flatbuffers::{FlatBufferToBytes, ReadFlatBuffer};
 
-use crate::array::bool::BoolArray;
-use crate::compute::ArrayCompute;
-
 pub trait ArraySerde {
     fn write(&self, ctx: &mut WriteCtx) -> VortexResult<()>;
 
@@ -39,33 +35,51 @@ pub trait EncodingSerde {
         Ok(())
         // todo!("Validate not implemented for {}", _view.encoding().id());
     }
+    //
+    // fn to_array(&self, view: &ArrayView) -> ArrayRef {
+    //     BoolArray::new(
+    //         BooleanBuffer::new(view.buffers().first().unwrap().clone(), 0, view.len()),
+    //         view.child(0, &Validity::DTYPE)
+    //             .map(|c| Validity::Array(c.into_array())),
+    //     )
+    //     .into_array()
+    // }
 
-    fn to_array(&self, view: &ArrayView) -> ArrayRef {
-        BoolArray::new(
-            BooleanBuffer::new(view.buffers().first().unwrap().clone(), 0, view.len()),
-            view.child(0, &Validity::DTYPE)
-                .map(|c| Validity::Array(c.into_array())),
-        )
-        .into_array()
-    }
-
-    // TODO(ngates): remove this ideally? It can error... Maybe store lengths in array views?
-    fn len(&self, _view: &ArrayView) -> usize {
-        todo!(
-            "EncodingSerde.len not implemented for {}",
-            _view.encoding().id()
-        );
-    }
-
-    fn with_view_compute<'view>(
+    fn with_array_view<'view>(
         &self,
-        _view: &'view ArrayView,
-        _f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
+        view: &'view ArrayView<'view>,
+        _f: &mut dyn FnMut(&dyn Array) -> VortexResult<()>,
     ) -> VortexResult<()> {
-        Err(vortex_err!(ComputeError: "Compute not implemented"))
+        Err(vortex_err!(
+            "with_array_view not implemented for {}",
+            view.encoding().id()
+        ))
     }
 
     fn read(&self, ctx: &mut ReadCtx) -> VortexResult<ArrayRef>;
+}
+
+pub trait WithArray {
+    fn with_array<'view, R, F: Fn(&dyn Array) -> VortexResult<R>>(
+        &self,
+        view: &'view ArrayView<'view>,
+        f: F,
+    ) -> VortexResult<R>;
+}
+
+impl WithArray for dyn EncodingSerde + '_ {
+    fn with_array<'view, R, F: Fn(&dyn Array) -> VortexResult<R>>(
+        &self,
+        view: &'view ArrayView<'view>,
+        f: F,
+    ) -> VortexResult<R> {
+        let mut result: Option<R> = None;
+        self.with_array_view(view, &mut |compute| {
+            result = Some(f(compute)?);
+            Ok(())
+        })?;
+        Ok(result.unwrap())
+    }
 }
 
 pub trait BytesSerde

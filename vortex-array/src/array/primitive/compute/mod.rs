@@ -1,11 +1,10 @@
 use std::fmt::Debug;
 
-use arrow_buffer::Buffer;
-use vortex_schema::DType;
+use arrow_buffer::{ArrowNativeType, Buffer, ScalarBuffer};
 
 use crate::array::primitive::PrimitiveArray;
 use crate::array::validity::ValidityView;
-use crate::array::{Array, ArrayRef};
+use crate::array::Array;
 use crate::compute::as_arrow::AsArrowArray;
 use crate::compute::as_contiguous::AsContiguousFn;
 use crate::compute::cast::CastFn;
@@ -16,7 +15,7 @@ use crate::compute::scalar_at::ScalarAtFn;
 use crate::compute::search_sorted::SearchSortedFn;
 use crate::compute::take::TakeFn;
 use crate::compute::ArrayCompute;
-use crate::ptype::{AsArrowPrimitiveType, NativePType, PType};
+use crate::ptype::{NativePType, PType};
 
 mod as_arrow;
 mod as_contiguous;
@@ -28,31 +27,35 @@ mod scalar_at;
 mod search_sorted;
 mod take;
 
-pub(crate) trait PrimitiveTrait<T: NativePType>: Debug + Send + Sync {
-    fn dtype(&self) -> &DType;
-
+pub trait PrimitiveTrait: Array + Debug + Send + Sync {
     fn ptype(&self) -> PType;
-
-    fn len(&self) -> usize {
-        self.typed_data().len()
-    }
-
+    // This seems odd.
     fn validity_view(&self) -> Option<ValidityView>;
-
     fn buffer(&self) -> &Buffer;
-
     fn to_primitive(&self) -> PrimitiveArray;
+}
 
-    fn to_array(&self) -> ArrayRef {
-        self.to_primitive().into_array()
+pub trait TypedPrimitiveTrait {
+    fn scalar_buffer<T: NativePType + ArrowNativeType>(&self) -> ScalarBuffer<T>;
+    fn typed_data<T: NativePType>(&self) -> &[T];
+}
+
+// TODO(ngates): try implementing like this?
+// impl dyn PrimitiveTrait + '_ {
+
+impl<P: PrimitiveTrait> TypedPrimitiveTrait for P {
+    fn scalar_buffer<T: NativePType + ArrowNativeType>(&self) -> ScalarBuffer<T> {
+        assert_eq!(self.ptype(), T::PTYPE);
+        ScalarBuffer::from(self.buffer().clone())
     }
 
-    fn typed_data(&self) -> &[T] {
+    fn typed_data<T: NativePType>(&self) -> &[T] {
+        assert_eq!(self.ptype(), T::PTYPE);
         self.buffer().typed_data::<T>()
     }
 }
 
-impl<T: NativePType + AsArrowPrimitiveType> ArrayCompute for &dyn PrimitiveTrait<T> {
+impl ArrayCompute for &dyn PrimitiveTrait {
     fn as_arrow(&self) -> Option<&dyn AsArrowArray> {
         Some(self)
     }

@@ -4,6 +4,7 @@ use vortex_error::{vortex_bail, VortexResult};
 
 use crate::array::downcast::DowncastArrayBuiltin;
 use crate::array::primitive::compute::PrimitiveTrait;
+use crate::array::primitive::compute::TypedPrimitiveTrait;
 use crate::array::primitive::PrimitiveArray;
 use crate::array::validity::Validity;
 use crate::array::{Array, ArrayRef};
@@ -11,7 +12,7 @@ use crate::compute::as_contiguous::AsContiguousFn;
 use crate::match_each_native_ptype;
 use crate::ptype::NativePType;
 
-impl<T: NativePType> AsContiguousFn for &dyn PrimitiveTrait<T> {
+impl AsContiguousFn for &dyn PrimitiveTrait {
     fn as_contiguous(&self, arrays: &[ArrayRef]) -> VortexResult<ArrayRef> {
         if !arrays
             .iter()

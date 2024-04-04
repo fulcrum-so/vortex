@@ -11,13 +11,12 @@ use crate::compress::EncodingCompression;
 use crate::compute::cast::cast;
 use crate::compute::flatten::flatten_primitive;
 use crate::compute::search_sorted::{search_sorted, SearchSortedSide};
-use crate::compute::ArrayCompute;
 use crate::encoding::{Encoding, EncodingId, EncodingRef, ENCODINGS};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::ptype::PType;
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsCompute, StatsSet};
-use crate::{impl_array, ArrayWalker};
+use crate::{impl_array, impl_array_compute, ArrayWalker};
 
 mod compress;
 mod compute;
@@ -89,6 +88,7 @@ impl SparseArray {
 
 impl Array for SparseArray {
     impl_array!();
+    impl_array_compute!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -138,14 +138,6 @@ impl Array for SparseArray {
 
     fn nbytes(&self) -> usize {
         self.indices.nbytes() + self.values.nbytes()
-    }
-
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
     }
 
     fn serde(&self) -> Option<&dyn ArraySerde> {

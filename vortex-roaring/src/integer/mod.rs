@@ -5,13 +5,12 @@ use croaring::{Bitmap, Native};
 use vortex::array::validity::Validity;
 use vortex::array::{check_slice_bounds, Array, ArrayKind, ArrayRef};
 use vortex::compress::EncodingCompression;
-use vortex::compute::ArrayCompute;
 use vortex::encoding::{Encoding, EncodingId, EncodingRef};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::ptype::PType;
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stats, StatsSet};
-use vortex::{impl_array, ArrayWalker};
+use vortex::{impl_array, impl_array_compute, ArrayWalker};
 use vortex_error::{vortex_bail, vortex_err, VortexResult};
 use vortex_schema::DType;
 
@@ -62,13 +61,7 @@ impl RoaringIntArray {
 
 impl Array for RoaringIntArray {
     impl_array!();
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
-    }
+    impl_array_compute!();
 
     #[inline]
     fn len(&self) -> usize {

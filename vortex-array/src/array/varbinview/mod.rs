@@ -8,12 +8,11 @@ use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 use crate::array::validity::Validity;
 use crate::array::{check_slice_bounds, Array, ArrayRef};
 use crate::compute::flatten::flatten_primitive;
-use crate::compute::ArrayCompute;
 use crate::encoding::{Encoding, EncodingId, EncodingRef, ENCODINGS};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsSet};
-use crate::{impl_array, ArrayWalker};
+use crate::{impl_array, impl_array_compute, ArrayWalker};
 
 mod compute;
 mod serde;
@@ -186,6 +185,7 @@ impl VarBinViewArray {
 
 impl Array for VarBinViewArray {
     impl_array!();
+    impl_array_compute!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -223,14 +223,6 @@ impl Array for VarBinViewArray {
     #[inline]
     fn encoding(&self) -> EncodingRef {
         &VarBinViewEncoding
-    }
-
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
     }
 
     fn nbytes(&self) -> usize {

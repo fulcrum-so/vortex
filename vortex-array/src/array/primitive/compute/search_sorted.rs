@@ -1,16 +1,18 @@
 use vortex_error::VortexResult;
 
 use crate::array::primitive::compute::PrimitiveTrait;
+use crate::array::primitive::compute::TypedPrimitiveTrait;
 use crate::compute::search_sorted::SearchSorted;
 use crate::compute::search_sorted::{SearchSortedFn, SearchSortedSide};
-use crate::ptype::NativePType;
+use crate::match_each_native_ptype;
 use crate::scalar::Scalar;
 
-// TODO(ngates): implement TryFrom<&Scalar>?
-impl<T: NativePType + TryFrom<Scalar>> SearchSortedFn for &dyn PrimitiveTrait<T> {
+impl SearchSortedFn for &dyn PrimitiveTrait {
     fn search_sorted(&self, value: &Scalar, side: SearchSortedSide) -> VortexResult<usize> {
-        let pvalue: T = value.clone().try_into()?;
-        Ok(self.typed_data().search_sorted(&pvalue, side))
+        match_each_native_ptype!(self.ptype(), |$T| {
+            let pvalue: $T = value.try_into()?;
+            Ok(self.typed_data::<$T>().search_sorted(&pvalue, side))
+        })
     }
 }
 

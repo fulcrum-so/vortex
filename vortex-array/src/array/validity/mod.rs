@@ -9,16 +9,16 @@ use vortex_schema::{DType, Nullability};
 use crate::array::bool::BoolArray;
 use crate::array::{Array, ArrayRef};
 use crate::compute::as_contiguous::as_contiguous;
-use crate::compute::ArrayCompute;
 use crate::encoding::{Encoding, EncodingId, EncodingRef, ENCODINGS};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::stats::Stats;
-use crate::{impl_array, ArrayWalker};
+use crate::{impl_array, impl_array_compute, ArrayWalker};
 mod serde;
 mod view;
 
 pub use view::*;
 
+use crate::compute::ArrayCompute;
 use crate::serde::{ArraySerde, EncodingSerde};
 
 #[derive(Debug, Clone)]
@@ -135,6 +135,7 @@ impl FromIterator<Validity> for Validity {
 
 impl Array for Validity {
     impl_array!();
+    impl_array_compute!();
 
     fn len(&self) -> usize {
         match self {
@@ -175,14 +176,6 @@ impl Array for Validity {
             Validity::Valid(_) | Validity::Invalid(_) => 8,
             Validity::Array(a) => a.nbytes(),
         }
-    }
-
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
     }
 
     fn serde(&self) -> Option<&dyn ArraySerde> {

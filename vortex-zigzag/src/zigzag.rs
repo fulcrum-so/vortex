@@ -3,12 +3,11 @@ use std::sync::{Arc, RwLock};
 use vortex::array::validity::Validity;
 use vortex::array::{Array, ArrayKind, ArrayRef};
 use vortex::compress::EncodingCompression;
-use vortex::compute::ArrayCompute;
 use vortex::encoding::{Encoding, EncodingId, EncodingRef};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stats, StatsSet};
-use vortex::{impl_array, ArrayWalker};
+use vortex::{impl_array, impl_array_compute, ArrayWalker};
 use vortex_error::{vortex_bail, vortex_err, VortexResult};
 use vortex_schema::{DType, Signedness};
 
@@ -54,6 +53,7 @@ impl ZigZagArray {
 
 impl Array for ZigZagArray {
     impl_array!();
+    impl_array_compute!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -95,14 +95,6 @@ impl Array for ZigZagArray {
 
     fn validity(&self) -> Option<Validity> {
         self.encoded().validity()
-    }
-
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
     }
 
     fn walk(&self, walker: &mut dyn ArrayWalker) -> VortexResult<()> {

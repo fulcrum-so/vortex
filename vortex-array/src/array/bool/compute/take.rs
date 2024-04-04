@@ -3,6 +3,8 @@ use num_traits::AsPrimitive;
 use vortex_error::VortexResult;
 
 use crate::array::bool::BoolArray;
+use crate::array::primitive::PrimitiveTrait;
+use crate::array::primitive::TypedPrimitiveTrait;
 use crate::array::{Array, ArrayRef};
 use crate::compute::flatten::flatten_primitive;
 use crate::compute::take::TakeFn;

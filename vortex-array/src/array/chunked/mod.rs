@@ -7,12 +7,11 @@ use vortex_schema::DType;
 
 use crate::array::validity::Validity;
 use crate::array::{check_slice_bounds, Array, ArrayRef};
-use crate::compute::ArrayCompute;
 use crate::encoding::{Encoding, EncodingId, EncodingRef, ENCODINGS};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsSet};
-use crate::{impl_array, ArrayWalker};
+use crate::{impl_array, impl_array_compute, ArrayWalker};
 
 mod compute;
 mod serde;
@@ -82,6 +81,7 @@ impl ChunkedArray {
 
 impl Array for ChunkedArray {
     impl_array!();
+    impl_array_compute!();
 
     fn len(&self) -> usize {
         self.chunk_ends.last().map(|&i| i as usize).unwrap_or(0)
@@ -135,14 +135,6 @@ impl Array for ChunkedArray {
     #[inline]
     fn encoding(&self) -> EncodingRef {
         &ChunkedEncoding
-    }
-
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
     }
 
     fn nbytes(&self) -> usize {

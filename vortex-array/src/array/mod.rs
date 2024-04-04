@@ -16,7 +16,6 @@ use crate::array::struct_::{StructArray, StructEncoding};
 use crate::array::validity::Validity;
 use crate::array::varbin::{VarBinArray, VarBinEncoding};
 use crate::array::varbinview::{VarBinViewArray, VarBinViewEncoding};
-use crate::compute::ArrayCompute;
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::ArraySerde;
 use crate::stats::Stats;
@@ -104,25 +103,6 @@ pub trait Array: ArrayDisplay + Debug + Send + Sync {
     fn walk(&self, walker: &mut dyn ArrayWalker) -> VortexResult<()>;
 }
 
-pub trait WithArrayCompute {
-    fn with_compute<R, F: Fn(&dyn ArrayCompute) -> VortexResult<R>>(&self, f: F)
-        -> VortexResult<R>;
-}
-
-impl WithArrayCompute for dyn Array + '_ {
-    fn with_compute<R, F: Fn(&dyn ArrayCompute) -> VortexResult<R>>(
-        &self,
-        f: F,
-    ) -> VortexResult<R> {
-        let mut result: Option<R> = None;
-        self.with_compute_mut(&mut |compute| {
-            result = Some(f(compute)?);
-            Ok(())
-        })?;
-        Ok(result.unwrap())
-    }
-}
-
 pub trait IntoArray {
     fn into_array(self) -> ArrayRef;
 }
@@ -152,8 +132,41 @@ macro_rules! impl_array {
     };
 }
 
-pub use impl_array;
+pub trait WithArrayCompute {
+    fn with_compute<R, F: Fn(&dyn ArrayCompute) -> VortexResult<R>>(&self, f: F)
+        -> VortexResult<R>;
+}
 
+impl WithArrayCompute for dyn Array + '_ {
+    fn with_compute<R, F: Fn(&dyn ArrayCompute) -> VortexResult<R>>(
+        &self,
+        f: F,
+    ) -> VortexResult<R> {
+        let mut result: Option<R> = None;
+        self.with_compute_mut(&mut |compute| {
+            result = Some(f(compute)?);
+            Ok(())
+        })?;
+        Ok(result.unwrap())
+    }
+}
+
+#[macro_export]
+macro_rules! impl_array_compute {
+    () => {
+        fn with_compute_mut(
+            &self,
+            f: &mut dyn FnMut(&dyn $crate::compute::ArrayCompute) -> VortexResult<()>,
+        ) -> VortexResult<()> {
+            f(self)
+        }
+    };
+}
+
+pub use impl_array;
+pub use impl_array_compute;
+
+use crate::compute::ArrayCompute;
 use crate::encoding::EncodingRef;
 use crate::ArrayWalker;
 
@@ -202,13 +215,6 @@ impl Array for ArrayRef {
         self.as_ref().nbytes()
     }
 
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        self.as_ref().with_compute_mut(f)
-    }
-
     fn serde(&self) -> Option<&dyn ArraySerde> {
         self.as_ref().serde()
     }
@@ -217,11 +223,19 @@ impl Array for ArrayRef {
         self.as_ref().validity()
     }
 
-    #[allow(unused_variables)]
     fn walk(&self, walker: &mut dyn ArrayWalker) -> VortexResult<()> {
         self.as_ref().walk(walker)
     }
+
+    fn with_compute_mut(
+        &self,
+        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
+    ) -> VortexResult<()> {
+        self.as_ref().with_compute_mut(f)
+    }
 }
+
+impl ArrayCompute for ArrayRef {}
 
 impl ArrayDisplay for ArrayRef {
     fn fmt(&self, fmt: &'_ mut ArrayFormatter) -> std::fmt::Result {

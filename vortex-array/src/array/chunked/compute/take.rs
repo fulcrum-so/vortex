@@ -1,6 +1,7 @@
 use vortex_error::VortexResult;
 
 use crate::array::chunked::ChunkedArray;
+use crate::array::primitive::TypedPrimitiveTrait;
 use crate::array::{Array, ArrayRef, IntoArray};
 use crate::compute::cast::cast;
 use crate::compute::flatten::flatten_primitive;

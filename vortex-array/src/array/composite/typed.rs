@@ -7,7 +7,6 @@ use vortex_schema::DType;
 use crate::array::composite::array::CompositeArray;
 use crate::array::composite::CompositeMetadata;
 use crate::array::{Array, ArrayRef};
-use crate::compute::ArrayCompute;
 
 pub trait CompositeExtension: Debug + Send + Sync + 'static {
     fn id(&self) -> CompositeID;
@@ -63,11 +62,10 @@ macro_rules! composite_impl {
         use linkme::distributed_slice;
         use paste::paste;
         use vortex_schema::{DType, Nullability};
-
-        use crate::array::composite::{
+        use $crate::array::composite::{
             CompositeArray, CompositeExtension, CompositeMetadata, COMPOSITE_EXTENSIONS,
         };
-        use crate::compute::ArrayCompute;
+        use $crate::compute::ArrayCompute;
 
         paste! {
             #[derive(Debug)]
@@ -107,3 +105,5 @@ macro_rules! composite_impl {
 }
 
 pub(crate) use composite_impl;
+
+use crate::compute::ArrayCompute;

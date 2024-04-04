@@ -1,21 +1,14 @@
-use std::any::Any;
 use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
 
 use arrow_buffer::Buffer;
 use vortex_error::{vortex_bail, vortex_err, VortexResult};
 use vortex_schema::DType;
 
-use crate::array::validity::Validity;
-use crate::array::{Array, ArrayRef};
-use crate::compute::ArrayCompute;
+use crate::array::Array;
 use crate::encoding::EncodingRef;
 use crate::flatbuffers::array as fb;
-use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::context::SerdeContext;
-use crate::serde::EncodingSerde;
-use crate::stats::Stats;
-use crate::ArrayWalker;
+use crate::serde::{EncodingSerde, WithArray};
 
 #[derive(Clone)]
 pub struct ArrayView<'a> {
@@ -142,80 +135,11 @@ impl<'a> ArrayView<'a> {
         // This is only true for the immediate current node?
         &self.buffers[0..self.nbuffers()]
     }
-}
 
-impl<'a> Array for ArrayView<'a> {
-    fn as_any(&self) -> &dyn Any {
-        panic!("Not implemented for ArrayView")
-    }
-
-    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
-        panic!("Not implemented for ArrayView")
-    }
-
-    fn to_array(&self) -> ArrayRef {
-        self.vtable().to_array(self)
-    }
-
-    fn into_array(self) -> ArrayRef {
-        // Not much point adding VTable.into_array for ArrayView since everything is by-reference.
-        self.vtable().to_array(&self)
-    }
-
-    fn len(&self) -> usize {
-        self.vtable().len(self)
-    }
-
-    fn is_empty(&self) -> bool {
-        todo!()
-        // self.vtable.is_empty(self).unwrap()
-    }
-
-    fn dtype(&self) -> &DType {
-        self.dtype
-    }
-
-    fn stats(&self) -> Stats {
-        // TODO(ngates): implement a dynamic trait for stats?
-        todo!()
-    }
-
-    fn slice(&self, _start: usize, _stop: usize) -> VortexResult<ArrayRef> {
-        todo!()
-    }
-
-    fn encoding(&self) -> EncodingRef {
-        self.encoding
-    }
-
-    fn nbytes(&self) -> usize {
-        self.buffers.iter().map(|b| b.len()).sum()
-    }
-
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
+    pub fn with_array<R, F: Fn(&dyn Array) -> VortexResult<R>>(&self, f: F) -> VortexResult<R> {
         self.encoding()
             .serde()
-            .expect("TODO(ngates): heap allocate ArrayView and invoke compute")
-            .with_view_compute(self, f)
-    }
-
-    fn validity(&self) -> Option<Validity> {
-        todo!()
-    }
-
-    fn walk(&self, _walker: &mut dyn ArrayWalker) -> VortexResult<()> {
-        todo!()
-    }
-}
-
-impl<'a> ArrayDisplay for ArrayView<'a> {
-    fn fmt(&self, fmt: &'_ mut ArrayFormatter) -> std::fmt::Result {
-        fmt.property("encoding", self.encoding)?;
-        fmt.property("dtype", self.dtype)?;
-        fmt.property("metadata", format!("{:?}", self.array.metadata()))?;
-        fmt.property("nchildren", self.nchildren())
+            .ok_or_else(|| vortex_err!(InvalidSerde: "Encoding does not support serde"))?
+            .with_array(self, f)
     }
 }

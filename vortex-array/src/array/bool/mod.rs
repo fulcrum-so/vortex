@@ -8,12 +8,11 @@ use vortex_schema::{DType, Nullability};
 use super::{check_slice_bounds, Array, ArrayRef};
 use crate::array::validity::Validity;
 use crate::array::IntoArray;
-use crate::compute::ArrayCompute;
 use crate::encoding::{Encoding, EncodingId, EncodingRef, ENCODINGS};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stat, Stats, StatsSet};
-use crate::{impl_array, ArrayWalker};
+use crate::{impl_array, impl_array_compute, ArrayWalker};
 
 mod compute;
 mod serde;
@@ -66,6 +65,7 @@ impl BoolArray {
 
 impl Array for BoolArray {
     impl_array!();
+    impl_array_compute!();
 
     #[inline]
     fn len(&self) -> usize {
@@ -114,14 +114,6 @@ impl Array for BoolArray {
     #[inline]
     fn nbytes(&self) -> usize {
         (self.len() + 7) / 8
-    }
-
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
     }
 
     fn serde(&self) -> Option<&dyn ArraySerde> {

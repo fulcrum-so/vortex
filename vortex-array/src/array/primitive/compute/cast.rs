@@ -2,38 +2,43 @@ use vortex_error::{vortex_err, VortexResult};
 use vortex_schema::DType;
 
 use crate::array::primitive::compute::PrimitiveTrait;
+use crate::array::primitive::compute::TypedPrimitiveTrait;
 use crate::array::primitive::PrimitiveArray;
 use crate::array::{Array, ArrayRef};
 use crate::compute::cast::CastFn;
 use crate::match_each_native_ptype;
 use crate::ptype::{NativePType, PType};
 
-impl<T: NativePType> CastFn for &dyn PrimitiveTrait<T> {
+impl CastFn for &dyn PrimitiveTrait {
     fn cast(&self, dtype: &DType) -> VortexResult<ArrayRef> {
         // TODO(ngates): check validity
-        let into_ptype = PType::try_from(dtype)?;
-        if into_ptype == self.ptype() {
+        let ptype = PType::try_from(dtype)?;
+        if ptype == self.ptype() {
             Ok(self.to_array())
         } else {
-            match_each_native_ptype!(into_ptype, |$P| {
+            match_each_native_ptype!(ptype, |$T| {
                 Ok(PrimitiveArray::from_nullable(
-                    cast::<T, $P>(self.typed_data())?,
-                    self.validity_view().map(|v| v.to_validity()),
+                    cast::<$T>(*self)?,
+                    self.validity(),
                 ).into_array())
             })
         }
     }
 }
 
-fn cast<P: NativePType, T: NativePType>(array: &[P]) -> VortexResult<Vec<T>> {
-    array
-        .iter()
-        // TODO(ngates): allow configurable checked/unchecked casting
-        .map(|&v| {
-            T::from(v)
-                .ok_or_else(|| vortex_err!(ComputeError: "Failed to cast {} to {:?}", v, T::PTYPE))
-        })
-        .collect()
+fn cast<T: NativePType>(array: &dyn PrimitiveTrait) -> VortexResult<Vec<T>> {
+    match_each_native_ptype!(array.ptype(), |$E| {
+        array
+            .typed_data::<$E>()
+            .iter()
+            // TODO(ngates): allow configurable checked/unchecked casting
+            .map(|&v| {
+                T::from(v).ok_or_else(|| {
+                    vortex_err!(ComputeError: "Failed to cast {} to {:?}", v, T::PTYPE)
+                })
+            })
+            .collect()
+    })
 }
 
 #[cfg(test)]
