@@ -361,6 +361,12 @@ fn find_best_compression<'a>(
             compression.id(),
             sample
         );
+        if compression
+            .can_compress(sample, ctx.options.as_ref())
+            .is_none()
+        {
+            continue;
+        }
         let compressed_sample =
             compression.compress(sample, None, ctx.for_encoding(compression))?;
         let compressed_size = compression.compressed_nbytes(compressed_sample.as_ref());

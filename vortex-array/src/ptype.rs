@@ -43,6 +43,7 @@ pub trait NativePType:
     + NumCast
     + Into<Scalar>
     + TryFrom<Scalar, Error = VortexError>
+    + for<'a> TryFrom<&'a Scalar, Error = VortexError>
     + Into<PScalar>
     + TryFrom<PScalar, Error = VortexError>
 {

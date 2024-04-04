@@ -109,6 +109,14 @@ impl Array for ALPArray {
     }
 
     #[inline]
+    fn with_compute_mut(
+        &self,
+        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
+    ) -> VortexResult<()> {
+        f(self)
+    }
+
+    #[inline]
     fn encoding(&self) -> EncodingRef {
         &ALPEncoding
     }

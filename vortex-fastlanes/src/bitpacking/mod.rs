@@ -1,16 +1,17 @@
 use std::cmp::min;
 use std::sync::{Arc, RwLock};
 
-use vortex::array::validity::Validity;
+pub use compress::*;
+use vortex::{ArrayWalker, impl_array, impl_array_compute};
 use vortex::array::{Array, ArrayRef};
+use vortex::array::validity::Validity;
 use vortex::compress::EncodingCompression;
 use vortex::compute::flatten::flatten_primitive;
 use vortex::encoding::{Encoding, EncodingId, EncodingRef};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stat, Stats, StatsCompute, StatsSet};
-use vortex::{impl_array, impl_array_compute, ArrayWalker};
-use vortex_error::{vortex_bail, VortexResult};
+use vortex_error::{vortex_bail, vortex_err, VortexResult};
 use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 
 mod compress;
@@ -45,6 +46,21 @@ impl BitPackedArray {
         }
         if let Some(v) = &validity {
             assert_eq!(v.len(), len);
+        }
+        if bit_width > 64 {
+            return Err(vortex_err!("Unsupported bit width {}", bit_width));
+        }
+        if !matches!(dtype, DType::Int(_, _, _)) {
+            return Err(vortex_err!(MismatchedTypes: "int", dtype));
+        }
+
+        let expected_packed_size = ((len + 1023) / 1024) * 128 * bit_width;
+        if encoded.len() != expected_packed_size {
+            return Err(vortex_err!(
+                "Expected {} packed bytes, got {}",
+                expected_packed_size,
+                encoded.len()
+            ));
         }
 
         Ok(Self {

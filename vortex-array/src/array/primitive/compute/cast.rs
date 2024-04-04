@@ -1,10 +1,10 @@
 use vortex_error::{vortex_err, VortexResult};
 use vortex_schema::DType;
 
+use crate::array::{Array, ArrayRef};
 use crate::array::primitive::compute::PrimitiveTrait;
 use crate::array::primitive::compute::TypedPrimitiveTrait;
 use crate::array::primitive::PrimitiveArray;
-use crate::array::{Array, ArrayRef};
 use crate::compute::cast::CastFn;
 use crate::match_each_native_ptype;
 use crate::ptype::{NativePType, PType};
@@ -12,13 +12,13 @@ use crate::ptype::{NativePType, PType};
 impl CastFn for &dyn PrimitiveTrait {
     fn cast(&self, dtype: &DType) -> VortexResult<ArrayRef> {
         // TODO(ngates): check validity
-        let ptype = PType::try_from(dtype)?;
-        if ptype == self.ptype() {
+        let into_ptype = PType::try_from(dtype)?;
+        if into_ptype == self.ptype() {
             Ok(self.to_array())
         } else {
-            match_each_native_ptype!(ptype, |$T| {
+            match_each_native_ptype!(into_ptype, |$P| {
                 Ok(PrimitiveArray::from_nullable(
-                    cast::<$T>(*self)?,
+                    cast::<$P>(*self)?,
                     self.validity(),
                 ).into_array())
             })
@@ -46,8 +46,8 @@ mod test {
     use vortex_error::VortexError;
 
     use crate::array::downcast::DowncastArrayBuiltin;
-    use crate::array::primitive::TypedPrimitiveTrait;
     use crate::array::IntoArray;
+    use crate::array::primitive::TypedPrimitiveTrait;
     use crate::compute;
     use crate::ptype::PType;
 

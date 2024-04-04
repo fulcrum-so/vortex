@@ -61,7 +61,6 @@ impl EncodingCompression for REEEncoding {
             compressed_ends,
             compressed_values,
             ctx.compress_validity(primitive_array.validity())?,
-            array.len(),
         )
         .into_array())
     }
@@ -197,7 +196,6 @@ mod test {
             vec![2u32, 5, 10].into_array(),
             vec![1i32, 2, 3].into_array(),
             Some(validity),
-            10,
         );
 
         let decoded = ree_decode(

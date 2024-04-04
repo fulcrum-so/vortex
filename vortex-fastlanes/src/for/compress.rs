@@ -10,7 +10,7 @@ use vortex::match_each_integer_ptype;
 use vortex::ptype::{NativePType, PType};
 use vortex::scalar::ListScalarVec;
 use vortex::stats::Stat;
-use vortex_error::VortexResult;
+use vortex_error::{vortex_err, VortexResult};
 
 use crate::downcast::DowncastFastlanes;
 use crate::{FoRArray, FoREncoding};
@@ -51,11 +51,16 @@ impl EncodingCompression for FoREncoding {
     ) -> VortexResult<ArrayRef> {
         let parray = array.as_primitive();
         let shift = trailing_zeros(parray);
+        let min = parray
+            .stats()
+            .get_or_compute(&Stat::Min)
+            .ok_or_else(|| vortex_err!("Min stat not found"))?;
+
         let child = match_each_integer_ptype!(parray.ptype(), |$T| {
             if shift == <$T>::PTYPE.bit_width() as u8 {
                 ConstantArray::new($T::default(), parray.len()).into_array()
             } else {
-                compress_primitive::<$T>(parray, shift).into_array()
+                compress_primitive::<$T>(parray, shift, $T::try_from(min.clone())?).into_array()
             }
         });
 
@@ -63,21 +68,16 @@ impl EncodingCompression for FoREncoding {
             .named("for")
             .excluding(&FoREncoding)
             .compress(&child, like.map(|l| l.as_for().encoded()))?;
-        let reference = parray.stats().get(&Stat::Min).unwrap();
-        Ok(FoRArray::try_new(compressed_child, reference, shift)?.into_array())
+        Ok(FoRArray::try_new(compressed_child, min, shift)?.into_array())
     }
 }
 
 fn compress_primitive<T: NativePType + WrappingSub + PrimInt>(
     parray: &PrimitiveArray,
     shift: u8,
+    min: T,
 ) -> PrimitiveArray {
     assert!(shift < T::PTYPE.bit_width() as u8);
-    let min = parray
-        .stats()
-        .get_or_compute_as::<T>(&Stat::Min)
-        .unwrap_or_default();
-
     let values = if shift > 0 {
         let shifted_min = min >> shift as usize;
         parray

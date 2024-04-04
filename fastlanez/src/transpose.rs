@@ -1,4 +1,4 @@
-use std::mem::size_of;
+use std::mem::{size_of, MaybeUninit};
 
 use arrayref::array_mut_ref;
 use fastlanez_sys::{
@@ -7,20 +7,10 @@ use fastlanez_sys::{
 };
 use uninit::prelude::VecCapacity;
 
-const fn transposable<T: Sized, U: Sized>() -> bool {
-    let sizeOfT = size_of::<T>();
-    sizeOfT == size_of::<U>() && (sizeOfT == 1 || sizeOfT == 2 || sizeOfT == 4 || sizeOfT == 8)
-}
-
-pub fn transpose<T: Sized, U: Sized>(input: &[T; 1024], output: &mut [U; 1024]) {
-    assert!(
-        transposable::<T, U>(),
-        "Cannot transpose {} into {}",
-        std::any::type_name::<T>(),
-        std::any::type_name::<U>()
-    );
+pub fn transpose<T: Sized, U: Transposable<T>>(input: &[T; 1024], output: &mut [U; 1024]) {
     unsafe {
-        match size_of::<T>() {
+        // referencing U::SIZE forces a compile time size check; it is equal to size_of::<T>()
+        match U::SIZE {
             1 => fl_transpose_u8(
                 input.as_ptr() as *const [u8; 1024],
                 output.as_ptr() as *mut [u8; 1024],
@@ -50,15 +40,10 @@ pub fn transpose_into<T: Sized>(input: &[T; 1024], output: &mut Vec<T>) {
     }
 }
 
-pub fn untranspose<T: Sized, U: Sized>(input: &[T; 1024], output: &mut [U; 1024]) {
-    assert!(
-        transposable::<T, U>(),
-        "Cannot untranspose {} into {}",
-        std::any::type_name::<T>(),
-        std::any::type_name::<U>()
-    );
+pub fn untranspose<T: Sized, U: Transposable<T>>(input: &[T; 1024], output: &mut [U; 1024]) {
     unsafe {
-        match size_of::<T>() {
+        // referencing U::SIZE forces a compile time size check; it is equal to size_of::<T>()
+        match U::SIZE {
             1 => fl_untranspose_u8(
                 input.as_ptr() as *const [u8; 1024],
                 output.as_mut_ptr() as *mut [u8; 1024],
@@ -86,6 +71,23 @@ pub fn untranspose_into<T: Sized>(input: &[T; 1024], output: &mut Vec<T>) {
         output.set_len(output.len() + input.len());
     }
 }
+
+pub trait Transposable<T: Sized> {
+    // must be referenced to force compile-time size checking
+    const SIZE: usize = {
+        assert!(
+            size_of::<T>() == 1
+                || size_of::<T>() == 2
+                || size_of::<T>() == 4
+                || size_of::<T>() == 8,
+            "T must be 1, 2, 4 or 8 bytes in size"
+        );
+        size_of::<T>()
+    };
+}
+
+impl<T: Sized> Transposable<T> for T {}
+impl<T: Sized> Transposable<T> for MaybeUninit<T> {}
 
 #[cfg(test)]
 mod test {

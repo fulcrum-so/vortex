@@ -108,6 +108,14 @@ impl Array for StructArray {
         &StructEncoding
     }
 
+    #[inline]
+    fn with_compute_mut(
+        &self,
+        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
+    ) -> VortexResult<()> {
+        f(self)
+    }
+
     fn nbytes(&self) -> usize {
         self.fields.iter().map(|arr| arr.nbytes()).sum()
     }

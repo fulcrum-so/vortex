@@ -15,12 +15,6 @@ links = "fastlanez"
 [lints]
 workspace = true
 
-[dependencies]
-arrayref = { workspace = true }
-paste = { workspace = true }
-seq-macro = { workspace = true }
-uninit = { workspace = true }
-
 [build-dependencies]
 bindgen = { workspace = true }
 walkdir = { workspace = true }

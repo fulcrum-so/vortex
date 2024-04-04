@@ -226,6 +226,14 @@ impl Array for VarBinViewArray {
         &VarBinViewEncoding
     }
 
+    #[inline]
+    fn with_compute_mut(
+        &self,
+        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
+    ) -> VortexResult<()> {
+        f(self)
+    }
+
     fn nbytes(&self) -> usize {
         self.views.nbytes() + self.data.iter().map(|arr| arr.nbytes()).sum::<usize>()
     }

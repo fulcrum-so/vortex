@@ -3,23 +3,23 @@ use std::sync::Arc;
 use arrow_buffer::{BooleanBuffer, NullBuffer};
 use itertools::Itertools;
 use linkme::distributed_slice;
+
+pub use view::*;
 use vortex_error::VortexResult;
 use vortex_schema::{DType, Nullability};
 
-use crate::array::bool::BoolArray;
+use crate::{ArrayWalker, impl_array, impl_array_compute};
 use crate::array::{Array, ArrayRef};
+use crate::array::bool::BoolArray;
+use crate::compute::ArrayCompute;
 use crate::compute::as_contiguous::as_contiguous;
 use crate::encoding::{Encoding, EncodingId, EncodingRef, ENCODINGS};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
+use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::Stats;
-use crate::{impl_array, impl_array_compute, ArrayWalker};
+
 mod serde;
 mod view;
-
-pub use view::*;
-
-use crate::compute::ArrayCompute;
-use crate::serde::{ArraySerde, EncodingSerde};
 
 #[derive(Debug, Clone)]
 pub enum Validity {

@@ -235,6 +235,7 @@ impl Array for VarBinArray {
         &VarBinEncoding
     }
 
+
     fn nbytes(&self) -> usize {
         self.bytes.nbytes() + self.offsets.nbytes()
     }

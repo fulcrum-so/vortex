@@ -2,12 +2,14 @@ use std::sync::{Arc, RwLock};
 
 use itertools::Itertools;
 use linkme::distributed_slice;
+
 use vortex_error::{vortex_bail, VortexResult};
 use vortex_schema::DType;
 
+use crate::{ArrayWalker, impl_array, impl_array_compute};
+use crate::array::{Array, ArrayRef, check_slice_bounds};
 use crate::array::primitive::TypedPrimitiveTrait;
 use crate::array::validity::Validity;
-use crate::array::{check_slice_bounds, Array, ArrayRef};
 use crate::compress::EncodingCompression;
 use crate::compute::cast::cast;
 use crate::compute::flatten::flatten_primitive;
@@ -17,7 +19,6 @@ use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::ptype::PType;
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsCompute, StatsSet};
-use crate::{impl_array, impl_array_compute, ArrayWalker};
 
 mod compress;
 mod compute;
@@ -188,11 +189,12 @@ impl Encoding for SparseEncoding {
 #[cfg(test)]
 mod test {
     use itertools::Itertools;
+
     use vortex_error::VortexError;
 
-    use crate::array::sparse::SparseArray;
     use crate::array::Array;
     use crate::array::IntoArray;
+    use crate::array::sparse::SparseArray;
     use crate::compute::flatten::flatten_primitive;
     use crate::compute::scalar_at::scalar_at;
 

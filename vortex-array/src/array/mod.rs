@@ -16,6 +16,9 @@ use crate::array::struct_::{StructArray, StructEncoding};
 use crate::array::validity::Validity;
 use crate::array::varbin::{VarBinArray, VarBinEncoding};
 use crate::array::varbinview::{VarBinViewArray, VarBinViewEncoding};
+use crate::ArrayWalker;
+use crate::compute::ArrayCompute;
+use crate::encoding::EncodingRef;
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::ArraySerde;
 use crate::stats::Stats;
@@ -165,10 +168,6 @@ macro_rules! impl_array_compute {
 
 pub use impl_array;
 pub use impl_array_compute;
-
-use crate::compute::ArrayCompute;
-use crate::encoding::EncodingRef;
-use crate::ArrayWalker;
 
 impl Array for ArrayRef {
     fn as_any(&self) -> &dyn Any {

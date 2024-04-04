@@ -2,9 +2,10 @@ use std::fmt::Debug;
 
 use arrow_buffer::{ArrowNativeType, Buffer, ScalarBuffer};
 
+use crate::array::Array;
 use crate::array::primitive::PrimitiveArray;
 use crate::array::validity::ValidityView;
-use crate::array::Array;
+use crate::compute::ArrayCompute;
 use crate::compute::as_arrow::AsArrowArray;
 use crate::compute::as_contiguous::AsContiguousFn;
 use crate::compute::cast::CastFn;
@@ -14,8 +15,7 @@ use crate::compute::patch::PatchFn;
 use crate::compute::scalar_at::ScalarAtFn;
 use crate::compute::search_sorted::SearchSortedFn;
 use crate::compute::take::TakeFn;
-use crate::compute::ArrayCompute;
-use crate::ptype::{NativePType, PType};
+use crate::ptype::{AsArrowPrimitiveType, NativePType, PType};
 
 mod as_arrow;
 mod as_contiguous;

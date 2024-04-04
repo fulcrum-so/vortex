@@ -12,9 +12,9 @@ use vortex::compute::patch::patch;
 use vortex::match_each_integer_ptype;
 use vortex::ptype::PType::{I16, I32, I64, I8, U16, U32, U64, U8};
 use vortex::ptype::{NativePType, PType};
-use vortex::scalar::ListScalarVec;
+use vortex::scalar::{ListScalarVec, Scalar};
 use vortex::stats::Stat;
-use vortex_error::VortexResult;
+use vortex_error::{vortex_bail, vortex_err, VortexResult};
 
 use crate::downcast::DowncastFastlanes;
 use crate::{BitPackedArray, BitPackedEncoding};
@@ -114,28 +114,29 @@ fn bitpack(parray: &PrimitiveArray, bit_width: usize) -> ArrayRef {
     PrimitiveArray::from(bytes).into_array()
 }
 
-fn bitpack_primitive<T: NativePType + TryBitPack>(array: &[T], bit_width: usize) -> Vec<u8> {
+pub fn bitpack_primitive<T: NativePType + TryBitPack>(array: &[T], bit_width: usize) -> Vec<u8> {
     if bit_width == 0 {
         return Vec::new();
     }
 
     // How many fastlanes vectors we will process.
-    let num_chunks = array.len() / 1024;
+    let num_chunks = (array.len() + 1023) / 1024;
+    let num_full_chunks = array.len() / 1024;
 
     // Allocate a result byte array.
     let mut output = Vec::with_capacity(num_chunks * bit_width * 128);
 
     // Loop over all but the last chunk.
-    (0..num_chunks).for_each(|i| {
+    (0..num_full_chunks).for_each(|i| {
         let start_elem = i * 1024;
         let chunk: &[T; 1024] = array_ref![array, start_elem, 1024];
         TryBitPack::try_pack_into(chunk, bit_width, &mut output).unwrap();
     });
 
     // Pad the last chunk with zeros to a full 1024 elements.
-    let last_chunk_size = array.len() % 1024;
-    if last_chunk_size > 0 {
-        let mut last_chunk: [T; 1024] = [T::default(); 1024];
+    if num_chunks != num_full_chunks {
+        let last_chunk_size = array.len() % 1024;
+        let mut last_chunk: [T; 1024] = [T::zero(); 1024];
         last_chunk[..last_chunk_size].copy_from_slice(&array[array.len() - last_chunk_size..]);
         TryBitPack::try_pack_into(&last_chunk, bit_width, &mut output).unwrap();
     }
@@ -201,42 +202,97 @@ pub fn unpack(array: &BitPackedArray) -> VortexResult<PrimitiveArray> {
     flatten_primitive(&unpacked)
 }
 
-fn unpack_primitive<T: NativePType + TryBitPack>(
+pub fn unpack_primitive<T: NativePType + TryBitPack>(
     packed: &[u8],
     bit_width: usize,
     length: usize,
 ) -> Vec<T> {
     if bit_width == 0 {
-        return vec![T::default(); length];
+        return vec![T::zero(); length];
     }
 
     // How many fastlanes vectors we will process.
-    let num_chunks = length / 1024;
+    let num_chunks = (length + 1023) / 1024;
+    let bytes_per_chunk = 128 * bit_width;
+    assert_eq!(
+        packed.len(),
+        num_chunks * bytes_per_chunk,
+        "Invalid packed length: got {}, expected {}",
+        packed.len(),
+        num_chunks * bytes_per_chunk
+    );
 
     // Allocate a result vector.
-    let mut output = Vec::with_capacity(length);
-
-    // Loop over all but the last chunk.
-    let bytes_per_chunk = 128 * bit_width;
+    let mut output = Vec::with_capacity(num_chunks * 1024);
+    // Loop over all the chunks.
     (0..num_chunks).for_each(|i| {
         let chunk: &[u8] = &packed[i * bytes_per_chunk..][0..bytes_per_chunk];
         TryBitPack::try_unpack_into(chunk, bit_width, &mut output).unwrap();
     });
 
-    // Handle the final chunk which may contain padding.
-    let last_chunk_size = length % 1024;
-    if last_chunk_size > 0 {
-        let mut last_output = Vec::with_capacity(1024);
-        TryBitPack::try_unpack_into(
-            &packed[num_chunks * bytes_per_chunk..],
-            bit_width,
-            &mut last_output,
-        )
-        .unwrap();
-        output.extend_from_slice(&last_output[..last_chunk_size]);
-    }
+    // The final chunk may have had padding
+    output.truncate(length);
 
+    // For small vectors, the overhead of rounding up is more noticable.
+    // Shrink to fit may or may not reallocate depending on the implementation.
+    // But for very small vectors, the reallocation is cheap enough even if it does happen.
+    if output.len() < 1024 {
+        output.shrink_to_fit();
+    }
     output
+}
+
+pub(crate) fn unpack_single(array: &BitPackedArray, index: usize) -> VortexResult<Scalar> {
+    let bit_width = array.bit_width();
+    let encoded = flatten_primitive(cast(array.encoded(), PType::U8.into())?.as_ref())?;
+    let ptype: PType = array.dtype().try_into()?;
+
+    let scalar: Scalar = unsafe {
+        match ptype {
+            I8 | U8 => unpack_single_primitive::<u8>(encoded.typed_data::<u8>(), bit_width, index)
+                .map(|v| v.into()),
+            I16 | U16 => {
+                unpack_single_primitive::<u16>(encoded.typed_data::<u8>(), bit_width, index)
+                    .map(|v| v.into())
+            }
+            I32 | U32 => {
+                unpack_single_primitive::<u32>(encoded.typed_data::<u8>(), bit_width, index)
+                    .map(|v| v.into())
+            }
+            I64 | U64 => {
+                unpack_single_primitive::<u64>(encoded.typed_data::<u8>(), bit_width, index)
+                    .map(|v| v.into())
+            }
+            _ => vortex_bail!("Unsupported ptype {:?}", ptype),
+        }?
+    };
+
+    // Cast to signed if necessary
+    if ptype.is_signed_int() {
+        scalar.cast(&ptype.into())
+    } else {
+        Ok(scalar)
+    }
+}
+
+/// # Safety
+///
+/// The caller must ensure the following invariants hold:
+/// * `packed.len() == (length + 1023) / 1024 * 128 * bit_width`
+/// * `index_to_decode < length`
+/// Where `length` is the length of the array/slice backed by `packed` (but is not provided to this function).
+pub unsafe fn unpack_single_primitive<T: NativePType + TryBitPack>(
+    packed: &[u8],
+    bit_width: usize,
+    index_to_decode: usize,
+) -> VortexResult<T> {
+    let bytes_per_chunk = 128 * bit_width;
+    let chunk_index = index_to_decode / 1024;
+    let chunk_bytes = &packed[chunk_index * bytes_per_chunk..][0..bytes_per_chunk];
+    let index_in_chunk = index_to_decode % 1024;
+
+    <T as TryBitPack>::try_unpack_single(chunk_bytes, bit_width, index_in_chunk)
+        .map_err(|_| vortex_err!("Unsupported bit width {}", bit_width))
 }
 
 /// Assuming exceptions cost 1 value + 1 u32 index, figure out the best bit-width to use.
@@ -321,5 +377,19 @@ mod test {
         let compressed = compressed.as_bitpacked();
         let decompressed = flatten_primitive(compressed).unwrap();
         assert_eq!(decompressed.typed_data::<u16>(), values.typed_data::<u16>());
+
+        values
+            .typed_data::<u16>()
+            .iter()
+            .enumerate()
+            .for_each(|(i, v)| {
+                let scalar_at: u16 =
+                    if let Scalar::Primitive(pscalar) = unpack_single(compressed, i).unwrap() {
+                        pscalar.value().unwrap().try_into().unwrap()
+                    } else {
+                        panic!("expected u8 scalar")
+                    };
+                assert_eq!(scalar_at, *v);
+            });
     }
 }

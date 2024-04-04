@@ -79,6 +79,14 @@ impl Array for DictArray {
         self.codes().nbytes() + self.values().nbytes()
     }
 
+    #[inline]
+    fn with_compute_mut(
+        &self,
+        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
+    ) -> VortexResult<()> {
+        f(self)
+    }
+
     fn serde(&self) -> Option<&dyn ArraySerde> {
         Some(self)
     }

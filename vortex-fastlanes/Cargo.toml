@@ -26,4 +26,10 @@ fastlanez = { path = "../fastlanez" }
 log = { workspace = true }
 
 [dev-dependencies]
+criterion = { workspace = true }
+rand = { workspace = true }
 simplelog = { workspace = true }
+
+[[bench]]
+name = "bitpacking"
+harness = false

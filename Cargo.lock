@@ -1943,11 +1943,7 @@ dependencies = [
 name = "fastlanez-sys"
 version = "0.1.0"
 dependencies = [
- "arrayref",
  "bindgen",
- "paste",
- "seq-macro",
- "uninit",
  "walkdir",
 ]
 
@@ -5466,11 +5462,13 @@ name = "vortex-fastlanes"
 version = "0.1.0"
 dependencies = [
  "arrayref",
+ "criterion",
  "fastlanez",
  "itertools 0.12.1",
  "linkme",
  "log",
  "num-traits",
+ "rand",
  "simplelog",
  "vortex-array",
  "vortex-error",

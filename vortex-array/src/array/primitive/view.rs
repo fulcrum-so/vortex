@@ -2,22 +2,24 @@ use std::any::Any;
 use std::sync::Arc;
 
 use arrow_buffer::Buffer;
+
 use vortex_error::{vortex_err, VortexResult};
 use vortex_schema::DType;
 
+use crate::array::{Array, ArrayRef, PrimitiveArray};
 use crate::array::primitive::compute::PrimitiveTrait;
 use crate::array::validity::{Validity, ValidityView};
-use crate::array::{Array, ArrayRef, PrimitiveArray};
+use crate::ArrayWalker;
 use crate::compute::ArrayCompute;
 use crate::encoding::EncodingRef;
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::ptype::PType;
 use crate::serde::ArrayView;
 use crate::stats::Stats;
-use crate::ArrayWalker;
 
 #[derive(Debug)]
 pub struct PrimitiveView<'a> {
+    view: &'a ArrayView<'a>,
     ptype: PType,
     buffer: &'a Buffer,
     validity: Option<ValidityView<'a>>,
@@ -34,6 +36,7 @@ impl<'a> PrimitiveView<'a> {
         let validity = view.child(0, &Validity::DTYPE).map(ValidityView::from);
 
         Ok(Self {
+            view,
             ptype,
             buffer,
             validity,
