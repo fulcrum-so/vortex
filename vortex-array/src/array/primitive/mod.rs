@@ -126,11 +126,6 @@ impl PrimitiveArray {
             stats: self.stats,
         }
     }
-
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.buffer.len() / self.ptype.byte_width()
-    }
 }
 
 impl Array for PrimitiveArray {
