@@ -1,13 +1,13 @@
 use std::sync::{Arc, RwLock};
 
-use vortex::array::validity::Validity;
+use vortex::{ArrayWalker, impl_array, impl_array_compute};
 use vortex::array::{Array, ArrayRef};
+use vortex::array::validity::Validity;
 use vortex::compress::EncodingCompression;
 use vortex::encoding::{Encoding, EncodingId, EncodingRef};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stats, StatsCompute, StatsSet};
-use vortex::{impl_array, impl_array_compute, ArrayWalker};
 use vortex_error::{vortex_bail, VortexResult};
 use vortex_schema::DType;
 
@@ -79,14 +79,6 @@ impl DateTimeArray {
 impl Array for DateTimeArray {
     impl_array!();
     impl_array_compute!();
-
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
-    }
 
     fn len(&self) -> usize {
         self.days.len()

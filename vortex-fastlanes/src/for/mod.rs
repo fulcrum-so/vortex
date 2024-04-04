@@ -1,14 +1,14 @@
 use std::sync::{Arc, RwLock};
 
-use vortex::array::validity::Validity;
+use vortex::{ArrayWalker, impl_array, impl_array_compute};
 use vortex::array::{Array, ArrayRef};
+use vortex::array::validity::Validity;
 use vortex::compress::EncodingCompression;
 use vortex::encoding::{Encoding, EncodingId, EncodingRef};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::scalar::Scalar;
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stat, Stats, StatsCompute, StatsSet};
-use vortex::{impl_array, impl_array_compute, ArrayWalker};
 use vortex_error::{vortex_bail, VortexResult};
 use vortex_schema::DType;
 
@@ -108,13 +108,6 @@ impl Array for FoRArray {
 
     fn walk(&self, walker: &mut dyn ArrayWalker) -> VortexResult<()> {
         walker.visit_child(self.encoded())
-    }
-
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
     }
 }
 

@@ -2,16 +2,17 @@ use std::sync::{Arc, RwLock};
 
 use itertools::Itertools;
 use linkme::distributed_slice;
+
 use vortex_error::{vortex_bail, VortexResult};
 use vortex_schema::DType;
 
+use crate::{ArrayWalker, impl_array, impl_array_compute};
+use crate::array::{Array, ArrayRef, check_slice_bounds};
 use crate::array::validity::Validity;
-use crate::array::{check_slice_bounds, Array, ArrayRef};
 use crate::encoding::{Encoding, EncodingId, EncodingRef, ENCODINGS};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsSet};
-use crate::{impl_array, impl_array_compute, ArrayWalker};
 
 mod compute;
 mod serde;
@@ -137,14 +138,6 @@ impl Array for ChunkedArray {
         &ChunkedEncoding
     }
 
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
-    }
-
     fn nbytes(&self) -> usize {
         self.chunks().iter().map(|arr| arr.nbytes()).sum()
     }
@@ -217,10 +210,10 @@ impl Encoding for ChunkedEncoding {
 mod test {
     use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 
-    use crate::array::chunked::ChunkedArray;
-    use crate::array::primitive::TypedPrimitiveTrait;
-    use crate::array::IntoArray;
     use crate::array::{Array, ArrayRef};
+    use crate::array::chunked::ChunkedArray;
+    use crate::array::IntoArray;
+    use crate::array::primitive::TypedPrimitiveTrait;
     use crate::compute::flatten::{flatten, flatten_primitive, FlattenedArray};
     use crate::ptype::NativePType;
 

@@ -2,18 +2,19 @@ use std::mem;
 use std::sync::{Arc, RwLock};
 
 use linkme::distributed_slice;
+
 use vortex_error::{vortex_bail, VortexResult};
 use vortex_schema::{DType, IntWidth, Nullability, Signedness};
 
+use crate::{ArrayWalker, impl_array, impl_array_compute};
+use crate::array::{Array, ArrayRef, check_slice_bounds};
 use crate::array::primitive::TypedPrimitiveTrait;
 use crate::array::validity::Validity;
-use crate::array::{check_slice_bounds, Array, ArrayRef};
 use crate::compute::flatten::flatten_primitive;
 use crate::encoding::{Encoding, EncodingId, EncodingRef, ENCODINGS};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stats, StatsSet};
-use crate::{impl_array, impl_array_compute, ArrayWalker};
 
 mod compute;
 mod serde;
@@ -226,14 +227,6 @@ impl Array for VarBinViewArray {
         &VarBinViewEncoding
     }
 
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
-    }
-
     fn nbytes(&self) -> usize {
         self.views.nbytes() + self.data.iter().map(|arr| arr.nbytes()).sum::<usize>()
     }
@@ -287,10 +280,11 @@ impl ArrayDisplay for VarBinViewArray {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::array::primitive::PrimitiveArray;
     use crate::compute::scalar_at::scalar_at;
     use crate::scalar::Scalar;
+
+    use super::*;
 
     fn binary_array() -> VarBinViewArray {
         let values = PrimitiveArray::from("hello world this is a long string".as_bytes().to_vec());

@@ -1,13 +1,13 @@
 use std::sync::{Arc, RwLock};
 
+use vortex::{ArrayWalker, impl_array, impl_array_compute};
+use vortex::array::{Array, ArrayRef, check_slice_bounds};
 use vortex::array::validity::Validity;
-use vortex::array::{check_slice_bounds, Array, ArrayRef};
 use vortex::compress::EncodingCompression;
 use vortex::encoding::{Encoding, EncodingId, EncodingRef};
 use vortex::formatter::{ArrayDisplay, ArrayFormatter};
 use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::{Stats, StatsSet};
-use vortex::{impl_array, impl_array_compute, ArrayWalker};
 use vortex_error::{vortex_bail, VortexResult};
 use vortex_schema::{DType, Signedness};
 
@@ -77,14 +77,6 @@ impl Array for DictArray {
 
     fn nbytes(&self) -> usize {
         self.codes().nbytes() + self.values().nbytes()
-    }
-
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
     }
 
     fn serde(&self) -> Option<&dyn ArraySerde> {

@@ -15,7 +15,7 @@ use crate::compute::patch::PatchFn;
 use crate::compute::scalar_at::ScalarAtFn;
 use crate::compute::search_sorted::SearchSortedFn;
 use crate::compute::take::TakeFn;
-use crate::ptype::{AsArrowPrimitiveType, NativePType, PType};
+use crate::ptype::{NativePType, PType};
 
 mod as_arrow;
 mod as_contiguous;

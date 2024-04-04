@@ -19,7 +19,6 @@ use crate::stats::Stats;
 
 #[derive(Debug)]
 pub struct PrimitiveView<'a> {
-    view: &'a ArrayView<'a>,
     ptype: PType,
     buffer: &'a Buffer,
     validity: Option<ValidityView<'a>>,
@@ -36,7 +35,6 @@ impl<'a> PrimitiveView<'a> {
         let validity = view.child(0, &Validity::DTYPE).map(ValidityView::from);
 
         Ok(Self {
-            view,
             ptype,
             buffer,
             validity,

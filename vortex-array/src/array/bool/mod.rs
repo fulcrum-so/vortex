@@ -2,17 +2,19 @@ use std::sync::{Arc, RwLock};
 
 use arrow_buffer::buffer::BooleanBuffer;
 use linkme::distributed_slice;
+
 use vortex_error::VortexResult;
 use vortex_schema::{DType, Nullability};
 
-use super::{check_slice_bounds, Array, ArrayRef};
-use crate::array::validity::Validity;
+use crate::{ArrayWalker, impl_array, impl_array_compute};
 use crate::array::IntoArray;
+use crate::array::validity::Validity;
 use crate::encoding::{Encoding, EncodingId, EncodingRef, ENCODINGS};
 use crate::formatter::{ArrayDisplay, ArrayFormatter};
 use crate::serde::{ArraySerde, EncodingSerde};
 use crate::stats::{Stat, Stats, StatsSet};
-use crate::{impl_array, impl_array_compute, ArrayWalker};
+
+use super::{Array, ArrayRef, check_slice_bounds};
 
 mod compute;
 mod serde;
@@ -116,14 +118,6 @@ impl Array for BoolArray {
         (self.len() + 7) / 8
     }
 
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
-    }
-
     fn serde(&self) -> Option<&dyn ArraySerde> {
         Some(self)
     }
@@ -202,8 +196,9 @@ impl FromIterator<Option<bool>> for BoolArray {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::compute::scalar_at::scalar_at;
+
+    use super::*;
 
     #[test]
     fn slice() {

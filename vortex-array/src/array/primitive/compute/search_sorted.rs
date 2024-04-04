@@ -5,7 +5,6 @@ use crate::array::primitive::compute::TypedPrimitiveTrait;
 use crate::compute::search_sorted::{SearchSortedFn, SearchSortedSide};
 use crate::compute::search_sorted::SearchSorted;
 use crate::match_each_native_ptype;
-use crate::ptype::NativePType;
 use crate::scalar::Scalar;
 
 impl SearchSortedFn for &dyn PrimitiveTrait {
