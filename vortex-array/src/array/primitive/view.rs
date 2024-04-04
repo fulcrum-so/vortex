@@ -55,7 +55,7 @@ impl Array for PrimitiveView<'_> {
     }
 
     fn to_array(&self) -> ArrayRef {
-        todo!()
+        self.to_primitive().into_array()
     }
 
     fn into_array(self) -> ArrayRef {
