@@ -1,9 +1,10 @@
 use vortex::array::bool::BoolEncoding;
 use vortex_error::{vortex_err, VortexResult};
 
-use crate::array::bool::{BoolArray, BoolMetadata};
+use crate::array::bool::{bool_try_from_parts, BoolArray, BoolMetadata};
 use crate::encoding::{ArrayEncoding, EncodingRef};
 use crate::encoding::{EncodingId, WithEncodedArray};
+use crate::validity::Validity;
 use crate::{ArrayData, ArrayMetadata, ArrayParts, ArrayView, TryFromArrayParts};
 use crate::{ArrayTrait, TryDeserializeArrayMetadata, TrySerializeArrayMetadata};
 
@@ -148,13 +149,13 @@ impl<'v: 'a, 'a> WithEncodedArray<'v, BoolArray<'a>> for BoolEncoding {
         f: &mut dyn FnMut(&BoolArray<'a>) -> VortexResult<()>,
     ) -> VortexResult<()> {
         let metadata = BoolMetadata::try_deserialize_metadata(view.metadata())?;
-        let array = BoolArray::try_from_parts(view as &dyn ArrayParts, &metadata)?;
+        let array = bool_try_from_parts(view as &dyn ArrayParts, &metadata)?;
         f(&array)
     }
 
     fn with_data_mut(
         &self,
-        data: &ArrayData,
+        data: &'v ArrayData,
         f: &mut dyn FnMut(&BoolArray<'a>) -> VortexResult<()>,
     ) -> VortexResult<()> {
         let metadata = data
@@ -163,7 +164,7 @@ impl<'v: 'a, 'a> WithEncodedArray<'v, BoolArray<'a>> for BoolEncoding {
             .downcast_ref::<BoolMetadata>()
             .ok_or_else(|| vortex_err!("Failed to downcast metadata"))?
             .clone();
-        let array = BoolArray::try_from_parts(data as &dyn ArrayParts, &metadata)?;
+        let array = bool_try_from_parts(data as &dyn ArrayParts, &metadata)?;
         f(&array)
     }
 }

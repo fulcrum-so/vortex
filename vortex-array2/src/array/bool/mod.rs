@@ -59,6 +59,23 @@ impl<'v> TryFromArrayParts<'v, BoolMetadata> for BoolArray<'v> {
     }
 }
 
+pub fn bool_try_from_parts<'v, 'm>(
+    parts: &'v dyn ArrayParts,
+    metadata: &'m BoolMetadata,
+) -> VortexResult<BoolArray<'v>> {
+    Ok(BoolArray {
+        dtype: parts.dtype(),
+        buffer: parts
+            .buffer(0)
+            .ok_or(vortex_err!("BoolArray requires a buffer"))?,
+        validity: metadata
+            .validity
+            .to_validity(parts.child(0, &Validity::DTYPE)),
+        length: metadata.length,
+        stats: parts.statistics(),
+    })
+}
+
 impl ArrayTrait for BoolArray<'_> {
     fn dtype(&self) -> &DType {
         self.dtype

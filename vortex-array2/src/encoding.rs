@@ -49,7 +49,7 @@ pub trait WithEncodedArray<'v, A: ArrayTrait> {
 
     fn with_data_mut(
         &self,
-        data: &ArrayData,
+        data: &'v ArrayData,
         f: &mut dyn FnMut(&A) -> VortexResult<()>,
     ) -> VortexResult<()>;
 }
