@@ -281,7 +281,7 @@ lazy_static::lazy_static! {
 impl PBIDataset {
     pub fn dataset_name(&self) -> &str {
         let url = URLS.get(self).unwrap();
-        &url.first().unwrap().dataset_name
+        url.first().unwrap().dataset_name
     }
 
     fn csv_files(&self) -> Vec<PathBuf> {
@@ -308,7 +308,7 @@ impl PBIDataset {
         data_path("PBI")
             .join(self.dataset_name())
             .join("bzip2")
-            .join(&url.file_name)
+            .join(url.file_name)
     }
 
     fn unzip(&self) {
@@ -322,24 +322,24 @@ impl PBIDataset {
 
 #[derive(Debug)]
 struct PBIUrl {
-    dataset_name: String,
-    file_name: String,
+    dataset_name: &'static str,
+    file_name: &'static str,
 }
 
 impl PBIUrl {
-    fn new(dataset_name: &str, file_name: &str) -> Self {
+    fn new(dataset_name: &'static str, file_name: &'static str) -> Self {
         PBIUrl {
-            dataset_name: dataset_name.to_string(),
-            file_name: file_name.to_string(),
+            dataset_name,
+            file_name,
         }
     }
 
     fn to_url(&self) -> Url {
         Url::parse("https://homepages.cwi.nl/~boncz/PublicBIbenchmark")
             .unwrap()
-            .join(&self.dataset_name)
+            .join(self.dataset_name)
             .unwrap()
-            .join(&self.file_name)
+            .join(self.file_name)
             .unwrap()
     }
 }
