@@ -5,6 +5,7 @@ use linkme::distributed_slice;
 pub use vortex::encoding::EncodingId;
 use vortex_error::VortexResult;
 
+use crate::array::bool::BoolArray;
 use crate::ArrayView;
 use crate::{ArrayData, ArrayTrait};
 

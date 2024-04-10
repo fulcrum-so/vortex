@@ -146,7 +146,7 @@ impl<'v: 'a, 'a> WithEncodedArray<'v, BoolArray<'a>> for BoolEncoding {
     fn with_view_mut(
         &'v self,
         view: &'v ArrayView<'v>,
-        f: &mut dyn FnMut(&BoolArray<'a>) -> VortexResult<()>,
+        f: &mut dyn for<'m> FnMut(&BoolArray<'m>) -> VortexResult<()>,
     ) -> VortexResult<()> {
         let metadata = BoolMetadata::try_deserialize_metadata(view.metadata())?;
         let array = bool_try_from_parts(view as &dyn ArrayParts, &metadata)?;
@@ -156,7 +156,7 @@ impl<'v: 'a, 'a> WithEncodedArray<'v, BoolArray<'a>> for BoolEncoding {
     fn with_data_mut(
         &self,
         data: &'v ArrayData,
-        f: &mut dyn FnMut(&BoolArray<'a>) -> VortexResult<()>,
+        f: &mut dyn for<'m> FnMut(&BoolArray<'m>) -> VortexResult<()>,
     ) -> VortexResult<()> {
         let metadata = data
             .metadata()

@@ -59,10 +59,10 @@ impl<'v> TryFromArrayParts<'v, BoolMetadata> for BoolArray<'v> {
     }
 }
 
-pub fn bool_try_from_parts<'v>(
+pub fn bool_try_from_parts<'v: 'm, 'm>(
     parts: &'v dyn ArrayParts,
-    metadata: &BoolMetadata,
-) -> VortexResult<BoolArray<'v>> {
+    metadata: &'m BoolMetadata,
+) -> VortexResult<BoolArray<'m>> {
     Ok(BoolArray {
         dtype: parts.dtype(),
         buffer: parts
