@@ -279,18 +279,13 @@ lazy_static::lazy_static! {
 }
 
 impl PBIDataset {
-    pub fn dataset_name(&self) -> String {
+    pub fn dataset_name(&self) -> &str {
         let url = URLS.get(self).unwrap();
-        url.first().unwrap().dataset_name.clone()
-    }
-
-    pub fn fname_from_url(url: String) -> String {
-        url.split('/').last().unwrap().to_string()
+        &url.first().unwrap().dataset_name
     }
 
     fn csv_files(&self) -> Vec<PathBuf> {
         let urls = URLS.get(self).unwrap();
-        self.dataset_name();
         urls.iter().map(|url| self.get_csv_path(url)).collect_vec()
     }
 
@@ -303,10 +298,9 @@ impl PBIDataset {
 
     fn download_bzip(&self) {
         let urls = URLS.get(self).unwrap();
-        self.dataset_name();
         urls.iter().for_each(|url| {
             let fname = self.get_bzip_path(url);
-            download_data(fname, url.to_url_string().as_str());
+            download_data(fname, url.to_url().as_str());
         });
     }
 
@@ -314,7 +308,7 @@ impl PBIDataset {
         data_path("PBI")
             .join(self.dataset_name())
             .join("bzip2")
-            .join(url.file_name.clone())
+            .join(&url.file_name)
     }
 
     fn unzip(&self) {
@@ -339,13 +333,14 @@ impl PBIUrl {
             file_name: file_name.to_string(),
         }
     }
-    fn to_url_string(&self) -> String {
-        let url_str = format!(
-            "https://homepages.cwi.nl/~boncz/PublicBIbenchmark/{}/{}",
-            self.dataset_name, self.file_name
-        );
-        // roundtrip through url to validate
-        Url::parse(url_str.as_str()).unwrap().to_string()
+
+    fn to_url(&self) -> Url {
+        Url::parse("https://homepages.cwi.nl/~boncz/PublicBIbenchmark")
+            .unwrap()
+            .join(&self.dataset_name)
+            .unwrap()
+            .join(&self.file_name)
+            .unwrap()
     }
 }
 
