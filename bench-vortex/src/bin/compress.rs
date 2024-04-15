@@ -19,7 +19,7 @@ pub fn main() {
 }
 
 fn compress_taxi() {
-    let path: PathBuf = "taxi_data.vortex".to_idempotent_path();
+    let path: PathBuf = "taxi_data.vortex".to_data_path();
     {
         let mut write = File::create(&path).unwrap();
         rewrite_parquet_as_vortex(taxi_data_parquet(), &mut write).unwrap();

@@ -45,6 +45,9 @@ lazy_static = { workspace = true }
 enum-iterator = { workspace = true }
 fs_extra = { workspace = true }
 humansize = { workspace = true }
+tempfile = "3.2.0"
+rand = "0.8.5"
+uuid = { version = "1.8.0", features = ["v4"] }
 
 [dev-dependencies]
 criterion = { workspace = true }

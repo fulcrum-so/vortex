@@ -25,7 +25,11 @@ pub fn download_data(fname: PathBuf, data_url: &str) -> PathBuf {
     idempotent(&fname, |path| {
         info!("Downloading {} from {}", fname.to_str().unwrap(), data_url);
         let mut file = File::create(path).unwrap();
-        reqwest::blocking::get(data_url).unwrap().copy_to(&mut file)
+        let mut response = reqwest::blocking::get(data_url).unwrap();
+        if !response.status().is_success() {
+            panic!("Failed to download data from {}", data_url);
+        }
+        response.copy_to(&mut file)
     })
     .unwrap()
 }
