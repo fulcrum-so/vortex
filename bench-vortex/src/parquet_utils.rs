@@ -24,7 +24,7 @@ pub fn sum_column_chunk_sizes(path: &Path) -> VortexResult<CompressionRunStats> 
         for j in 0..row_group_metadata.num_columns() {
             let column_chunk_metadata = row_group_metadata.column(j);
             // Add the sizes to the corresponding entries in the hash maps
-            *compressed_sizes.entry(j as u64).or_insert(0) +=
+            *compressed_sizes.entry(j as u64 + 1u64).or_insert(0) +=
                 column_chunk_metadata.compressed_size() as u64;
         }
     }

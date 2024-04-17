@@ -37,8 +37,8 @@ fn compress_taxi() {
 
 fn compress_pbi(which_pbi: PBIDataset) {
     let dataset = PBI(which_pbi);
-    dataset.as_uncompressed();
+    // dataset.as_uncompressed();
     dataset.write_as_vortex();
-    dataset.write_as_parquet();
-    dataset.write_as_lance();
+    // dataset.write_as_parquet();
+    // dataset.write_as_lance();
 }

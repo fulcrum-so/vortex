@@ -8,6 +8,7 @@ create table comparison as select vortex.dataset_name,
                                   vortex.column_type,
                                   vortex.column_compressed_size as vortex_column_size,
                                   parquet.column_compressed_size as parquet_column_compressed_size,
+                                  vortex.column_compressed_size - parquet.column_compressed_size as abs_diff_column_size,
                                   vortex."column_compressed_size" / parquet."column_compressed_size" as relative_compression,
                                   vortex."column_compressed_size"/vortex."total_compressed_size" as ratio_total_compressed_size,
                                   vortex."total_compressed_size"/vortex."uncompressed_size" as vortex_column_compression_ratio,
@@ -19,7 +20,7 @@ create table comparison as select vortex.dataset_name,
                            from
                                vortex join parquet
                                            on vortex.file == parquet.file
-        and vortex.column == parquet.column;
+                                           and vortex.column == parquet.column;
 
 
 select * from comparison where relative_compression < 1.0 order by column_name;
