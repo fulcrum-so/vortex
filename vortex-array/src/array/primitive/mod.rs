@@ -51,8 +51,10 @@ impl PrimitiveArray<'_> {
         buffer: ScalarBuffer<T>,
         validity: Validity,
     ) -> VortexResult<Self> {
+        let d_type = DType::from(T::PTYPE);
         Self::try_from_parts(
-            DType::from(T::PTYPE).with_nullability(validity.nullability()),
+
+            d_type.with_nullability(validity.nullability()),
             PrimitiveMetadata {
                 validity: validity.to_metadata(buffer.len())?,
             },

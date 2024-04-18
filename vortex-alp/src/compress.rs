@@ -1,23 +1,15 @@
 use itertools::Itertools;
-// use vortex::array::downcast::DowncastArrayBuiltin;
 use vortex::array::primitive::PrimitiveArray;
 use vortex::array::sparse::SparseArray;
-// use vortex::array::{Array, ArrayRef};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
 use vortex::compute::ArrayCompute;
-// use vortex::encoding::ArrayEncodingRef;
-// use vortex::compute::ArrayCompute;
-// use vortex::compute::flatten::flatten_primitive;
 use vortex::ptype::{NativePType, PType};
 use vortex::scalar::Scalar;
 use vortex::{Array, ArrayDType, AsArray, IntoArray};
-// use vortex::compute::patch::PatchFn;
-// use vortex::view::ToOwnedView;
 use vortex_error::{vortex_bail, vortex_err, VortexResult};
 
 use crate::alp::ALPFloat;
 use crate::array::{ALPArray, ALPEncoding};
-// use crate::downcast::DowncastALP;
 use crate::Exponents;
 
 #[macro_export]
@@ -124,6 +116,7 @@ pub(crate) fn alp_encode(parray: &PrimitiveArray) -> VortexResult<ALPArray<'stat
 pub fn decompress(array: ALPArray) -> VortexResult<PrimitiveArray> {
     let binding = array.clone();
     let encoded = binding.encoded().clone().flatten_primitive()?;
+
     let decoded = match_each_alp_float_ptype!(array.dtype().try_into().unwrap(), |$T| {
         PrimitiveArray::from_vec(
             decompress_primitive::<$T>(encoded.typed_data(), array.exponents()),

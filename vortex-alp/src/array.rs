@@ -1,17 +1,10 @@
-// use std::sync::{Arc};
-
 use serde::{Deserialize, Serialize};
 use vortex::array::primitive::{Primitive, PrimitiveArray};
 use vortex::compute::patch::PatchFn;
-// use vortex::array::{Array, ArrayKind, ArrayRef};
-// use vortex::compress::EncodingCompression;
-// use vortex::encoding::{EncodingId, EncodingRef};
-// use vortex::formatter::{ArrayDisplay, ArrayFormatter};
-// use vortex::serde::{ArraySerde, EncodingSerde};
 use vortex::stats::ArrayStatisticsCompute;
 use vortex::validity::{ArrayValidity, LogicalValidity};
 use vortex::visitor::{AcceptArrayVisitor, ArrayVisitor};
-use vortex::{impl_encoding, ArrayDType, ArrayFlatten, OwnedArray, ToArrayData};
+use vortex::{impl_encoding, ArrayDType, ArrayFlatten, OwnedArray, ToArrayData, IntoArrayData};
 use vortex_error::{vortex_bail, VortexResult};
 use vortex_schema::{IntWidth, Signedness};
 
@@ -23,6 +16,8 @@ impl_encoding!("vortex.alp", ALP);
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ALPMetadata {
     exponents: Exponents,
+    has_patches: bool,
+    dtype: DType,
 }
 
 impl ALPArray<'_> {
@@ -31,6 +26,7 @@ impl ALPArray<'_> {
         exponents: Exponents,
         patches: Option<Array>,
     ) -> VortexResult<Self> {
+        let d_type = encoded.dtype().clone();
         let dtype = match encoded.dtype() {
             DType::Int(IntWidth::_32, Signedness::Signed, nullability) => {
                 DType::Float(32.into(), *nullability)
@@ -40,15 +36,22 @@ impl ALPArray<'_> {
             }
             d => vortex_bail!(MismatchedTypes: "int32 or int64", d),
         };
+        // let d2 = dtype.clone();
 
         let mut children = vec![];
+        children.push(encoded.into_array_data());
         patches.iter().for_each(|patch| {
             children.push(patch.to_array_data());
         });
 
+
         Self::try_from_parts(
             dtype,
-            ALPMetadata { exponents },
+            ALPMetadata {
+                exponents,
+                has_patches: patches.is_some(),
+                dtype: d_type,
+            },
             vec![].into(),
             children.into(),
             Default::default(),
@@ -63,9 +66,10 @@ impl ALPArray<'_> {
         }
     }
 
-    pub fn encoded(&self) -> &Array {
-        self.typed.array()
-        // todo!();
+    pub fn encoded(&self) -> Array {
+        self.array()
+            .child(0, &self.metadata().dtype)
+            .expect("Missing encoded array")
     }
 
     pub fn exponents(&self) -> &Exponents {
@@ -73,20 +77,21 @@ impl ALPArray<'_> {
     }
 
     pub fn patches(&self) -> Option<Array> {
-        todo!()
-        // self.me
+        self.metadata().has_patches.then(|| {
+            self.array()
+                .child(1, self.dtype())
+                .expect("Missing patches with present metadata flag")
+        })
     }
 }
 
 impl ArrayValidity for ALPArray<'_> {
-    fn is_valid(&self, _index: usize) -> bool {
-        todo!()
-        // self.is_valid(index)
-        // .encoded().is_valid(index)
+    fn is_valid(&self, index: usize) -> bool {
+        self.encoded().with_dyn(|a| a.is_valid(index))
     }
 
     fn logical_validity(&self) -> LogicalValidity {
-        todo!()
+        self.encoded().with_dyn(|a| a.logical_validity())
     }
 }
 

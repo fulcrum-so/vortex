@@ -24,18 +24,18 @@ impl ArrayCompute for ALPArray<'_> {
 
 impl ScalarAtFn for ALPArray<'_> {
     fn scalar_at(&self, index: usize) -> VortexResult<Scalar> {
-        scalar_at(self.encoded(), index)
+        scalar_at(&self.encoded(), index)
     }
 }
 
 impl TakeFn for ALPArray<'_> {
     fn take(&self, indices: &Array) -> VortexResult<OwnedArray> {
-        take(self.encoded(), indices)
+        take(&self.encoded(), indices)
     }
 }
 
 impl SliceFn for ALPArray<'_> {
     fn slice(&self, start: usize, end: usize) -> VortexResult<OwnedArray> {
-        slice(self.encoded(), start, end)
+        slice(&self.encoded(), start, end)
     }
 }
