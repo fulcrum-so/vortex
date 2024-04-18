@@ -15,13 +15,15 @@ rust-version = { workspace = true }
 workspace = true
 
 [dependencies]
+itertools = { workspace = true }
+linkme = { workspace = true }
+log = { workspace = true }
+num-traits = { workspace = true }
+paste = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 vortex-array = { path = "../vortex-array" }
 vortex-error = { path = "../vortex-error" }
 vortex-schema = { path = "../vortex-schema" }
-linkme = { workspace = true }
-itertools = { workspace = true }
-num-traits = { workspace = true }
-log = { workspace = true }
 
 [dev-dependencies]
 divan = { workspace = true }

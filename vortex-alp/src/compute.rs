@@ -1,20 +1,14 @@
-use vortex::array::{Array, ArrayRef};
-use vortex::compute::flatten::{FlattenFn, FlattenedArray};
 use vortex::compute::scalar_at::{scalar_at, ScalarAtFn};
 use vortex::compute::slice::{slice, SliceFn};
 use vortex::compute::take::{take, TakeFn};
 use vortex::compute::ArrayCompute;
 use vortex::scalar::Scalar;
+use vortex::{Array, OwnedArray};
 use vortex_error::VortexResult;
 
-use crate::compress::decompress;
-use crate::{match_each_alp_float_ptype, ALPArray, ALPFloat};
+use crate::ALPArray;
 
-impl ArrayCompute for ALPArray {
-    fn flatten(&self) -> Option<&dyn FlattenFn> {
-        Some(self)
-    }
-
+impl ArrayCompute for ALPArray<'_> {
     fn scalar_at(&self) -> Option<&dyn ScalarAtFn> {
         Some(self)
     }
@@ -28,48 +22,20 @@ impl ArrayCompute for ALPArray {
     }
 }
 
-impl FlattenFn for ALPArray {
-    fn flatten(&self) -> VortexResult<FlattenedArray> {
-        decompress(self).map(FlattenedArray::Primitive)
-    }
-}
-
-impl ScalarAtFn for ALPArray {
+impl ScalarAtFn for ALPArray<'_> {
     fn scalar_at(&self, index: usize) -> VortexResult<Scalar> {
-        if let Some(patch) = self.patches().and_then(|p| scalar_at(p, index).ok()) {
-            return Ok(patch);
-        }
-
-        let encoded_val = scalar_at(self.encoded(), index)?;
-        match_each_alp_float_ptype!(self.dtype().try_into().unwrap(), |$T| {
-            let encoded_val: <$T as ALPFloat>::ALPInt = encoded_val.try_into().unwrap();
-            Scalar::from(<$T as ALPFloat>::decode_single(
-                encoded_val,
-                self.exponents(),
-            ))
-        })
+        scalar_at(self.encoded(), index)
     }
 }
 
-impl TakeFn for ALPArray {
-    fn take(&self, indices: &dyn Array) -> VortexResult<ArrayRef> {
-        // TODO(ngates): wrap up indices in an array that caches decompression?
-        Ok(ALPArray::new(
-            take(self.encoded(), indices)?,
-            self.exponents().clone(),
-            self.patches().map(|p| take(p, indices)).transpose()?,
-        )
-        .into_array())
+impl TakeFn for ALPArray<'_> {
+    fn take(&self, indices: &Array) -> VortexResult<OwnedArray> {
+        take(self.encoded(), indices)
     }
 }
 
-impl SliceFn for ALPArray {
-    fn slice(&self, start: usize, stop: usize) -> VortexResult<ArrayRef> {
-        Ok(ALPArray::try_new(
-            slice(self.encoded(), start, stop)?,
-            self.exponents().clone(),
-            self.patches().map(|p| slice(p, start, stop)).transpose()?,
-        )?
-        .into_array())
+impl SliceFn for ALPArray<'_> {
+    fn slice(&self, start: usize, end: usize) -> VortexResult<OwnedArray> {
+        slice(self.encoded(), start, end)
     }
 }

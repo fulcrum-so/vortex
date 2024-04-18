@@ -973,6 +973,7 @@ dependencies = [
  "simplelog",
  "tokio",
  "uuid",
+ "vortex-alp",
  "vortex-array",
  "vortex-dict",
  "vortex-error",
@@ -1281,6 +1282,7 @@ checksum = "ae129e2e766ae0ec03484e609954119f123cc1fe650337e155d03b022f24f7b4"
 dependencies = [
  "anstyle",
  "clap_lex",
+ "terminal_size",
 ]
 
 [[package]]
@@ -1308,6 +1310,12 @@ dependencies = [
  "strum_macros",
  "unicode-width",
 ]
+
+[[package]]
+name = "condtype"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "baf0a07a401f374238ab8e2f11a104d2851bf9ce711ec69804834de8af45c7af"
 
 [[package]]
 name = "const-random"
@@ -1740,6 +1748,31 @@ dependencies = [
  "option-ext",
  "redox_users",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "divan"
+version = "0.1.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0d567df2c9c2870a43f3f2bd65aaeb18dbce1c18f217c3e564b4fbaeb3ee56c"
+dependencies = [
+ "cfg-if",
+ "clap",
+ "condtype",
+ "divan-macros",
+ "libc",
+ "regex-lite",
+]
+
+[[package]]
+name = "divan-macros"
+version = "0.1.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27540baf49be0d484d8f0130d7d8da3011c32a44d4fc873368154f1510e574a2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.59",
 ]
 
 [[package]]
@@ -3899,6 +3932,7 @@ dependencies = [
  "paste",
  "pyo3",
  "pyo3-log",
+ "vortex-alp",
  "vortex-array",
  "vortex-dict",
  "vortex-error",
@@ -4051,6 +4085,12 @@ dependencies = [
  "memchr",
  "regex-syntax",
 ]
+
+[[package]]
+name = "regex-lite"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30b661b2f27137bdbc16f00eda72866a92bb28af1753ffbd56744fb6e2e9cd8e"
 
 [[package]]
 name = "regex-syntax"
@@ -4681,6 +4721,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "terminal_size"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "21bebf2b7c9e0a515f6e0f8c51dc0f8e4696391e6f1ff30379559f8365fb0df7"
+dependencies = [
+ "rustix",
+ "windows-sys 0.48.0",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5077,6 +5127,22 @@ name = "vortex-alloc"
 version = "0.1.0"
 dependencies = [
  "allocator-api2",
+]
+
+[[package]]
+name = "vortex-alp"
+version = "0.1.0"
+dependencies = [
+ "divan",
+ "itertools 0.12.1",
+ "linkme",
+ "log",
+ "num-traits",
+ "paste",
+ "serde",
+ "vortex-array",
+ "vortex-error",
+ "vortex-schema",
 ]
 
 [[package]]

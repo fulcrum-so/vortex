@@ -2,10 +2,11 @@ use std::mem::size_of;
 
 use itertools::Itertools;
 use num_traits::{Float, NumCast, PrimInt, Zero};
+use serde::{Deserialize, Serialize};
 
 const SAMPLE_SIZE: usize = 32;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Exponents {
     pub e: u8,
     pub f: u8,

@@ -37,7 +37,8 @@ impl<'a> Array<'a> {
     }
 
     pub fn flatten_primitive(self) -> VortexResult<PrimitiveArray<'a>> {
-        PrimitiveArray::try_from(self.flatten()?.into_array())
+        let result = self.clone().flatten()?;
+        PrimitiveArray::try_from(result.into_array())
     }
 
     pub fn flatten_varbin(self) -> VortexResult<VarBinArray<'a>> {

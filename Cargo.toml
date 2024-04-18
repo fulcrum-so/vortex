@@ -5,7 +5,7 @@ members = [
     "fastlanez-sys",
     "pyvortex",
     "vortex-alloc",
-    #"vortex-alp",
+    "vortex-alp",
     "vortex-array",
     #"vortex-datetime",
     "vortex-dict",

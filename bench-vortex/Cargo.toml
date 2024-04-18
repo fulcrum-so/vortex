@@ -19,7 +19,7 @@ arrow-array = { workspace = true }
 arrow-select = { workspace = true }
 enum-iterator = { workspace = true }
 fs_extra = { workspace = true }
-#vortex-alp = { path = "../vortex-alp" }
+vortex-alp = { path = "../vortex-alp" }
 vortex-array = { path = "../vortex-array" }
 #vortex-datetime = { path = "../vortex-datetime" }
 vortex-dict = { path = "../vortex-dict" }
