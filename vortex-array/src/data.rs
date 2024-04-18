@@ -16,8 +16,8 @@ pub struct ArrayData {
     encoding: EncodingRef,
     dtype: DType,
     metadata: Arc<dyn ArrayMetadata>,
-    buffers: Arc<[OwnedBuffer]>, // Should this just be an Option, not an Arc? How many multi-buffer arrays are there?
-    children: Arc<[ArrayData]>,
+    buffers: Box<[OwnedBuffer]>, // Should this just be an Option, not an Arc? How many multi-buffer arrays are there?
+    children: Box<[ArrayData]>,
     stats_map: Arc<RwLock<HashMap<Stat, Scalar>>>,
 }
 
@@ -26,8 +26,8 @@ impl ArrayData {
         encoding: EncodingRef,
         dtype: DType,
         metadata: Arc<dyn ArrayMetadata>,
-        buffers: Arc<[OwnedBuffer]>,
-        children: Arc<[ArrayData]>,
+        buffers: Box<[OwnedBuffer]>,
+        children: Box<[ArrayData]>,
         statistics: HashMap<Stat, Scalar>,
     ) -> VortexResult<Self> {
         let data = Self {
@@ -61,6 +61,10 @@ impl ArrayData {
 
     pub fn buffers(&self) -> &[Buffer] {
         &self.buffers
+    }
+
+    pub fn into_buffers(self) -> Vec<OwnedBuffer> {
+        self.buffers.into_vec()
     }
 
     pub fn child(&self, index: usize, dtype: &DType) -> Option<&ArrayData> {

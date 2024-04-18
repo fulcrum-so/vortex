@@ -19,8 +19,8 @@ impl<D: ArrayDef> TypedArray<'_, D> {
     pub fn try_from_parts(
         dtype: DType,
         metadata: D::Metadata,
-        buffers: Arc<[OwnedBuffer]>,
-        children: Arc<[ArrayData]>,
+        buffers: Box<[OwnedBuffer]>,
+        children: Box<[ArrayData]>,
         stats: HashMap<Stat, Scalar>,
     ) -> VortexResult<Self> {
         let array = Array::Data(ArrayData::try_new(

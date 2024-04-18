@@ -101,8 +101,7 @@ impl PrimitiveArray<'_> {
         }
 
         let mut own_values = self
-            .buffer()
-            .clone()
+            .into_buffer()
             .into_vec::<T>()
             .unwrap_or_else(|b| Vec::from(b.typed_data::<T>()));
         // TODO(robert): Also patch validity
@@ -110,6 +109,12 @@ impl PrimitiveArray<'_> {
             own_values[(*idx).as_()] = *value;
         }
         Self::try_new(ScalarBuffer::from(own_values), self.validity())
+    }
+}
+
+impl<'a> PrimitiveArray<'a> {
+    pub fn into_buffer(self) -> Buffer<'a> {
+        self.into_array().into_buffer(0).expect("missing buffer")
     }
 }
 
