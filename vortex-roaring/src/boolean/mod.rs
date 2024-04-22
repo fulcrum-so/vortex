@@ -1,34 +1,31 @@
-use std::sync::{Arc, RwLock};
+use std::sync::{RwLock};
 
 use compress::roaring_encode;
-use croaring::{Bitmap, Native};
-use vortex::array::{Array, ArrayKind, ArrayRef};
-use vortex::compress::EncodingCompression;
-use vortex::compute::ArrayCompute;
-use vortex::encoding::{Encoding, EncodingId, EncodingRef};
-use vortex::formatter::{ArrayDisplay, ArrayFormatter};
-use vortex::serde::{ArraySerde, EncodingSerde};
-use vortex::stats::{Stats, StatsSet};
-use vortex::validity::ArrayValidity;
-use vortex::validity::Validity;
-use vortex::{impl_array, ArrayWalker};
+use croaring::Bitmap;
+use serde::{Deserialize, Serialize};
+use vortex::encoding::{ArrayEncodingRef};
+use vortex::stats::{ArrayStatistics, ArrayStatisticsCompute};
+use vortex::validity::{ArrayValidity, LogicalValidity};
+use vortex::{impl_encoding, ArrayFlatten, ArrayDType, ToArrayData, OwnedArray};
+// use vortex::array::bool::BoolArray;
+use vortex::array::primitive::{Primitive, PrimitiveArray};
+use vortex::visitor::{AcceptArrayVisitor, ArrayVisitor};
 use vortex_error::{vortex_err, VortexResult};
-use vortex_schema::DType;
-use vortex_schema::Nullability::NonNullable;
 
 mod compress;
 mod compute;
-mod serde;
-mod stats;
 
-#[derive(Debug, Clone)]
-pub struct RoaringBoolArray {
+
+impl_encoding!("vortex.roaring_bool", RoaringBool);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RoaringBoolMetadata {
     bitmap: Bitmap,
     length: usize,
     stats: Arc<RwLock<StatsSet>>,
 }
 
-impl RoaringBoolArray {
+impl RoaringBoolArray<'_> {
     pub fn new(bitmap: Bitmap, length: usize) -> Self {
         Self {
             bitmap,
@@ -38,73 +35,40 @@ impl RoaringBoolArray {
     }
 
     pub fn bitmap(&self) -> &Bitmap {
-        &self.bitmap
+        &self.metadata().bitmap
     }
 
-    pub fn encode(array: &dyn Array) -> VortexResult<Self> {
-        match ArrayKind::from(array) {
-            ArrayKind::Bool(p) => Ok(roaring_encode(p)),
-            _ => Err(vortex_err!("RoaringBool can only encode bool arrays")),
+    pub fn encode(array: Array) -> VortexResult<OwnedArray> {
+        if array.encoding().id() == Primitive::ID {
+            Ok(roaring_encode(PrimitiveArray::try_from(array)?).into_array())
+        } else {
+            Err(vortex_err!("RoaringInt can only encode primitive arrays"))
         }
     }
 }
-
-impl Array for RoaringBoolArray {
-    impl_array!();
-    #[inline]
-    fn len(&self) -> usize {
-        self.length
-    }
-
-    #[inline]
-    fn is_empty(&self) -> bool {
-        self.length == 0
-    }
-
-    #[inline]
-    fn dtype(&self) -> &DType {
-        &DType::Bool(NonNullable)
-    }
-
-    fn stats(&self) -> Stats {
-        Stats::new(&self.stats, self)
-    }
-
-    #[inline]
-    fn encoding(&self) -> EncodingRef {
-        &RoaringBoolEncoding
-    }
-
-    #[inline]
-    fn nbytes(&self) -> usize {
-        // TODO(ngates): do we want Native serializer? Or portable? Or frozen?
-        self.bitmap.get_serialized_size_in_bytes::<Native>()
-    }
-
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
-    }
-
-    fn serde(&self) -> Option<&dyn ArraySerde> {
-        Some(self)
-    }
-
-    fn walk(&self, _walker: &mut dyn ArrayWalker) -> VortexResult<()> {
-        // TODO(ngates): should we store a buffer in memory? Or delay serialization?
-        //  Or serialize into metadata? The only reason we support buffers is so we can write to
-        //  the wire without copying into FlatBuffers. But if we need to allocate to serialize
-        //  the bitmap anyway, then may as well shove it into metadata.
+impl AcceptArrayVisitor for RoaringBoolArray<'_> {
+    fn accept(&self, _visitor: &mut dyn ArrayVisitor) -> VortexResult<()> {
         todo!()
     }
 }
 
-impl ArrayValidity for RoaringBoolArray {
-    fn logical_validity(&self) -> Validity {
-        Validity::Valid(self.len())
+impl ToArrayData for RoaringBoolArray<'_> {
+    fn to_array_data(&self) -> ArrayData {
+        todo!()
+    }
+}
+
+impl ArrayTrait for RoaringBoolArray<'_> {
+    fn len(&self) -> usize {
+        todo!()
+    }
+}
+
+impl ArrayStatisticsCompute for RoaringBoolArray<'_> {}
+
+impl ArrayValidity for RoaringBoolArray<'_> {
+    fn logical_validity(&self) -> LogicalValidity {
+        LogicalValidity::AllValid(self.len())
     }
 
     fn is_valid(&self, _index: usize) -> bool {
@@ -112,37 +76,26 @@ impl ArrayValidity for RoaringBoolArray {
     }
 }
 
-impl ArrayDisplay for RoaringBoolArray {
-    fn fmt(&self, f: &mut ArrayFormatter) -> std::fmt::Result {
-        f.property("bitmap", format!("{:?}", self.bitmap()))
-    }
-}
+// impl ArrayDisplay for RoaringBoolArray {
+//     fn fmt(&self, f: &mut ArrayFormatter) -> std::fmt::Result {
+//         f.property("bitmap", format!("{:?}", self.bitmap()))
+//     }
+// }
 
-#[derive(Debug)]
-pub struct RoaringBoolEncoding;
-
-impl RoaringBoolEncoding {
-    pub const ID: EncodingId = EncodingId::new("roaring.bool");
-}
-
-impl Encoding for RoaringBoolEncoding {
-    fn id(&self) -> EncodingId {
-        Self::ID
-    }
-
-    fn compression(&self) -> Option<&dyn EncodingCompression> {
-        Some(self)
-    }
-
-    fn serde(&self) -> Option<&dyn EncodingSerde> {
-        Some(self)
+impl ArrayFlatten for RoaringBoolArray<'_> {
+    fn flatten<'a>(self) -> VortexResult<Flattened<'a>>
+        where
+            Self: 'a,
+    {
+        todo!()
+        // decompress(self).map(Flattened::Primitive)
     }
 }
 
 #[cfg(test)]
 mod test {
+    use vortex::Array;
     use vortex::array::bool::BoolArray;
-    use vortex::array::Array;
     use vortex::compute::scalar_at::scalar_at;
     use vortex::scalar::Scalar;
     use vortex_error::VortexResult;
@@ -151,7 +104,7 @@ mod test {
 
     #[test]
     pub fn iter() -> VortexResult<()> {
-        let bool: &dyn Array = &BoolArray::from(vec![true, false, true, true]);
+        let bool: Array = &BoolArray::from(vec![true, false, true, true]);
         let array = RoaringBoolArray::encode(bool)?;
 
         let values = array.bitmap().to_vec();

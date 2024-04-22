@@ -6,13 +6,13 @@ use vortex_error::VortexResult;
 
 use crate::RoaringIntArray;
 
-impl ArrayCompute for RoaringIntArray {
+impl ArrayCompute for RoaringIntArray<'_> {
     fn scalar_at(&self) -> Option<&dyn ScalarAtFn> {
         Some(self)
     }
 }
 
-impl ScalarAtFn for RoaringIntArray {
+impl ScalarAtFn for RoaringIntArray<'_> {
     fn scalar_at(&self, index: usize) -> VortexResult<Scalar> {
         // Unwrap since we know the index is valid
         let bitmap_value = self.bitmap.select(index as u32).unwrap();

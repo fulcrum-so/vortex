@@ -1,34 +1,29 @@
-use std::sync::{Arc, RwLock};
+use std::sync::{RwLock};
 
 use compress::roaring_encode;
-use croaring::{Bitmap, Native};
-use vortex::array::{Array, ArrayKind, ArrayRef};
-use vortex::compress::EncodingCompression;
-use vortex::compute::ArrayCompute;
-use vortex::encoding::{Encoding, EncodingId, EncodingRef};
-use vortex::formatter::{ArrayDisplay, ArrayFormatter};
+use croaring::{Bitmap};
+use serde::{Deserialize, Serialize};
 use vortex::ptype::PType;
-use vortex::serde::{ArraySerde, EncodingSerde};
-use vortex::stats::{Stats, StatsSet};
-use vortex::validity::ArrayValidity;
-use vortex::validity::Validity;
-use vortex::{impl_array, ArrayWalker};
+use vortex::validity::{ArrayValidity, LogicalValidity};
+use vortex::{impl_encoding, OwnedArray};
+use vortex::array::primitive::{Primitive, PrimitiveArray};
+use vortex::compute::ArrayCompute;
+use vortex::compute::scalar_at::ScalarAtFn;
 use vortex_error::{vortex_bail, vortex_err, VortexResult};
-use vortex_schema::DType;
 
 mod compress;
 mod compute;
-mod serde;
-mod stats;
 
-#[derive(Debug, Clone)]
-pub struct RoaringIntArray {
+impl_encoding!("vortex.roaring_int", RoaringInt);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RoaringIntMetadata {
     bitmap: Bitmap,
     ptype: PType,
     stats: Arc<RwLock<StatsSet>>,
 }
 
-impl RoaringIntArray {
+impl RoaringIntArray<'_> {
     pub fn new(bitmap: Bitmap, ptype: PType) -> Self {
         Self::try_new(bitmap, ptype).unwrap()
     }
@@ -46,72 +41,25 @@ impl RoaringIntArray {
     }
 
     pub fn bitmap(&self) -> &Bitmap {
-        &self.bitmap
+        &self.metadata().bitmap
     }
 
     pub fn ptype(&self) -> PType {
-        self.ptype
+        self.metadata().ptype
     }
 
-    pub fn encode(array: &dyn Array) -> VortexResult<Self> {
-        match ArrayKind::from(array) {
-            ArrayKind::Primitive(p) => Ok(roaring_encode(p)),
-            _ => Err(vortex_err!("RoaringInt can only encode primitive arrays")),
+    pub fn encode(array: Array) -> VortexResult<OwnedArray> {
+        if array.encoding().id() == Primitive::ID {
+            Ok(roaring_encode(PrimitiveArray::try_from(array)?).into_array())
+        } else {
+            Err(vortex_err!("RoaringInt can only encode primitive arrays"))
         }
     }
 }
 
-impl Array for RoaringIntArray {
-    impl_array!();
-    #[inline]
-    fn len(&self) -> usize {
-        self.bitmap.cardinality() as usize
-    }
-
-    #[inline]
-    fn is_empty(&self) -> bool {
-        self.bitmap().is_empty()
-    }
-
-    #[inline]
-    fn dtype(&self) -> &DType {
-        self.ptype.into()
-    }
-
-    fn stats(&self) -> Stats {
-        Stats::new(&self.stats, self)
-    }
-
-    #[inline]
-    fn encoding(&self) -> EncodingRef {
-        &RoaringIntEncoding
-    }
-
-    #[inline]
-    fn nbytes(&self) -> usize {
-        self.bitmap.get_serialized_size_in_bytes::<Native>()
-    }
-
-    #[inline]
-    fn with_compute_mut(
-        &self,
-        f: &mut dyn FnMut(&dyn ArrayCompute) -> VortexResult<()>,
-    ) -> VortexResult<()> {
-        f(self)
-    }
-
-    fn serde(&self) -> Option<&dyn ArraySerde> {
-        Some(self)
-    }
-
-    fn walk(&self, _walker: &mut dyn ArrayWalker) -> VortexResult<()> {
-        todo!()
-    }
-}
-
-impl ArrayValidity for RoaringIntArray {
-    fn logical_validity(&self) -> Validity {
-        Validity::Valid(self.len())
+impl ArrayValidity for RoaringIntArray<'_> {
+    fn logical_validity(&self) -> LogicalValidity {
+        LogicalValidity::AllValid(self.metadata().bitmap.iter().count())
     }
 
     fn is_valid(&self, _index: usize) -> bool {
@@ -119,30 +67,11 @@ impl ArrayValidity for RoaringIntArray {
     }
 }
 
-impl ArrayDisplay for RoaringIntArray {
-    fn fmt(&self, f: &mut ArrayFormatter) -> std::fmt::Result {
-        f.property("bitmap", format!("{:?}", self.bitmap()))
-    }
-}
+impl ArrayCompute for RoaringIntArray<'_> {}
 
-#[derive(Debug)]
-pub struct RoaringIntEncoding;
-
-impl RoaringIntEncoding {
-    pub const ID: EncodingId = EncodingId::new("roaring.int");
-}
-
-impl Encoding for RoaringIntEncoding {
-    fn id(&self) -> EncodingId {
-        Self::ID
-    }
-
-    fn compression(&self) -> Option<&dyn EncodingCompression> {
-        Some(self)
-    }
-
-    fn serde(&self) -> Option<&dyn EncodingSerde> {
-        Some(self)
+impl ScalarAtFn for RoaringIntArray<'_> {
+    fn scalar_at(&self, _index: usize) -> VortexResult<Scalar> {
+        todo!()
     }
 }
 
@@ -150,14 +79,15 @@ impl Encoding for RoaringIntEncoding {
 mod test {
     use vortex::array::primitive::PrimitiveArray;
     use vortex::compute::scalar_at::scalar_at;
+    use vortex::IntoArray;
     use vortex_error::VortexResult;
 
     use crate::RoaringIntArray;
 
     #[test]
     pub fn test_scalar_at() -> VortexResult<()> {
-        let ints = PrimitiveArray::from(vec![2u32, 12, 22, 32]);
-        let array = RoaringIntArray::encode(&ints)?;
+        let ints = PrimitiveArray::from(vec![2u32, 12, 22, 32]).into_array();
+        let array = RoaringIntArray::encode(ints)?;
 
         assert_eq!(scalar_at(&array, 0).unwrap(), 2u32.into());
         assert_eq!(scalar_at(&array, 1).unwrap(), 12u32.into());

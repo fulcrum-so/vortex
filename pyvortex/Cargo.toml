@@ -26,7 +26,7 @@ vortex-dict = { path = "../vortex-dict" }
 vortex-error = { path = "../vortex-error" }
 vortex-fastlanes = { path = "../vortex-fastlanes" }
 vortex-ree = { path = "../vortex-ree" }
-#vortex-roaring = { path = "../vortex-roaring" }
+vortex-roaring = { path = "../vortex-roaring" }
 vortex-schema = { path = "../vortex-schema" }
 #vortex-zigzag = { path = "../vortex-zigzag" }
 itertools = { workspace = true }

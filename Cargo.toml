@@ -14,7 +14,7 @@ members = [
     "vortex-flatbuffers",
     "vortex-ipc",
     "vortex-ree",
-    #"vortex-roaring",
+    "vortex-roaring",
     "vortex-schema",
     #"vortex-zigzag",
 ]

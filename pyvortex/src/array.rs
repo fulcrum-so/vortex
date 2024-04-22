@@ -23,6 +23,7 @@ use vortex_fastlanes::{
     FoREncoding, OwnedBitPackedArray, OwnedDeltaArray, OwnedFoRArray,
 };
 use vortex_ree::{OwnedREEArray, REEArray, REEEncoding, REE};
+use vortex_roaring::{RoaringBool, RoaringBoolArray, RoaringBoolEncoding, RoaringInt, RoaringIntArray, RoaringIntEncoding};
 
 use crate::dtype::PyDType;
 use crate::error::PyVortexError;
@@ -74,9 +75,11 @@ pyarray!(FoREncoding, FoRArray, "FoRArray");
 pyarray!(DeltaEncoding, DeltaArray, "DeltaArray");
 pyarray!(DictEncoding, DictArray, "DictArray");
 pyarray!(REEEncoding, REEArray, "REEArray");
-// pyarray!(RoaringBoolEncoding, RoaringBoolArray, "RoaringBoolArray");
-// pyarray!(RoaringIntEncoding, RoaringIntArray, "RoaringIntArray");
+pyarray!(RoaringBoolEncoding, RoaringBoolArray, "RoaringBoolArray");
+pyarray!(RoaringIntEncoding, RoaringIntArray, "RoaringIntArray");
 // pyarray!(ZigZagEncoding, ZigZagArray, "ZigZagArray");
+
+struct PyALPArray(Python<'_>, ALPArray<'static>);
 
 impl PyArray {
     pub fn wrap(py: Python<'_>, inner: ArrayData) -> PyResult<Py<Self>> {
@@ -160,6 +163,18 @@ impl PyArray {
             ALP::ID => PyALPArray::wrap(
                 py,
                 OwnedALPArray::try_from(inner.into_array()).map_err(PyVortexError::map_err)?,
+            )?
+            .extract(py),
+            RoaringBool::ID => PyBitPackedArray::wrap(
+                py,
+                OwnedBitPackedArray::try_from(inner.into_array())
+                    .map_err(PyVortexError::map_err)?,
+            )?
+            .extract(py),
+            RoaringInt::ID => PyBitPackedArray::wrap(
+                py,
+                OwnedBitPackedArray::try_from(inner.into_array())
+                    .map_err(PyVortexError::map_err)?,
             )?
             .extract(py),
             _ => Py::new(

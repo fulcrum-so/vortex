@@ -16,7 +16,7 @@ workspace = true
 
 [dependencies]
 #vortex-alp = { path = "../vortex-alp" }
-#vortex-roaring = { path = "../vortex-roaring" }
+vortex-roaring = { path = "../vortex-roaring" }
 #vortex-zigzag = { path = "../vortex-zigzag" }
 arrow = { workspace = true }
 arrow-array = { workspace = true }

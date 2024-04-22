@@ -1155,6 +1155,7 @@ dependencies = [
  "vortex-fastlanes",
  "vortex-ipc",
  "vortex-ree",
+ "vortex-roaring",
  "vortex-schema",
 ]
 
@@ -1651,6 +1652,25 @@ checksum = "6b50826342786a51a89e2da3a28f1c32b06e387201bc2d19791f622c673706b1"
 dependencies = [
  "cast",
  "itertools 0.10.5",
+]
+
+[[package]]
+name = "croaring"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7266f0a7275b00ce4c4f4753e8c31afdefe93828101ece83a06e2ddab1dd1010"
+dependencies = [
+ "byteorder",
+ "croaring-sys",
+]
+
+[[package]]
+name = "croaring-sys"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e47112498c394a7067949ebc07ef429b7384a413cf0efcf675846a47bcd307fb"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
@@ -4303,6 +4323,7 @@ dependencies = [
  "vortex-error",
  "vortex-fastlanes",
  "vortex-ree",
+ "vortex-roaring",
  "vortex-schema",
 ]
 
@@ -5766,6 +5787,22 @@ dependencies = [
  "half",
  "itertools 0.12.1",
  "linkme",
+ "num-traits",
+ "paste",
+ "serde",
+ "vortex-array",
+ "vortex-error",
+ "vortex-schema",
+]
+
+[[package]]
+name = "vortex-roaring"
+version = "0.1.0"
+dependencies = [
+ "arrow-buffer 51.0.0",
+ "croaring",
+ "linkme",
+ "log",
  "num-traits",
  "paste",
  "serde",
