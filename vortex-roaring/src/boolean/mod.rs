@@ -1,48 +1,64 @@
-use std::sync::{RwLock};
-
+use arrow_buffer::BooleanBuffer;
+use arrow_buffer::Buffer as ArrowBuffer;
 use compress::roaring_encode;
-use croaring::Bitmap;
+use croaring::{Bitmap, Portable};
 use serde::{Deserialize, Serialize};
-use vortex::encoding::{ArrayEncodingRef};
-use vortex::stats::{ArrayStatistics, ArrayStatisticsCompute};
-use vortex::validity::{ArrayValidity, LogicalValidity};
-use vortex::{impl_encoding, ArrayFlatten, ArrayDType, ToArrayData, OwnedArray};
-// use vortex::array::bool::BoolArray;
-use vortex::array::primitive::{Primitive, PrimitiveArray};
+use vortex::array::bool::{Bool, BoolArray};
+use vortex::buffer::Buffer;
+use vortex::scalar::AsBytes;
+use vortex::stats::ArrayStatisticsCompute;
+use vortex::validity::{ArrayValidity, LogicalValidity, Validity};
 use vortex::visitor::{AcceptArrayVisitor, ArrayVisitor};
-use vortex_error::{vortex_err, VortexResult};
+use vortex::{impl_encoding, ArrayDType, ArrayFlatten, OwnedArray};
+use vortex_error::{vortex_bail, vortex_err, VortexResult};
+use vortex_schema::Nullability;
+use vortex_schema::Nullability::NonNullable;
+use Nullability::Nullable;
 
 mod compress;
 mod compute;
-
 
 impl_encoding!("vortex.roaring_bool", RoaringBool);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoaringBoolMetadata {
-    bitmap: Bitmap,
+    // NB: this is stored because we want to avoid the overhead of deserializing the bitmap
+    // on every len() call. It's CRITICAL that this is kept up-to date.
     length: usize,
-    stats: Arc<RwLock<StatsSet>>,
 }
 
 impl RoaringBoolArray<'_> {
-    pub fn new(bitmap: Bitmap, length: usize) -> Self {
-        Self {
-            bitmap,
-            length,
-            stats: Arc::new(RwLock::new(StatsSet::new())),
+    pub fn try_new(bitmap: Bitmap, length: usize) -> VortexResult<Self> {
+        if length > bitmap.cardinality() as usize {
+            vortex_bail!("RoaringBoolArray length is greater than bitmap cardinality")
+        } else {
+            Ok(Self {
+                typed: TypedArray::try_from_parts(
+                    DType::Bool(NonNullable),
+                    RoaringBoolMetadata { length },
+                    Some(Buffer::Owned(bitmap.serialize::<Portable>().into())),
+                    vec![].into(),
+                    HashMap::default(),
+                )?,
+            })
         }
     }
 
-    pub fn bitmap(&self) -> &Bitmap {
-        &self.metadata().bitmap
+    pub fn bitmap(&self) -> Bitmap {
+        //TODO(@jdcasale): figure out a way to avoid this deserialization per-call
+        Bitmap::deserialize::<Portable>(
+            self.array()
+                .buffer()
+                .expect("RoaringBoolArray buffer is missing")
+                .as_slice(),
+        )
     }
 
-    pub fn encode(array: Array) -> VortexResult<OwnedArray> {
-        if array.encoding().id() == Primitive::ID {
-            Ok(roaring_encode(PrimitiveArray::try_from(array)?).into_array())
+    pub fn encode(array: OwnedArray) -> VortexResult<OwnedArray> {
+        if array.encoding().id() == Bool::ID {
+            roaring_encode(BoolArray::try_from(array)?).map(|a| a.into_array())
         } else {
-            Err(vortex_err!("RoaringInt can only encode primitive arrays"))
+            Err(vortex_err!("RoaringInt can only encode boolean arrays"))
         }
     }
 }
@@ -52,15 +68,9 @@ impl AcceptArrayVisitor for RoaringBoolArray<'_> {
     }
 }
 
-impl ToArrayData for RoaringBoolArray<'_> {
-    fn to_array_data(&self) -> ArrayData {
-        todo!()
-    }
-}
-
 impl ArrayTrait for RoaringBoolArray<'_> {
     fn len(&self) -> usize {
-        todo!()
+        self.metadata().length
     }
 }
 
@@ -76,38 +86,46 @@ impl ArrayValidity for RoaringBoolArray<'_> {
     }
 }
 
-// impl ArrayDisplay for RoaringBoolArray {
-//     fn fmt(&self, f: &mut ArrayFormatter) -> std::fmt::Result {
-//         f.property("bitmap", format!("{:?}", self.bitmap()))
-//     }
-// }
-
 impl ArrayFlatten for RoaringBoolArray<'_> {
     fn flatten<'a>(self) -> VortexResult<Flattened<'a>>
-        where
-            Self: 'a,
+    where
+        Self: 'a,
     {
-        todo!()
-        // decompress(self).map(Flattened::Primitive)
+        // TODO(ngates): benchmark the fastest conversion from BitMap.
+        //  Via bitset requires two copies.
+        let bitset = self
+            .bitmap()
+            .to_bitset()
+            .ok_or(vortex_err!("Failed to convert RoaringBitmap to Bitset"))?;
+
+        let bytes = &bitset.as_slice().as_bytes()[0..bitset.size_in_bytes()];
+        let buffer = ArrowBuffer::from_slice_ref(bytes);
+        Ok(Flattened::Bool(BoolArray::try_new(
+            BooleanBuffer::new(buffer, 0, bitset.size_in_bits()),
+            match self.dtype().nullability() {
+                NonNullable => Validity::NonNullable,
+                Nullable => Validity::AllValid,
+            },
+        )?))
     }
 }
 
 #[cfg(test)]
 mod test {
-    use vortex::Array;
     use vortex::array::bool::BoolArray;
     use vortex::compute::scalar_at::scalar_at;
     use vortex::scalar::Scalar;
+    use vortex::IntoArray;
     use vortex_error::VortexResult;
 
     use crate::RoaringBoolArray;
 
     #[test]
     pub fn iter() -> VortexResult<()> {
-        let bool: Array = &BoolArray::from(vec![true, false, true, true]);
-        let array = RoaringBoolArray::encode(bool)?;
-
-        let values = array.bitmap().to_vec();
+        let bool: BoolArray = BoolArray::from(vec![true, false, true, true]);
+        let array = RoaringBoolArray::encode(bool.into_array())?;
+        let round_trip = RoaringBoolArray::try_from(array.clone())?;
+        let values = round_trip.bitmap().to_vec();
         assert_eq!(values, vec![0, 2, 3]);
 
         Ok(())
@@ -115,8 +133,8 @@ mod test {
 
     #[test]
     pub fn test_scalar_at() -> VortexResult<()> {
-        let bool: &dyn Array = &BoolArray::from(vec![true, false, true, true]);
-        let array = RoaringBoolArray::encode(bool)?;
+        let bool: BoolArray = BoolArray::from(vec![true, false, true, true]);
+        let array = RoaringBoolArray::encode(bool.into_array())?;
 
         let truthy: Scalar = true.into();
         let falsy: Scalar = false.into();

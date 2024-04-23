@@ -9,7 +9,7 @@ use crate::encoding::EncodingRef;
 use crate::scalar::Scalar;
 use crate::stats::Stat;
 use crate::stats::Statistics;
-use crate::{Array, ArrayMetadata, IntoArray, ToArray};
+use crate::{Array, ArrayMetadata, IntoArray, OwnedArray, ToArray};
 
 #[derive(Clone, Debug)]
 pub struct ArrayData {
@@ -134,7 +134,7 @@ impl ToArray for ArrayData {
 }
 
 impl IntoArray<'static> for ArrayData {
-    fn into_array(self) -> Array<'static> {
+    fn into_array(self) -> OwnedArray {
         Array::Data(self)
     }
 }

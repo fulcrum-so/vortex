@@ -4,10 +4,10 @@ use vortex_error::VortexResult;
 use crate::array::bool::BoolArray;
 use crate::compute::as_contiguous::AsContiguousFn;
 use crate::validity::Validity;
-use crate::{Array, ArrayDType, IntoArray};
+use crate::{Array, ArrayDType, IntoArray, OwnedArray};
 
 impl AsContiguousFn for BoolArray<'_> {
-    fn as_contiguous(&self, arrays: &[Array]) -> VortexResult<Array<'static>> {
+    fn as_contiguous(&self, arrays: &[Array]) -> VortexResult<OwnedArray> {
         let validity = if self.dtype().is_nullable() {
             Validity::from_iter(arrays.iter().map(|a| a.with_dyn(|a| a.logical_validity())))
         } else {

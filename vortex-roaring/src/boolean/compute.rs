@@ -1,10 +1,10 @@
 use croaring::Bitmap;
-use vortex::{IntoArray, OwnedArray};
 use vortex::compute::scalar_at::ScalarAtFn;
 use vortex::compute::slice::SliceFn;
 use vortex::compute::ArrayCompute;
-use vortex::scalar::{Scalar};
-use vortex_error::{VortexResult};
+use vortex::scalar::Scalar;
+use vortex::{IntoArray, OwnedArray};
+use vortex_error::VortexResult;
 
 use crate::RoaringBoolArray;
 
@@ -58,6 +58,6 @@ impl SliceFn for RoaringBoolArray<'_> {
         let slice_bitmap = Bitmap::from_range(start as u32..stop as u32);
         let bitmap = self.bitmap().and(&slice_bitmap).add_offset(-(start as i64));
 
-        Ok(RoaringBoolArray::new(bitmap, stop - start).into_array())
+        RoaringBoolArray::try_new(bitmap, stop - start).map(|a| a.into_array())
     }
 }

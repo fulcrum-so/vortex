@@ -23,7 +23,11 @@ use vortex_fastlanes::{
     FoREncoding, OwnedBitPackedArray, OwnedDeltaArray, OwnedFoRArray,
 };
 use vortex_ree::{OwnedREEArray, REEArray, REEEncoding, REE};
-use vortex_roaring::{RoaringBool, RoaringBoolArray, RoaringBoolEncoding, RoaringInt, RoaringIntArray, RoaringIntEncoding};
+use vortex_roaring::{
+    OwnedRoaringBoolArray, OwnedRoaringIntArray, RoaringBool, RoaringBoolArray,
+    RoaringBoolEncoding, RoaringInt, RoaringIntArray, RoaringIntEncoding,
+};
+
 
 use crate::dtype::PyDType;
 use crate::error::PyVortexError;

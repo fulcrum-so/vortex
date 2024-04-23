@@ -11,8 +11,6 @@ use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use parquet::arrow::ProjectionMask;
 use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
 use vortex::array::chunked::ChunkedArray;
-use vortex_roaring::RoaringIntEncoding;
-use vortex_roaring::RoaringBoolEncoding;
 use vortex::arrow::FromArrowType;
 use vortex::compress::{CompressConfig, CompressCtx};
 use vortex::encoding::{EncodingRef, VORTEX_ENCODINGS};
@@ -22,6 +20,7 @@ use vortex_datetime_parts::DateTimePartsEncoding;
 use vortex_dict::DictEncoding;
 use vortex_fastlanes::{BitPackedEncoding, FoREncoding};
 use vortex_ree::REEEncoding;
+use vortex_roaring::RoaringBoolEncoding;
 use vortex_schema::DType;
 
 use crate::data_downloads::FileType;
@@ -117,7 +116,7 @@ pub fn enumerate_arrays() -> Vec<EncodingRef> {
         // &DeltaEncoding,  Blows up the search space too much.
         &REEEncoding,
         &RoaringBoolEncoding,
-        &RoaringIntEncoding,
+        // &RoaringIntEncoding,
         // Doesn't offer anything more than FoR really
         // ZigZagEncoding,
     ]

@@ -8,7 +8,7 @@ use crate::buffer::Buffer;
 use crate::ptype::{NativePType, PType};
 use crate::validity::{ArrayValidity, LogicalValidity, Validity, ValidityMetadata};
 use crate::visitor::{AcceptArrayVisitor, ArrayVisitor};
-use crate::{impl_encoding, ArrayDType};
+use crate::{impl_encoding, ArrayDType, OwnedArray};
 use crate::{match_each_native_ptype, ArrayFlatten};
 
 mod accessor;
@@ -129,7 +129,7 @@ impl<T: NativePType> From<Vec<T>> for PrimitiveArray<'_> {
 }
 
 impl<T: NativePType> IntoArray<'static> for Vec<T> {
-    fn into_array(self) -> Array<'static> {
+    fn into_array(self) -> OwnedArray {
         PrimitiveArray::from(self).into_array()
     }
 }
