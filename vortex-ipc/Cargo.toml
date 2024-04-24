@@ -31,6 +31,8 @@ walkdir = { workspace = true }
 criterion = { workspace = true }
 rand = { workspace = true }
 simplelog = { workspace = true }
+vortex-fastlanes = { path = "../vortex-fastlanes" }
+vortex-alp = { path = "../vortex-alp" }
 
 [lints]
 workspace = true
