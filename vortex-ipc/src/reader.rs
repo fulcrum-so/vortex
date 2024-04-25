@@ -187,7 +187,6 @@ impl<'a, R: Read> StreamArrayReader<'a, R> {
 
             let shifted_arr = PrimitiveArray::from(shifted).to_array().to_static();
             let from_current_batch = take(&batch, &shifted_arr)?;
-            println!("from_current_batch: {:?}", from_current_batch);
             found_so_far += from_current_batch.len();
             chunks.push(from_current_batch);
             offset += batch.len();
