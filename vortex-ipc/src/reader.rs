@@ -196,7 +196,7 @@ impl<'a, R: Read> StreamArrayReader<'a, R> {
         }
         self.byte_offset = offset;
         if found_so_far < idx_len {
-            return Err(vortex_err!("EOF encountered before finding all indices"));
+            vortex_bail!("EOF encountered before finding all indices")
         }
 
         let result = if chunks.len() == 1 {
