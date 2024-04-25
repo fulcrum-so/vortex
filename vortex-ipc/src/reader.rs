@@ -120,7 +120,6 @@ impl<R: Read> FallibleLendingIterator for StreamReader<R> {
             messages: &mut self.messages,
             dtype,
             buffers: vec![],
-            column_msg_buffer: vec![],
             byte_offset: 0,
         }))
     }
@@ -133,7 +132,6 @@ pub struct StreamArrayReader<'a, R: Read> {
     messages: &'a mut StreamMessageReader,
     dtype: DType,
     buffers: Vec<Buffer<'a>>,
-    column_msg_buffer: Vec<u8>,
     byte_offset: usize,
 }
 
