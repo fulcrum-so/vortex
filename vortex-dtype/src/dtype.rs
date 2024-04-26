@@ -3,6 +3,7 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 use itertools::Itertools;
+
 use DType::*;
 
 use crate::{CompositeID, PType};
@@ -113,6 +114,30 @@ impl DType {
 
     pub fn eq_ignore_nullability(&self, other: &Self) -> bool {
         self.as_nullable().eq(&other.as_nullable())
+    }
+
+    pub fn is_unsigned_int(&self) -> bool {
+        PType::try_from(self)
+            .map(|ptype| ptype.is_unsigned_int())
+            .unwrap_or_default()
+    }
+
+    pub fn is_signed_int(&self) -> bool {
+        PType::try_from(self)
+            .map(|ptype| ptype.is_signed_int())
+            .unwrap_or_default()
+    }
+
+    pub fn is_int(&self) -> bool {
+        PType::try_from(self)
+            .map(|ptype| ptype.is_int())
+            .unwrap_or_default()
+    }
+
+    pub fn is_float(&self) -> bool {
+        PType::try_from(self)
+            .map(|ptype| ptype.is_float())
+            .unwrap_or_default()
     }
 }
 

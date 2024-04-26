@@ -2,11 +2,12 @@ use std::fmt::{Debug, Display, Formatter};
 use std::panic::RefUnwindSafe;
 
 use num_traits::{FromPrimitive, Num, NumCast};
+
 use vortex_error::{vortex_err, VortexError, VortexResult};
 
-use crate::half::f16;
 use crate::DType;
 use crate::DType::*;
+use crate::half::f16;
 use crate::Nullability::NonNullable;
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -148,32 +149,6 @@ impl PType {
             PType::I64 => PType::U64,
             _ => self,
         }
-    }
-}
-
-impl DType {
-    pub fn is_unsigned_int(&self) -> bool {
-        PType::try_from(self)
-            .map(|ptype| ptype.is_unsigned_int())
-            .unwrap_or_default()
-    }
-
-    pub fn is_signed_int(&self) -> bool {
-        PType::try_from(self)
-            .map(|ptype| ptype.is_signed_int())
-            .unwrap_or_default()
-    }
-
-    pub fn is_int(&self) -> bool {
-        PType::try_from(self)
-            .map(|ptype| ptype.is_int())
-            .unwrap_or_default()
-    }
-
-    pub fn is_float(&self) -> bool {
-        PType::try_from(self)
-            .map(|ptype| ptype.is_float())
-            .unwrap_or_default()
     }
 }
 

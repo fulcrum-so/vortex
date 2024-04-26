@@ -88,9 +88,22 @@ zigzag = "0.1.0"
 
 [workspace.lints.rust]
 warnings = "deny"
+unsafe_op_in_unsafe_fn = "deny"
 
 [workspace.lints.clippy]
 all = "deny"
+if_then_some_else_none = { level = "deny" }
+mem_forget = { level = "deny" }
+multiple_inherent_impl = { level = "deny" }
+#panic = { level = "deny" }
+panic_in_result_fn = { level = "deny" }
+same_name_method = { level = "deny" }
+self_named_module_files = { level = "deny" }
+tests_outside_test_module = { level = "deny" }
+unreachable = { level = "deny" }
+unwrap_used = { level = "deny" }
+unwrap_in_result = { level = "deny" }
+use_debug = { level = "deny" }
 
 [profile.dev]
 # Need this for linkme crate to work. See https://github.com/dtolnay/linkme/issues/61

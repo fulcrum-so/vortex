@@ -26,8 +26,10 @@ impl AlignedAllocator {
         ptr.align_offset(self.min_alignment) == 0
     }
 
-    fn ensure_min_alignment(&self, layout: Layout) -> Result<Layout, LayoutError> {
-        layout.align_to(self.min_alignment)
+    fn ensure_min_alignment(&self, layout: Layout) -> Layout {
+        layout
+            .align_to(self.min_alignment)
+            .expect("failed to align layout")
     }
 }
 
@@ -39,11 +41,11 @@ impl Default for AlignedAllocator {
 
 unsafe impl Allocator for AlignedAllocator {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        Global.allocate(self.ensure_min_alignment(layout).map_err(|_| AllocError)?)
+        Global.allocate(self.ensure_min_alignment(layout))
     }
 
     unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
-        Global.deallocate(ptr, self.ensure_min_alignment(layout).unwrap())
+        unsafe { Global.deallocate(ptr, self.ensure_min_alignment(layout)) }
     }
 }
 

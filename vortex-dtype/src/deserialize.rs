@@ -34,17 +34,24 @@ impl ReadFlatBuffer<DTypeSerdeContext> for DType {
         match fb.type_type() {
             fb::Type::Null => Ok(DType::Null),
             fb::Type::Bool => Ok(DType::Bool(
-                fb.type__as_bool().unwrap().nullability().try_into()?,
+                fb.type__as_bool()
+                    .ok_or_else(|| vortex_err!("type__as_bool returned None"))?
+                    .nullability()
+                    .try_into()?,
             )),
             fb::Type::Primitive => {
-                let fb_primitive = fb.type__as_primitive().unwrap();
+                let fb_primitive = fb
+                    .type__as_primitive()
+                    .ok_or_else(|| vortex_err!("type__as_primitive returned None"))?;
                 Ok(DType::Primitive(
                     fb_primitive.ptype().try_into()?,
                     fb_primitive.nullability().try_into()?,
                 ))
             }
             fb::Type::Decimal => {
-                let fb_decimal = fb.type__as_decimal().unwrap();
+                let fb_decimal = fb
+                    .type__as_decimal()
+                    .ok_or_else(|| vortex_err!("type__as_decimal returned None"))?;
                 Ok(DType::Decimal(
                     fb_decimal.precision(),
                     fb_decimal.scale(),
@@ -52,39 +59,60 @@ impl ReadFlatBuffer<DTypeSerdeContext> for DType {
                 ))
             }
             fb::Type::Binary => Ok(DType::Binary(
-                fb.type__as_binary().unwrap().nullability().try_into()?,
+                fb.type__as_binary()
+                    .ok_or_else(|| vortex_err!("type__as_binary returned None"))?
+                    .nullability()
+                    .try_into()?,
             )),
             fb::Type::Utf8 => Ok(DType::Utf8(
-                fb.type__as_utf_8().unwrap().nullability().try_into()?,
+                fb.type__as_utf_8()
+                    .ok_or_else(|| vortex_err!("type__as_utf_8 returned None"))?
+                    .nullability()
+                    .try_into()?,
             )),
             fb::Type::List => {
-                let fb_list = fb.type__as_list().unwrap();
-                let element_dtype = DType::read_flatbuffer(ctx, &fb_list.element_type().unwrap())?;
+                let fb_list = fb
+                    .type__as_list()
+                    .ok_or_else(|| vortex_err!("type__as_list returned None"))?;
+                let element_dtype = DType::read_flatbuffer(
+                    ctx,
+                    &fb_list
+                        .element_type()
+                        .ok_or_else(|| vortex_err!("list element_type returned None"))?,
+                )?;
                 Ok(DType::List(
                     Box::new(element_dtype),
                     fb_list.nullability().try_into()?,
                 ))
             }
             fb::Type::Struct_ => {
-                let fb_struct = fb.type__as_struct_().unwrap();
+                let fb_struct = fb
+                    .type__as_struct_()
+                    .ok_or_else(|| vortex_err!("type__as_struct_ returned None"))?;
                 let names = fb_struct
                     .names()
-                    .unwrap()
+                    .ok_or_else(|| vortex_err!("struct names returned None"))?
                     .iter()
                     .map(|n| Arc::new(n.to_string()))
                     .collect::<Vec<_>>();
                 let fields: Vec<DType> = fb_struct
                     .fields()
-                    .unwrap()
+                    .ok_or_else(|| vortex_err!("struct fields returned None"))?
                     .iter()
                     .map(|f| DType::read_flatbuffer(ctx, &f))
                     .collect::<VortexResult<Vec<_>>>()?;
                 Ok(DType::Struct(names, fields))
             }
             fb::Type::Composite => {
-                let fb_composite = fb.type__as_composite().unwrap();
+                let fb_composite = fb
+                    .type__as_composite()
+                    .ok_or_else(|| vortex_err!("type__as_composite returned None"))?;
                 let id = ctx
-                    .find_composite_id(fb_composite.id().unwrap())
+                    .find_composite_id(
+                        fb_composite
+                            .id()
+                            .ok_or_else(|| vortex_err!("composite id returned None"))?,
+                    )
                     .ok_or_else(|| vortex_err!("Couldn't find composite id"))?;
                 Ok(DType::Composite(id, fb_composite.nullability().try_into()?))
             }

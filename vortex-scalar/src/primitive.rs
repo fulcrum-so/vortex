@@ -3,13 +3,22 @@ use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::mem::size_of;
 
-use vortex_dtype::half::f16;
+use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
+use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
+use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
 use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
 use vortex_dtype::{DType, Nullability};
 use vortex_dtype::{NativePType, PType};
+use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
+use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
+use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
+use vortex_dtype::half::f16;
 use vortex_error::{vortex_bail, vortex_err, VortexError, VortexResult};
 
 use crate::Scalar;
+
+use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
+use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
 
 pub trait PScalarType: NativePType + Into<PScalar> + TryFrom<PScalar, Error = VortexError> {}
 impl<T: NativePType + Into<PScalar> + TryFrom<PScalar, Error = VortexError>> PScalarType for T {}
@@ -48,15 +57,33 @@ impl PrimitiveScalar {
     }
 
     pub fn nullable<T: PScalarType>(value: Option<T>) -> Self {
-        Self::try_new(value, Nullability::Nullable).unwrap()
+        Self::try_new(value, Nullability::Nullable).unwrap_or_else(|e| {
+            panic!(
+                "Failed to create nullable scalar of type {}: {}",
+                any::type_name::<T>(),
+                e
+            )
+        })
     }
 
     pub fn some<T: PScalarType>(value: T) -> Self {
-        Self::try_new::<T>(Some(value), Nullability::default()).unwrap()
+        Self::try_new::<T>(Some(value), Nullability::default()).unwrap_or_else(|e| {
+            panic!(
+                "Failed to create \"Some\" scalar of type {}: {}",
+                any::type_name::<T>(),
+                e
+            )
+        })
     }
 
     pub fn none<T: PScalarType>() -> Self {
-        Self::try_new::<T>(None, Nullability::Nullable).unwrap()
+        Self::try_new::<T>(None, Nullability::Nullable).unwrap_or_else(|e| {
+            panic!(
+                "Failed to create \"None\" scalar of type {}: {}",
+                any::type_name::<T>(),
+                e
+            )
+        })
     }
 
     #[inline]
@@ -70,7 +97,16 @@ impl PrimitiveScalar {
             self.ptype,
             "typed_value called with incorrect ptype"
         );
-        self.value.map(|v| v.try_into().unwrap())
+        self.value.map(|v| {
+            v.try_into().unwrap_or_else(|e| {
+                panic!(
+                    "failed to convert scalar with ptype {} to {}: {}",
+                    self.ptype,
+                    any::type_name::<T>(),
+                    e
+                )
+            })
+        })
     }
 
     #[inline]
@@ -360,8 +396,8 @@ impl Display for PScalar {
 
 #[cfg(test)]
 mod test {
-    use vortex_dtype::PType;
     use vortex_dtype::{DType, Nullability};
+    use vortex_dtype::PType;
     use vortex_error::VortexError;
 
     use crate::Scalar;

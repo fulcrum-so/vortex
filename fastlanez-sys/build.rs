@@ -5,9 +5,10 @@ use std::process::{Command, Stdio};
 use walkdir::WalkDir;
 
 fn main() {
-    let buildrs_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
-        .canonicalize()
-        .expect("Failed to canonicalize CARGO_MANIFEST_DIR");
+    let buildrs_dir =
+        PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("Missing CARGO_MANIFEST_DIR"))
+            .canonicalize()
+            .expect("Failed to canonicalize CARGO_MANIFEST_DIR");
     let root_dir = buildrs_dir
         .join("../")
         .canonicalize()
@@ -17,7 +18,10 @@ fn main() {
     // Tell cargo to tell rustc to link fastlanez
     println!(
         "cargo:rustc-link-search={}",
-        fastlanez_dir.join("zig-out/lib").to_str().unwrap()
+        fastlanez_dir
+            .join("zig-out/lib")
+            .to_str()
+            .expect("invalid zig-out/lib path")
     );
     println!("cargo:rustc-link-lib=fastlanez");
 
@@ -37,13 +41,13 @@ fn main() {
         .spawn()
         .expect("Could not invoke `zig build`")
         .wait()
-        .unwrap()
+        .unwrap_or_else(|e| panic!("failed to invoke `zig build`: {}", e))
         .success()
     {
         // Panic if the command was not successful.
         panic!(
             "failed to successfully invoke `zig build` in {}",
-            root_dir.to_str().unwrap()
+            root_dir.to_str().expect("invalid root_dir path")
         );
     }
 
@@ -52,7 +56,7 @@ fn main() {
             fastlanez_dir
                 .join("zig-out/include/fastlanez.h")
                 .to_str()
-                .unwrap(),
+                .expect("invalid zig-out/include/fastlanez.h path"),
         )
         .clang_args(&[
             get_zig_include().as_ref(),
@@ -64,7 +68,7 @@ fn main() {
         .expect("Unable to generate bindings");
 
     // Write the bindings to the $OUT_DIR/bindings.rs file.
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let out_path = PathBuf::from(env::var("OUT_DIR").expect("Missing OUT_DIR"));
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
@@ -74,15 +78,18 @@ fn rerun_if_changed(path: &Path) {
     println!(
         "cargo:rerun-if-changed={}",
         path.canonicalize()
-            .unwrap_or_else(|_| panic!("failed to canonicalize {}", path.to_str().unwrap()))
+            .unwrap_or_else(|_| panic!(
+                "failed to canonicalize {}",
+                path.to_str().expect("invalid path")
+            ))
             .to_str()
-            .unwrap()
+            .expect("invalid path")
     );
 }
 
 fn get_zig_opt() -> &'static str {
-    let profile_env = env::var("PROFILE").unwrap();
-    let opt_level_zero = env::var("OPT_LEVEL").unwrap() == "0";
+    let profile_env = env::var("PROFILE").expect("Missing PROFILE");
+    let opt_level_zero = env::var("OPT_LEVEL").expect("Missing OPT_LEVEL") == "0";
 
     // based on https://doc.rust-lang.org/cargo/reference/environment-variables.html
     //

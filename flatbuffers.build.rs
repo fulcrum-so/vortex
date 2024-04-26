@@ -7,11 +7,12 @@ use flatc::flatc;
 use walkdir::WalkDir;
 
 fn main() {
-    let flatbuffers_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
-        .canonicalize()
-        .expect("Failed to canonicalize CARGO_MANIFEST_DIR")
-        .join("flatbuffers");
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap())
+    let flatbuffers_dir =
+        PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("Missing CARGO_MANIFEST_DIR"))
+            .canonicalize()
+            .expect("Failed to canonicalize CARGO_MANIFEST_DIR")
+            .join("flatbuffers");
+    let out_dir = PathBuf::from(env::var("OUT_DIR").expect("Missing OUT_DIR"))
         .canonicalize()
         .expect("Failed to canonicalize OUT_DIR");
 
@@ -37,7 +38,7 @@ fn main() {
         .arg(out_dir.join("flatbuffers"))
         .args(fbs_files)
         .status()
-        .unwrap()
+        .unwrap_or_else(|e| panic!("Failed to run flatc: {}", e))
         .success()
     {
         panic!("Failed to run flatc");
@@ -48,8 +49,11 @@ fn rerun_if_changed(path: &Path) {
     println!(
         "cargo:rerun-if-changed={}",
         path.canonicalize()
-            .unwrap_or_else(|_| panic!("failed to canonicalize {}", path.to_str().unwrap()))
+            .unwrap_or_else(|_| panic!(
+                "failed to canonicalize {}",
+                path.to_str().expect("invalid path")
+            ))
             .to_str()
-            .unwrap()
+            .expect("invalid path")
     );
 }
