@@ -31,10 +31,21 @@ walkdir = { workspace = true }
 criterion = { workspace = true }
 rand = { workspace = true }
 simplelog = { workspace = true }
+vortex-fastlanes = { path = "../vortex-fastlanes" }
+vortex-alp = { path = "../vortex-alp" }
+arrow = { workspace = true }
+arrow-array = { workspace = true }
+arrow-ipc = { workspace = true, features = ["lz4"] }
+arrow-schema = { workspace = true }
+arrow-select = { workspace = true }
 
 [lints]
 workspace = true
 
 [[bench]]
 name = "ipc_take"
+harness = false
+
+[[bench]]
+name = "ipc_array_reader_take"
 harness = false

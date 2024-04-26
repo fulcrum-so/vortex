@@ -74,3 +74,10 @@ impl<W: Write> StreamWriter<W> {
         Ok(())
     }
 }
+
+impl<W: Write> Drop for StreamWriter<W> {
+    fn drop(&mut self) {
+        // Terminate the stream
+        let _ = self.write.write_all(&[u8::MAX; 4]);
+    }
+}

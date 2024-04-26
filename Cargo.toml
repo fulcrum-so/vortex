@@ -16,7 +16,7 @@ members = [
     "vortex-ree",
     "vortex-roaring",
     "vortex-schema",
-    #"vortex-zigzag",
+    "vortex-zigzag",
 ]
 resolver = "2"
 
@@ -44,6 +44,7 @@ arrow-array = "51.0.0"
 arrow-buffer = "51.0.0"
 arrow-csv = "51.0.0"
 arrow-data = "51.0.0"
+arrow-ipc = "51.0.0"
 arrow-schema = "51.0.0"
 arrow-select = "51.0.0"
 bindgen = "0.69.4"

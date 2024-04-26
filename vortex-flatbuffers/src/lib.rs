@@ -1,8 +1,7 @@
 use std::io;
-use std::io::{Read, Write};
+use std::io::Write;
 
-use flatbuffers::{root, FlatBufferBuilder, Follow, Verifiable, WIPOffset};
-use vortex_error::{vortex_err, VortexResult};
+use flatbuffers::{FlatBufferBuilder, WIPOffset};
 
 pub trait FlatBufferRoot {}
 
@@ -32,35 +31,6 @@ impl<F: WriteFlatBuffer + FlatBufferRoot> FlatBufferToBytes for F {
         let root_offset = self.write_flatbuffer(&mut fbb);
         fbb.finish_minimal(root_offset);
         f(fbb.finished_data())
-    }
-}
-
-pub trait FlatBufferReader {
-    /// Returns Ok(None) if the reader has reached EOF.
-    fn read_message<'a, F>(&mut self, buffer: &'a mut Vec<u8>) -> VortexResult<Option<F>>
-    where
-        F: 'a + Follow<'a, Inner = F> + Verifiable;
-}
-
-impl<R: Read> FlatBufferReader for R {
-    fn read_message<'a, F>(&mut self, buffer: &'a mut Vec<u8>) -> VortexResult<Option<F>>
-    where
-        F: 'a + Follow<'a, Inner = F> + Verifiable,
-    {
-        let mut msg_size: [u8; 4] = [0; 4];
-        if let Err(e) = self.read_exact(&mut msg_size) {
-            return match e.kind() {
-                io::ErrorKind::UnexpectedEof => Ok(None),
-                _ => Err(vortex_err!(IOError: e)),
-            };
-        }
-        let msg_size = u32::from_le_bytes(msg_size) as u64;
-        if msg_size == 0 {
-            // FIXME(ngates): I think this is wrong.
-            return Ok(None);
-        }
-        self.take(msg_size).read_to_end(buffer)?;
-        Ok(Some(root::<F>(buffer)?))
     }
 }
 

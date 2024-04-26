@@ -48,6 +48,7 @@ vortex-fastlanes = { path = "../vortex-fastlanes" }
 vortex-ipc = { path = "../vortex-ipc" }
 vortex-ree = { path = "../vortex-ree" }
 vortex-schema = { path = "../vortex-schema" }
+vortex-zigzag = { path = "../vortex-zigzag" }
 
 [dev-dependencies]
 criterion = { workspace = true }

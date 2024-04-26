@@ -66,10 +66,24 @@ impl PrimitiveArray<'_> {
     }
 
     pub fn scalar_buffer<T: NativePType>(&self) -> ScalarBuffer<T> {
+        assert_eq!(
+            T::PTYPE,
+            self.ptype(),
+            "Attempted to get scalar buffer of type {} from array of type {}",
+            T::PTYPE,
+            self.ptype(),
+        );
         ScalarBuffer::new(self.buffer().clone().into(), 0, self.len())
     }
 
     pub fn typed_data<T: NativePType>(&self) -> &[T] {
+        assert_eq!(
+            T::PTYPE,
+            self.ptype(),
+            "Attempted to get typed_data of type {} from array of type {}",
+            T::PTYPE,
+            self.ptype(),
+        );
         self.buffer().typed_data::<T>()
     }
 

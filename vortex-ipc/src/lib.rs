@@ -70,8 +70,10 @@ mod tests {
 
         let mut cursor = Cursor::new(Vec::new());
         let ctx = SerdeContext::default();
-        let mut writer = StreamWriter::try_new_unbuffered(&mut cursor, ctx).unwrap();
-        writer.write_array(&arr).unwrap();
+        {
+            let mut writer = StreamWriter::try_new_unbuffered(&mut cursor, ctx).unwrap();
+            writer.write_array(&arr).unwrap();
+        }
         cursor.flush().unwrap();
         cursor.set_position(0);
 
