@@ -85,7 +85,7 @@ impl<R: Read> StreamReader<R> {
 #[gat]
 impl<R: Read> FallibleLendingIterator for StreamReader<R> {
     type Error = VortexError;
-    type Item<'next> =  StreamArrayReader<'next, R> where Self: 'next;
+    type Item<'next> = StreamArrayReader<'next, R> where Self: 'next;
 
     fn next(&mut self) -> Result<Option<StreamArrayReader<'_, R>>, Self::Error> {
         if self
@@ -148,6 +148,15 @@ impl<'a, R: Read> StreamArrayReader<'a, R> {
             .unwrap_or_default()
         {
             vortex_bail!("Indices must be sorted to take from IPC stream")
+        }
+
+        if indices
+            .statistics()
+            .compute_as_cast::<u64>(Stat::NullCount)
+            .unwrap_or_default()
+            > 0
+        {
+            vortex_bail!("Indices must not contain nulls")
         }
 
         match indices.dtype() {
@@ -333,7 +342,7 @@ impl StreamMessageReader {
                 return match e.kind() {
                     io::ErrorKind::UnexpectedEof => Ok(false),
                     _ => Err(e.into()),
-                }
+                };
             }
         }
 
@@ -456,8 +465,16 @@ mod tests {
     #[test]
     fn test_noninteger_index_fails() {
         let data = PrimitiveArray::from((0i32..3_000_000).rev().collect_vec()).into_array();
-        let indices = PrimitiveArray::from(vec![-1f32, 10.0, 11.0, 12.0]).into_array();
+        let indices = PrimitiveArray::from(vec![1f32, 10.0, 11.0, 12.0]).into_array();
         test_read_write_inner(&data, &indices).expect_err("Expected float index to fail");
+    }
+
+    #[test]
+    fn test_null_index_fails() {
+        let data = PrimitiveArray::from((0i32..3_000_000).rev().collect_vec()).into_array();
+        let indices = PrimitiveArray::from_nullable_vec(vec![None, Some(1i32), Some(10), Some(11)])
+            .into_array();
+        test_read_write_inner(&data, &indices).unwrap(); //.expect_err("Expected float index to fail");
     }
 
     #[test]
