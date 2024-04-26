@@ -164,9 +164,7 @@ impl<'a, R: Read> StreamArrayReader<'a, R> {
                     vortex_bail!("Indices must be positive")
                 }
             }
-            _ => {
-                vortex_bail!("Indices must be integers")
-            }
+            _ => vortex_bail!("Indices must be integers"),
         }
 
         if self.row_offset != 0 {
@@ -359,18 +357,17 @@ impl StreamMessageReader {
 #[cfg(test)]
 mod tests {
     use std::io::{Cursor, Read, Write};
-    use std::sync::Arc;
 
     use itertools::Itertools;
     use vortex::array::chunked::{Chunked, ChunkedArray, ChunkedEncoding};
     use vortex::array::primitive::{Primitive, PrimitiveArray, PrimitiveEncoding};
-    use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
-    use vortex::encoding::{ArrayEncoding, EncodingId, EncodingRef};
+    use vortex::encoding::{ArrayEncoding, EncodingId};
     use vortex::ptype::NativePType;
+    use vortex::validity::Validity;
     use vortex::{Array, ArrayDType, ArrayDef, IntoArray, OwnedArray, SerdeContext};
     use vortex_alp::{ALPArray, ALPEncoding};
     use vortex_error::VortexResult;
-    use vortex_fastlanes::BitPackedEncoding;
+    use vortex_fastlanes::{BitPackedArray, BitPackedEncoding};
 
     use crate::iter::FallibleLendingIterator;
     use crate::reader::StreamReader;
@@ -466,20 +463,21 @@ mod tests {
     #[test]
     fn test_write_read_bitpacked() {
         // NB: the order is reversed here to ensure we aren't grabbing indexes instead of values
-        let uncompressed = PrimitiveArray::from((0i64..3_000_000).rev().collect_vec());
+        let uncompressed = PrimitiveArray::from((0i64..3_000).rev().collect_vec());
+        // NB: bit_width here must be >= 2^ceil(log2(MAX_VALUE)) for correct packing w/o patches
+        let packed = BitPackedArray::encode(&uncompressed, Validity::AllValid, None, 12).unwrap();
 
-        let cfg = CompressConfig::new().with_enabled([&BitPackedEncoding as EncodingRef]);
-        let ctx = CompressCtx::new(Arc::new(cfg));
-
-        let packed = BitPackedEncoding {}
-            .compress(uncompressed.array(), None, ctx)
-            .unwrap();
         assert_eq!(packed.encoding().id(), BitPackedEncoding.id());
-        test_base_case(
-            &packed,
-            &[2999989i64, 2999988, 2999987, 2999986, 2899999, 0, 0],
-            PrimitiveEncoding.id(),
-        );
+
+        let indices = PrimitiveArray::from(vec![1i32, 2, 3, 4, 5, 6, 7, 7, 7, 8]).into_array();
+        let array = test_read_write_inner(&packed, &indices).unwrap();
+        let expected = &[2998, 2997, 2996, 2995, 2994, 2993, 2992, 2992, 2992, 2991];
+        let results = array
+            .flatten_primitive()
+            .unwrap()
+            .typed_data::<i64>()
+            .to_vec();
+        assert_eq!(results, expected);
     }
 
     #[test]

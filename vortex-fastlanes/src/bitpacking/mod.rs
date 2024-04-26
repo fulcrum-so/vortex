@@ -1,9 +1,10 @@
 use ::serde::{Deserialize, Serialize};
 pub use compress::*;
+use vortex::array::primitive::PrimitiveArray;
 use vortex::stats::ArrayStatisticsCompute;
 use vortex::validity::{ArrayValidity, LogicalValidity, Validity, ValidityMetadata};
 use vortex::visitor::{AcceptArrayVisitor, ArrayVisitor};
-use vortex::{impl_encoding, ArrayDType, ArrayFlatten, IntoArrayData};
+use vortex::{impl_encoding, ArrayDType, ArrayFlatten, IntoArrayData, OwnedArray};
 use vortex_error::{vortex_bail, vortex_err, VortexResult};
 use vortex_schema::{IntWidth, Nullability, Signedness};
 
@@ -120,6 +121,24 @@ impl BitPackedArray<'_> {
             },
             &Validity::DTYPE,
         ))
+    }
+
+    pub fn encode(
+        parray: &PrimitiveArray<'_>,
+        validity: Validity,
+        patches: Option<Array>,
+        bit_width: usize,
+    ) -> VortexResult<OwnedArray> {
+        let packed = bitpack(&parray, bit_width)?;
+        BitPackedArray::try_new(
+            packed,
+            validity,
+            patches,
+            bit_width,
+            parray.dtype().clone(),
+            parray.len(),
+        )
+        .map(|a| a.into_array())
     }
 }
 

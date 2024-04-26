@@ -72,10 +72,8 @@ impl EncodingCompression for BitPackedEncoding {
             return Ok(array.to_static());
         }
 
-        let packed = bitpack(&parray, bit_width)?;
-
         let validity = ctx.compress_validity(parray.validity())?;
-
+        let packed = bitpack(&parray, bit_width)?;
         let patches = if num_exceptions > 0 {
             Some(ctx.auxiliary("patches").compress(
                 &bitpack_patches(&parray, bit_width, num_exceptions),
@@ -97,7 +95,7 @@ impl EncodingCompression for BitPackedEncoding {
     }
 }
 
-fn bitpack(parray: &PrimitiveArray, bit_width: usize) -> VortexResult<OwnedArray> {
+pub(crate) fn bitpack(parray: &PrimitiveArray, bit_width: usize) -> VortexResult<OwnedArray> {
     // We know the min is > 0, so it's safe to re-interpret signed integers as unsigned.
     // TODO(ngates): we should implement this using a vortex cast to centralize this hack.
     let bytes = match_integers_by_width!(parray.ptype(), |$P| {

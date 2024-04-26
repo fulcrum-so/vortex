@@ -8,6 +8,9 @@ use vortex_ipc::iter::FallibleLendingIterator;
 use vortex_ipc::reader::StreamReader;
 use vortex_ipc::writer::StreamWriter;
 
+// 100 record batches, 100k rows each
+// take from the first 20 batches and last batch
+// compare with arrow
 fn ipc_take(c: &mut Criterion) {
     let indices = PrimitiveArray::from(vec![10, 11, 12, 13, 100_000, 2_999_999]).into_array();
     let data = PrimitiveArray::from(vec![5; 3_000_000]).into_array();
