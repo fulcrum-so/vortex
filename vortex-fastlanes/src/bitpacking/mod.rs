@@ -129,7 +129,7 @@ impl BitPackedArray<'_> {
         patches: Option<Array>,
         bit_width: usize,
     ) -> VortexResult<OwnedArray> {
-        let packed = bitpack(&parray, bit_width)?;
+        let packed = bitpack(parray, bit_width)?;
         BitPackedArray::try_new(
             packed,
             validity,
