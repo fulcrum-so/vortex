@@ -8,12 +8,15 @@ use search_sorted::SearchSortedFn;
 use slice::SliceFn;
 use take::TakeFn;
 
+use crate::compute::scalar_subtract::ScalarSubtractFn;
+
 pub mod as_arrow;
 pub mod as_contiguous;
 pub mod cast;
 pub mod fill;
 pub mod patch;
 pub mod scalar_at;
+pub mod scalar_subtract;
 pub mod search_sorted;
 pub mod slice;
 pub mod take;
@@ -40,6 +43,10 @@ pub trait ArrayCompute {
     }
 
     fn scalar_at(&self) -> Option<&dyn ScalarAtFn> {
+        None
+    }
+
+    fn scalar_subtract(&self) -> Option<&dyn ScalarSubtractFn> {
         None
     }
 

@@ -4,6 +4,7 @@ use crate::compute::as_contiguous::AsContiguousFn;
 use crate::compute::cast::CastFn;
 use crate::compute::fill::FillForwardFn;
 use crate::compute::scalar_at::ScalarAtFn;
+use crate::compute::scalar_subtract::ScalarSubtractFn;
 use crate::compute::search_sorted::SearchSortedFn;
 use crate::compute::slice::SliceFn;
 use crate::compute::take::TakeFn;
@@ -36,6 +37,10 @@ impl ArrayCompute for PrimitiveArray<'_> {
     }
 
     fn scalar_at(&self) -> Option<&dyn ScalarAtFn> {
+        Some(self)
+    }
+
+    fn scalar_subtract(&self) -> Option<&dyn ScalarSubtractFn> {
         Some(self)
     }
 

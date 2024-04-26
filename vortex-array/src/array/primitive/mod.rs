@@ -5,10 +5,12 @@ use serde::{Deserialize, Serialize};
 use vortex_error::{vortex_bail, VortexResult};
 
 use crate::buffer::Buffer;
+use crate::compute::scalar_subtract::ScalarSubtractFn;
 use crate::ptype::{NativePType, PType};
+use crate::scalar;
 use crate::validity::{ArrayValidity, LogicalValidity, Validity, ValidityMetadata};
 use crate::visitor::{AcceptArrayVisitor, ArrayVisitor};
-use crate::{impl_encoding, ArrayDType, OwnedArray};
+use crate::{impl_encoding, ArrayDType, OwnedArray, ToStatic};
 use crate::{match_each_native_ptype, ArrayFlatten};
 
 mod accessor;
@@ -191,3 +193,25 @@ impl<'a> Array<'a> {
 }
 
 impl EncodingCompression for PrimitiveEncoding {}
+
+impl ScalarSubtractFn for PrimitiveArray<'_> {
+    fn scalar_subtract(&self, summand: Scalar) -> VortexResult<OwnedArray> {
+        if self.dtype() != summand.dtype() {
+            vortex_bail!("MismatchedTypes: {}, {}", self.dtype(), summand.dtype())
+        }
+        match summand.dtype() {
+            DType::Int(..) => {}
+            DType::Decimal(..) => {}
+            DType::Float(..) => {}
+            DType::Utf8(_) => {}
+            _ => vortex_bail!(InvalidArgument: "summand must be a numeric type"),
+        }
+
+        let summed = match_each_native_ptype!(self.ptype(), |$T| {
+            let summand = <scalar::Scalar as TryInto<$T>>::try_into(summand)?;
+            let sum_vec : Vec<$T> = self.typed_data::<$T>().iter().map(|&v| v - summand).collect_vec();
+            PrimitiveArray::from(sum_vec)
+        });
+        Ok(summed.to_array().to_static())
+    }
+}
