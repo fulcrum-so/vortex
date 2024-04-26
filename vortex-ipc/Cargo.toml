@@ -46,7 +46,6 @@ workspace = true
 name = "ipc_take"
 harness = false
 
-
 [[bench]]
 name = "ipc_array_reader_take"
 harness = false

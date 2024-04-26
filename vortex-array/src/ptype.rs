@@ -137,7 +137,6 @@ macro_rules! match_each_integer_ptype {
         }
     })
 }
-
 pub use match_each_integer_ptype;
 
 impl PType {
