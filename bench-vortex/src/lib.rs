@@ -120,7 +120,7 @@ pub fn enumerate_arrays() -> Vec<EncodingRef> {
         &RoaringBoolEncoding,
         // &RoaringIntEncoding,
         // Doesn't offer anything more than FoR really
-        // ZigZagEncoding,
+        // &ZigZagEncoding,
     ]
 }
 

@@ -1,5 +1,6 @@
 use std::io;
 use std::io::{BufReader, Read};
+use std::marker::PhantomData;
 
 use arrow_buffer::Buffer as ArrowBuffer;
 use flatbuffers::{root, root_unchecked};
@@ -27,7 +28,7 @@ use crate::iter::{FallibleLendingIterator, FallibleLendingIteratorඞItem};
 #[allow(dead_code)]
 pub struct StreamReader<R: Read> {
     read: R,
-    messages: StreamMessageReader,
+    messages: StreamMessageReader<R>,
     ctx: SerdeContext,
 }
 
@@ -112,7 +113,7 @@ impl<R: Read> FallibleLendingIterator for StreamReader<R> {
                 .dtype()
                 .ok_or_else(|| vortex_err!(InvalidSerde: "Schema missing DType"))?,
         )
-        .map_err(|e| vortex_err!(InvalidSerde: "Failed to parse DType: {}", e))?;
+            .map_err(|e| vortex_err!(InvalidSerde: "Failed to parse DType: {}", e))?;
 
         Ok(Some(StreamArrayReader {
             ctx: &self.ctx,
@@ -129,7 +130,7 @@ impl<R: Read> FallibleLendingIterator for StreamReader<R> {
 pub struct StreamArrayReader<'a, R: Read> {
     ctx: &'a SerdeContext,
     read: &'a mut R,
-    messages: &'a mut StreamMessageReader,
+    messages: &'a mut StreamMessageReader<R>,
     dtype: DType,
     buffers: Vec<Buffer<'a>>,
     row_offset: usize,
@@ -164,11 +165,11 @@ impl<'a, R: Read> StreamArrayReader<'a, R> {
                 // indices must be positive integers
                 if signedness == &Signedness::Signed
                     && indices
-                        .statistics()
-                        // min cast should be safe
-                        .compute_as_cast::<i64>(Stat::Min)
-                        .unwrap()
-                        < 0
+                    .statistics()
+                    // min cast should be safe
+                    .compute_as_cast::<i64>(Stat::Min)
+                    .unwrap()
+                    < 0
                 {
                     vortex_bail!("Indices must be positive")
                 }
@@ -263,7 +264,7 @@ impl<'iter, R: Read> FallibleLendingIterator for StreamArrayReader<'iter, R> {
         // After reading the buffers we're now able to load the next message.
         let col_array = self
             .messages
-            .next(&mut self.read)?
+            .next(self.read)?
             .header_as_chunk()
             .unwrap()
             .array()
@@ -298,18 +299,20 @@ pub trait ReadExtensions: Read {
 
 impl<R: Read> ReadExtensions for R {}
 
-struct StreamMessageReader {
+struct StreamMessageReader<R: Read> {
     message: Vec<u8>,
     prev_message: Vec<u8>,
     finished: bool,
+    phantom: PhantomData<R>,
 }
 
-impl StreamMessageReader {
-    pub fn try_new<R: Read>(read: &mut R) -> VortexResult<Self> {
+impl<R: Read> StreamMessageReader<R> {
+    pub fn try_new(read: &mut R) -> VortexResult<Self> {
         let mut reader = Self {
             message: Vec::new(),
             prev_message: Vec::new(),
             finished: false,
+            phantom: PhantomData,
         };
         reader.load_next_message(read)?;
         Ok(reader)
@@ -323,7 +326,7 @@ impl StreamMessageReader {
         Some(unsafe { root_unchecked::<Message>(&self.message) })
     }
 
-    pub fn next<R: Read>(&mut self, read: &mut R) -> VortexResult<Message> {
+    pub fn next(&mut self, read: &mut R) -> VortexResult<Message> {
         if self.finished {
             panic!("StreamMessageReader is finished - should've checked peek!");
         }
@@ -334,7 +337,7 @@ impl StreamMessageReader {
         Ok(unsafe { root_unchecked::<Message>(&self.prev_message) })
     }
 
-    fn load_next_message<R: Read>(&mut self, read: &mut R) -> VortexResult<bool> {
+    fn load_next_message(&mut self, read: &mut R) -> VortexResult<bool> {
         let mut len_buf = [0u8; 4];
         match read.read_exact(&mut len_buf) {
             Ok(_) => {}
@@ -362,6 +365,7 @@ impl StreamMessageReader {
         Ok(true)
     }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -397,10 +401,10 @@ mod tests {
             writer.write_array(&array).unwrap();
             writer.write_array(&chunked_array).unwrap();
         }
-
         // Push some extra bytes to test that the reader is well-behaved and doesn't read past the
         // end of the stream.
         let _ = cursor.write(b"hello").unwrap();
+
         cursor.set_position(0);
         {
             let mut reader = StreamReader::try_new_unbuffered(&mut cursor).unwrap();
@@ -410,7 +414,6 @@ mod tests {
             assert_eq!(second.encoding().id(), Chunked::ID);
         }
         let _pos = cursor.position();
-
         // Test our termination bytes exist
         let mut terminator = [0u8; 5];
         cursor.read_exact(&mut terminator).unwrap();
@@ -436,7 +439,7 @@ mod tests {
                 .map(|v| v as f64 + 0.5)
                 .collect_vec(),
         )
-        .into_array();
+            .into_array();
         let apl_encoded = ALPArray::encode(pdata).unwrap();
         test_base_case(
             &apl_encoded,
@@ -474,7 +477,7 @@ mod tests {
         let data = PrimitiveArray::from((0i32..3_000_000).rev().collect_vec()).into_array();
         let indices = PrimitiveArray::from_nullable_vec(vec![None, Some(1i32), Some(10), Some(11)])
             .into_array();
-        test_read_write_inner(&data, &indices).unwrap(); //.expect_err("Expected float index to fail");
+        test_read_write_inner(&data, &indices).expect_err("Expected float index to fail");
     }
 
     #[test]
@@ -502,7 +505,7 @@ mod tests {
         let indices = PrimitiveArray::from(vec![
             10u32, 11, 12, 13, 100_000, 2_999_999, 2_999_999, 3_000_000,
         ])
-        .into_array();
+            .into_array();
 
         // NB: the order is reversed here to ensure we aren't grabbing indexes instead of values
         let data = PrimitiveArray::from((0i32..3_000_000).rev().collect_vec()).into_array();

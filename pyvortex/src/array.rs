@@ -27,6 +27,7 @@ use vortex_roaring::{
     OwnedRoaringBoolArray, OwnedRoaringIntArray, RoaringBool, RoaringBoolArray,
     RoaringBoolEncoding, RoaringInt, RoaringIntArray, RoaringIntEncoding,
 };
+use vortex_zigzag::{OwnedZigZagArray, ZigZag, ZigZagArray, ZigZagEncoding};
 
 use crate::dtype::PyDType;
 use crate::error::PyVortexError;
@@ -80,7 +81,7 @@ pyarray!(DictEncoding, DictArray, "DictArray");
 pyarray!(REEEncoding, REEArray, "REEArray");
 pyarray!(RoaringBoolEncoding, RoaringBoolArray, "RoaringBoolArray");
 pyarray!(RoaringIntEncoding, RoaringIntArray, "RoaringIntArray");
-// pyarray!(ZigZagEncoding, ZigZagArray, "ZigZagArray");
+pyarray!(ZigZagEncoding, ZigZagArray, "ZigZagArray");
 
 impl PyArray {
     pub fn wrap(py: Python<'_>, inner: ArrayData) -> PyResult<Py<Self>> {
@@ -176,6 +177,11 @@ impl PyArray {
                 py,
                 OwnedBitPackedArray::try_from(inner.into_array())
                     .map_err(PyVortexError::map_err)?,
+            )?
+            .extract(py),
+            ZigZag::ID => PyZigZagArray::wrap(
+                py,
+                OwnedZigZagArray::try_from(inner.into_array()).map_err(PyVortexError::map_err)?,
             )?
             .extract(py),
             _ => Py::new(

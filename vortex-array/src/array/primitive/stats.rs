@@ -70,20 +70,23 @@ impl<'a, T: NativePType> ArrayStatisticsCompute for NullableValues<'a, T> {
             return Ok(HashMap::default());
         }
 
-        let first_non_null = self
+        let first_non_null_idx = self
             .1
             .iter()
             .enumerate()
             .skip_while(|(_, valid)| !*valid)
-            .map(|(idx, _)| values[idx])
+            .map(|(idx, _)| idx)
             .next()
             .expect("Must be at least one non-null value");
 
-        let mut stats = StatsAccumulator::new(first_non_null);
+        let mut stats = StatsAccumulator::new_with_leading_nulls(
+            values[first_non_null_idx],
+            first_non_null_idx,
+        );
         values
             .iter()
             .zip(self.1.iter())
-            .skip(1)
+            .skip(first_non_null_idx + 1)
             .map(|(next, valid)| valid.then_some(*next))
             .for_each(|next| stats.nullable_next(next));
         Ok(stats.into_map())
@@ -159,6 +162,14 @@ impl<T: NativePType> StatsAccumulator<T> {
         };
         stats.bit_widths[first_value.bit_width()] += 1;
         stats.trailing_zeros[first_value.trailing_zeros()] += 1;
+        stats
+    }
+
+    fn new_with_leading_nulls(first_value: T, leading_null_count: usize) -> Self {
+        let mut stats = Self::new(first_value);
+        stats.null_count += leading_null_count;
+        stats.bit_widths[0] += leading_null_count;
+        stats.trailing_zeros[T::PTYPE.bit_width()] += leading_null_count;
         stats
     }
 
@@ -274,11 +285,15 @@ mod test {
 
     #[test]
     fn nullable_stats_u8() {
-        let arr = PrimitiveArray::from_nullable_vec(vec![None, Some(1i32), None, Some(2)]);
+        let arr = PrimitiveArray::from_nullable_vec(vec![None, None, Some(1i32), Some(2), None]);
         let min: Option<i32> = arr.statistics().compute_as(Stat::Min);
         let max: Option<i32> = arr.statistics().compute_as(Stat::Max);
+        let null_count: Option<u64> = arr.statistics().compute_as(Stat::NullCount);
+        let is_strict_sorted: bool = arr.statistics().compute_as(Stat::IsStrictSorted).unwrap();
         assert_eq!(min, Some(1));
         assert_eq!(max, Some(2));
+        assert_eq!(null_count, Some(3));
+        assert!(is_strict_sorted);
     }
 
     #[test]

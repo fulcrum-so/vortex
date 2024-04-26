@@ -1,26 +1,23 @@
-use vortex::array::downcast::DowncastArrayBuiltin;
 use vortex::array::primitive::PrimitiveArray;
-use vortex::array::{Array, ArrayKind, ArrayRef};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
 use vortex::ptype::{NativePType, PType};
-use vortex::stats::Stat;
-use vortex::validity::{OwnedValidity, ValidityView};
-use vortex::view::ToOwnedView;
+use vortex::stats::{ArrayStatistics, Stat};
+use vortex::validity::Validity;
+use vortex::{Array, IntoArray, OwnedArray};
 use vortex_alloc::{AlignedVec, ALIGNED_ALLOCATOR};
 use vortex_error::VortexResult;
-use zigzag::ZigZag;
+use zigzag::ZigZag as ExternalZigZag;
 
-use crate::downcast::DowncastZigzag;
-use crate::zigzag::{ZigZagArray, ZigZagEncoding};
+use crate::{OwnedZigZagArray, ZigZagArray, ZigZagEncoding};
 
 impl EncodingCompression for ZigZagEncoding {
     fn can_compress(
         &self,
-        array: &dyn Array,
+        array: &Array,
         _config: &CompressConfig,
     ) -> Option<&dyn EncodingCompression> {
         // Only support primitive arrays
-        let parray = array.maybe_primitive()?;
+        let parray = PrimitiveArray::try_from(array).ok()?;
 
         // Only supports signed integers
         if !parray.ptype().is_signed_int() {
@@ -30,63 +27,54 @@ impl EncodingCompression for ZigZagEncoding {
         // Only compress if the array has negative values
         // TODO(ngates): also check that Stat::Max is less than half the max value of the type
         parray
-            .stats()
-            .get_or_compute_cast::<i64>(&Stat::Min)
+            .statistics()
+            .compute_as_cast::<i64>(Stat::Min)
             .filter(|&min| min < 0)
             .map(|_| self as &dyn EncodingCompression)
     }
 
     fn compress(
         &self,
-        array: &dyn Array,
-        like: Option<&dyn Array>,
+        array: &Array,
+        like: Option<&Array>,
         ctx: CompressCtx,
-    ) -> VortexResult<ArrayRef> {
-        let zigzag_like = like.map(|like_arr| like_arr.as_zigzag());
-        let encoded = match ArrayKind::from(array) {
-            ArrayKind::Primitive(p) => zigzag_encode(p),
-            _ => unreachable!("This array kind should have been filtered out"),
-        }
-        .unwrap();
+    ) -> VortexResult<OwnedArray> {
+        let zigzag_like = like.map(|like_arr| ZigZagArray::try_from(like_arr).unwrap());
+        let encoded = zigzag_encode(&array.as_primitive())?;
 
-        Ok(
-            ZigZagArray::new(ctx.compress(encoded.encoded(), zigzag_like.map(|z| z.encoded()))?)
-                .into_array(),
-        )
+        Ok(OwnedZigZagArray::new(ctx.compress(
+            &encoded.encoded(),
+            zigzag_like.as_ref().map(|z| z.encoded()).as_ref(),
+        )?)
+        .into_array())
     }
 }
 
-pub fn zigzag_encode(parray: &PrimitiveArray) -> VortexResult<ZigZagArray> {
+pub fn zigzag_encode(parray: &PrimitiveArray<'_>) -> VortexResult<OwnedZigZagArray> {
     let encoded = match parray.ptype() {
-        PType::I8 => zigzag_encode_primitive::<i8>(parray.buffer().typed_data(), parray.validity()),
-        PType::I16 => {
-            zigzag_encode_primitive::<i16>(parray.buffer().typed_data(), parray.validity())
-        }
-        PType::I32 => {
-            zigzag_encode_primitive::<i32>(parray.buffer().typed_data(), parray.validity())
-        }
-        PType::I64 => {
-            zigzag_encode_primitive::<i64>(parray.buffer().typed_data(), parray.validity())
-        }
+        PType::I8 => zigzag_encode_primitive::<i8>(parray.typed_data(), parray.validity()),
+        PType::I16 => zigzag_encode_primitive::<i16>(parray.typed_data(), parray.validity()),
+        PType::I32 => zigzag_encode_primitive::<i32>(parray.typed_data(), parray.validity()),
+        PType::I64 => zigzag_encode_primitive::<i64>(parray.typed_data(), parray.validity()),
         _ => panic!("Unsupported ptype {}", parray.ptype()),
     };
-    ZigZagArray::try_new(encoded.into_array())
+    OwnedZigZagArray::try_new(encoded.into_array())
 }
 
-fn zigzag_encode_primitive<T: ZigZag + NativePType>(
-    values: &[T],
-    validity: Option<ValidityView>,
-) -> PrimitiveArray
+fn zigzag_encode_primitive<'a, T: ExternalZigZag + NativePType>(
+    values: &'a [T],
+    validity: Validity<'a>,
+) -> PrimitiveArray<'a>
 where
-    <T as ZigZag>::UInt: NativePType,
+    <T as ExternalZigZag>::UInt: NativePType,
 {
-    let mut encoded = AlignedVec::with_capacity_in(values.len(), ALIGNED_ALLOCATOR);
+    let mut encoded = Vec::with_capacity(values.len());
     encoded.extend(values.iter().map(|v| T::encode(*v)));
-    PrimitiveArray::from_nullable_in(encoded, validity.to_owned_view())
+    PrimitiveArray::from_vec(encoded.to_vec(), validity.to_owned())
 }
 
 #[allow(dead_code)]
-pub fn zigzag_decode(parray: &PrimitiveArray) -> PrimitiveArray {
+pub fn zigzag_decode<'a>(parray: &'a PrimitiveArray<'a>) -> PrimitiveArray<'a> {
     match parray.ptype() {
         PType::U8 => zigzag_decode_primitive::<i8>(parray.buffer().typed_data(), parray.validity()),
         PType::U16 => {
@@ -103,14 +91,39 @@ pub fn zigzag_decode(parray: &PrimitiveArray) -> PrimitiveArray {
 }
 
 #[allow(dead_code)]
-fn zigzag_decode_primitive<T: ZigZag + NativePType>(
-    values: &[T::UInt],
-    validity: Option<ValidityView>,
-) -> PrimitiveArray
+fn zigzag_decode_primitive<'a, T: ExternalZigZag + NativePType>(
+    values: &'a [T::UInt],
+    validity: Validity<'a>,
+) -> PrimitiveArray<'a>
 where
-    <T as ZigZag>::UInt: NativePType,
+    <T as ExternalZigZag>::UInt: NativePType,
 {
     let mut encoded: AlignedVec<T> = AlignedVec::with_capacity_in(values.len(), ALIGNED_ALLOCATOR);
     encoded.extend(values.iter().map(|v| T::decode(*v)));
-    PrimitiveArray::from_nullable_in(encoded, validity.to_owned_view())
+    PrimitiveArray::from_vec(encoded.to_vec(), validity)
+}
+
+#[cfg(test)]
+mod test {
+    use std::sync::Arc;
+
+    use vortex::encoding::{ArrayEncoding, EncodingRef};
+    use vortex_fastlanes::BitPackedEncoding;
+
+    use super::*;
+
+    #[test]
+    fn test_compress() {
+        let cfg = CompressConfig::new()
+            .with_enabled([&ZigZagEncoding as EncodingRef, &BitPackedEncoding]);
+        let ctx = CompressCtx::new(Arc::new(cfg));
+
+        let compressed = ctx
+            .compress(
+                PrimitiveArray::from(Vec::from_iter((-10_000..10_000).map(|i| i as i64))).array(),
+                None,
+            )
+            .unwrap();
+        assert_eq!(compressed.encoding().id(), ZigZagEncoding.id());
+    }
 }

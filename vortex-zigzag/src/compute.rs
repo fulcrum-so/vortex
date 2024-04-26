@@ -1,14 +1,14 @@
-use vortex::array::{Array, ArrayRef};
 use vortex::compute::scalar_at::{scalar_at, ScalarAtFn};
 use vortex::compute::slice::{slice, SliceFn};
 use vortex::compute::ArrayCompute;
 use vortex::scalar::{PScalar, Scalar};
+use vortex::{ArrayDType, IntoArray, OwnedArray};
 use vortex_error::{vortex_err, VortexResult};
-use zigzag::ZigZag;
+use zigzag::ZigZag as ExternalZigZag;
 
 use crate::ZigZagArray;
 
-impl ArrayCompute for ZigZagArray {
+impl ArrayCompute for ZigZagArray<'_> {
     fn scalar_at(&self) -> Option<&dyn ScalarAtFn> {
         Some(self)
     }
@@ -18,9 +18,9 @@ impl ArrayCompute for ZigZagArray {
     }
 }
 
-impl ScalarAtFn for ZigZagArray {
+impl ScalarAtFn for ZigZagArray<'_> {
     fn scalar_at(&self, index: usize) -> VortexResult<Scalar> {
-        let scalar = scalar_at(self.encoded(), index)?;
+        let scalar = scalar_at(&self.encoded(), index)?;
         match scalar {
             Scalar::Primitive(p) => match p.value() {
                 None => Ok(Scalar::null(self.dtype())),
@@ -37,8 +37,8 @@ impl ScalarAtFn for ZigZagArray {
     }
 }
 
-impl SliceFn for ZigZagArray {
-    fn slice(&self, start: usize, stop: usize) -> VortexResult<ArrayRef> {
-        Ok(ZigZagArray::try_new(slice(self.encoded(), start, stop)?)?.into_array())
+impl SliceFn for ZigZagArray<'_> {
+    fn slice(&self, start: usize, stop: usize) -> VortexResult<OwnedArray> {
+        Ok(ZigZagArray::try_new(slice(&self.encoded(), start, stop)?)?.into_array())
     }
 }
