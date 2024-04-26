@@ -369,6 +369,7 @@ dependencies = [
  "arrow-data 51.0.0",
  "arrow-schema 51.0.0",
  "flatbuffers",
+ "lz4_flex",
 ]
 
 [[package]]
