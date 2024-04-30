@@ -22,8 +22,8 @@ resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
-homepage = "https://github.com/fulcrum-so/vortex"
-repository = "https://github.com/fulcrum-so/vortex"
+homepage = "https://github.com/spiraldb/vortex"
+repository = "https://github.com/spiraldb/vortex"
 authors = ["Robert Kruszewski <robert@fulcrum.so>, Nicholas Gates <nick@fulcrum.so>, Will Manning <will@fulcrum.so>"]
 license = "Apache-2.0"
 keywords = ["vortex"]
@@ -97,10 +97,10 @@ mem_forget = { level = "deny" }
 multiple_inherent_impl = { level = "deny" }
 panic = { level = "deny" }
 panic_in_result_fn = { level = "deny" }
-#same_name_method = { level = "deny" }
+# same_name_method = { level = "deny" }
 self_named_module_files = { level = "deny" }
 tests_outside_test_module = { level = "deny" }
-#unreachable = { level = "deny" }
+# unreachable = { level = "deny" }
 unwrap_used = { level = "deny" }
 unwrap_in_result = { level = "deny" }
 use_debug = { level = "deny" }
