@@ -97,7 +97,7 @@ mem_forget = { level = "deny" }
 multiple_inherent_impl = { level = "deny" }
 panic = { level = "deny" }
 panic_in_result_fn = { level = "deny" }
-same_name_method = { level = "deny" }
+#same_name_method = { level = "deny" }
 self_named_module_files = { level = "deny" }
 tests_outside_test_module = { level = "deny" }
 #unreachable = { level = "deny" }
