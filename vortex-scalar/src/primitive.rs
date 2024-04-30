@@ -3,22 +3,13 @@ use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::mem::size_of;
 
-use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
-use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
-use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
+use vortex_dtype::half::f16;
 use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
 use vortex_dtype::{DType, Nullability};
 use vortex_dtype::{NativePType, PType};
-use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
-use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
-use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
-use vortex_dtype::half::f16;
 use vortex_error::{vortex_bail, vortex_err, VortexError, VortexResult};
 
 use crate::Scalar;
-
-use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
-use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
 
 pub trait PScalarType: NativePType + Into<PScalar> + TryFrom<PScalar, Error = VortexError> {}
 impl<T: NativePType + Into<PScalar> + TryFrom<PScalar, Error = VortexError>> PScalarType for T {}
@@ -396,8 +387,8 @@ impl Display for PScalar {
 
 #[cfg(test)]
 mod test {
-    use vortex_dtype::{DType, Nullability};
     use vortex_dtype::PType;
+    use vortex_dtype::{DType, Nullability};
     use vortex_error::VortexError;
 
     use crate::Scalar;
@@ -412,7 +403,7 @@ mod test {
         let scalar: Scalar = (-10i16).into();
         let error = usize::try_from(scalar).err().unwrap();
         let VortexError::ComputeError(s, _) = error else {
-            unreachable!()
+            panic!("expected ComputeError");
         };
         assert_eq!(s.to_string(), "required positive integer");
     }

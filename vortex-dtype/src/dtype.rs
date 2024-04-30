@@ -3,7 +3,6 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 use itertools::Itertools;
-
 use DType::*;
 
 use crate::{CompositeID, PType};

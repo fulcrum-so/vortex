@@ -1,9 +1,8 @@
 use std::fmt::{Display, Formatter};
 
-pub use half;
-
 pub use deserialize::*;
 pub use dtype::*;
+pub use half;
 pub use ptype::*;
 
 mod deserialize;

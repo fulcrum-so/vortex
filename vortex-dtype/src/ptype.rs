@@ -2,12 +2,11 @@ use std::fmt::{Debug, Display, Formatter};
 use std::panic::RefUnwindSafe;
 
 use num_traits::{FromPrimitive, Num, NumCast};
-
 use vortex_error::{vortex_err, VortexError, VortexResult};
 
+use crate::half::f16;
 use crate::DType;
 use crate::DType::*;
-use crate::half::f16;
 use crate::Nullability::NonNullable;
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

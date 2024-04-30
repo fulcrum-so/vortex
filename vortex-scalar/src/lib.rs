@@ -8,8 +8,8 @@ pub use null::*;
 pub use primitive::*;
 pub use struct_::*;
 pub use utf8::*;
-use vortex_dtype::{DType, Nullability};
 use vortex_dtype::NativePType;
+use vortex_dtype::{DType, Nullability};
 use vortex_error::VortexResult;
 
 mod binary;
