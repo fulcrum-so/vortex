@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 
 use itertools::Itertools;
 use vortex_dtype::DType;
-use vortex_error::{vortex_err, VortexError, VortexResult};
+use vortex_error::{vortex_bail, vortex_err, VortexError, VortexResult};
 
 use crate::Scalar;
 
@@ -68,13 +68,18 @@ impl PartialOrd for ListScalar {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ListScalarVec<T>(pub Vec<T>);
 
-impl<T: Into<Scalar>> From<ListScalarVec<T>> for Scalar {
-    fn from(value: ListScalarVec<T>) -> Self {
+impl<T: Into<Scalar>> TryFrom<ListScalarVec<T>> for Scalar {
+    type Error = VortexError;
+
+    fn try_from(value: ListScalarVec<T>) -> VortexResult<Self> {
         let values: Vec<Scalar> = value.0.into_iter().map(|v| v.into()).collect();
         if values.is_empty() {
-            panic!("can't implicitly convert empty list into ListScalar");
+            vortex_bail!("can't implicitly convert empty list into ListScalar");
         }
-        ListScalar::new(values[0].dtype().clone(), Some(values)).into()
+        Ok(Scalar::List(ListScalar::new(
+            values[0].dtype().clone(),
+            Some(values),
+        )))
     }
 }
 

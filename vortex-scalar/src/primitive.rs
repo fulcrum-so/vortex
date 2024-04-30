@@ -49,7 +49,7 @@ impl PrimitiveScalar {
 
     pub fn nullable<T: PScalarType>(value: Option<T>) -> Self {
         Self::try_new(value, Nullability::Nullable).unwrap_or_else(|e| {
-            panic!(
+            unreachable!(
                 "Failed to create nullable scalar of type {}: {}",
                 any::type_name::<T>(),
                 e
@@ -59,7 +59,7 @@ impl PrimitiveScalar {
 
     pub fn some<T: PScalarType>(value: T) -> Self {
         Self::try_new::<T>(Some(value), Nullability::default()).unwrap_or_else(|e| {
-            panic!(
+            unreachable!(
                 "Failed to create \"Some\" scalar of type {}: {}",
                 any::type_name::<T>(),
                 e
@@ -69,7 +69,7 @@ impl PrimitiveScalar {
 
     pub fn none<T: PScalarType>() -> Self {
         Self::try_new::<T>(None, Nullability::Nullable).unwrap_or_else(|e| {
-            panic!(
+            unreachable!(
                 "Failed to create \"None\" scalar of type {}: {}",
                 any::type_name::<T>(),
                 e
@@ -90,7 +90,7 @@ impl PrimitiveScalar {
         );
         self.value.map(|v| {
             v.try_into().unwrap_or_else(|e| {
-                panic!(
+                unreachable!(
                     "failed to convert scalar with ptype {} to {}: {}",
                     self.ptype,
                     any::type_name::<T>(),
@@ -394,6 +394,7 @@ mod test {
     use crate::Scalar;
 
     #[test]
+    #[allow(clippy::panic)]
     fn into_from() {
         let scalar: Scalar = 10u16.into();
         assert_eq!(u16::try_from(scalar.clone()).unwrap(), 10u16);

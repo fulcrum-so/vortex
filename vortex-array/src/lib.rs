@@ -43,10 +43,12 @@ use crate::visitor::{AcceptArrayVisitor, ArrayVisitor};
 pub mod flatbuffers {
     pub use gen_array::vortex::*;
 
-    #[allow(unused_imports)]
+    #[allow(clippy::all)]
+    #[allow(clippy::unwrap_used)]
     #[allow(dead_code)]
     #[allow(non_camel_case_types)]
-    #[allow(clippy::all)]
+    #[allow(unsafe_op_in_unsafe_fn)]
+    #[allow(unused_imports)]
     mod gen_array {
         include!(concat!(env!("OUT_DIR"), "/flatbuffers/array.rs"));
     }

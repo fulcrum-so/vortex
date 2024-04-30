@@ -13,6 +13,7 @@ impl<T> From<T> for ErrString
 where
     T: Into<Cow<'static, str>>,
 {
+    #[allow(clippy::panic)]
     fn from(msg: T) -> Self {
         if env::var("VORTEX_PANIC_ON_ERR").as_deref().unwrap_or("") == "1" {
             panic!("{}", msg.into())

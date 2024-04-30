@@ -5,7 +5,7 @@ use serde::de::Visitor;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use vortex_dtype::match_each_native_ptype;
 use vortex_dtype::{DTypeSerdeContext, Nullability};
-use vortex_error::{vortex_bail, VortexError};
+use vortex_error::{vortex_bail, vortex_err, VortexError};
 use vortex_flatbuffers::{FlatBufferRoot, FlatBufferToBytes, ReadFlatBuffer, WriteFlatBuffer};
 
 use crate::flatbuffers::scalar as fb;
@@ -40,7 +40,7 @@ impl WriteFlatBuffer for Scalar {
                     .map(|&value| fb::Bool::create(fbb, &fb::BoolArgs { value }).as_union_value()),
                 nullability: self.nullability().into(),
             },
-            Scalar::List(_) => panic!("List not supported in scalar serde"),
+            Scalar::List(_) => todo!("List not supported in scalar serde"),
             Scalar::Null(_) => fb::ScalarArgs {
                 type_type: fb::Type::Null,
                 type_: Some(fb::Null::create(fbb, &fb::NullArgs {}).as_union_value()),
@@ -73,7 +73,7 @@ impl WriteFlatBuffer for Scalar {
                     nullability: self.nullability().into(),
                 }
             }
-            Scalar::Struct(_) => panic!(),
+            Scalar::Struct(_) => todo!(),
             Scalar::Utf8(utf) => {
                 let value = utf.value().map(|utf| fbb.create_string(utf));
                 let value = fb::UTF8::create(fbb, &fb::UTF8Args { value }).as_union_value();
@@ -83,7 +83,7 @@ impl WriteFlatBuffer for Scalar {
                     nullability: self.nullability().into(),
                 }
             }
-            Scalar::Composite(_) => panic!(),
+            Scalar::Composite(_) => todo!(),
         };
 
         fb::Scalar::create(fbb, &union)
@@ -113,7 +113,9 @@ impl ReadFlatBuffer<DTypeSerdeContext> for Scalar {
                 todo!()
             }
             fb::Type::Primitive => {
-                let primitive = fb.type__as_primitive().expect("missing Primitive value");
+                let primitive = fb
+                    .type__as_primitive()
+                    .ok_or_else(|| vortex_err!("missing primitive value"))?;
                 let ptype = primitive.ptype().try_into()?;
                 Ok(match_each_native_ptype!(ptype, |$T| {
                     Scalar::Primitive(PrimitiveScalar::try_new(
@@ -131,7 +133,7 @@ impl ReadFlatBuffer<DTypeSerdeContext> for Scalar {
             }
             fb::Type::UTF8 => Ok(Scalar::Utf8(Utf8Scalar::try_new(
                 fb.type__as_utf8()
-                    .expect("missing UTF8 value")
+                    .ok_or_else(|| vortex_err!("missing UTF8 value"))?
                     .value()
                     .map(|s| s.to_string()),
                 nullability,

@@ -4,6 +4,7 @@ use std::process::{Command, Stdio};
 
 use walkdir::WalkDir;
 
+#[allow(clippy::panic)]
 fn main() {
     let buildrs_dir =
         PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("Missing CARGO_MANIFEST_DIR"))
@@ -74,6 +75,7 @@ fn main() {
         .expect("Couldn't write bindings!");
 }
 
+#[allow(clippy::panic)]
 fn rerun_if_changed(path: &Path) {
     println!(
         "cargo:rerun-if-changed={}",

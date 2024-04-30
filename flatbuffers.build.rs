@@ -6,6 +6,7 @@ use std::process::Command;
 use flatc::flatc;
 use walkdir::WalkDir;
 
+#[allow(clippy::panic)]
 fn main() {
     let flatbuffers_dir =
         PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("Missing CARGO_MANIFEST_DIR"))
@@ -45,13 +46,15 @@ fn main() {
     }
 }
 
+#[allow(clippy::panic)]
 fn rerun_if_changed(path: &Path) {
     println!(
         "cargo:rerun-if-changed={}",
         path.canonicalize()
-            .unwrap_or_else(|_| panic!(
-                "failed to canonicalize {}",
-                path.to_str().expect("invalid path")
+            .unwrap_or_else(|e| panic!(
+                "failed to canonicalize {}: {}",
+                path.to_str().expect("invalid path"),
+                e
             ))
             .to_str()
             .expect("invalid path")

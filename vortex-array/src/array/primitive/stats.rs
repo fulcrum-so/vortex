@@ -54,11 +54,11 @@ fn all_null_stats<T: PStatsType>(len: usize) -> VortexResult<HashMap<Stat, Scala
         (Stat::NullCount, len.into()),
         (
             Stat::BitWidthFreq,
-            ListScalarVec(vec![0; size_of::<T>() * 8 + 1]).into(),
+            ListScalarVec(vec![0; size_of::<T>() * 8 + 1]).try_into()?,
         ),
         (
             Stat::TrailingZeroFreq,
-            ListScalarVec(vec![size_of::<T>() * 8; size_of::<T>() * 8 + 1]).into(),
+            ListScalarVec(vec![size_of::<T>() * 8; size_of::<T>() * 8 + 1]).try_into()?,
         ),
     ]))
 }
@@ -212,10 +212,17 @@ impl<T: PStatsType> StatsAccumulator<T> {
             (Stat::Max, self.max.into()),
             (Stat::NullCount, self.null_count.into()),
             (Stat::IsConstant, (self.min == self.max).into()),
-            (Stat::BitWidthFreq, ListScalarVec(self.bit_widths).into()),
+            (
+                Stat::BitWidthFreq,
+                ListScalarVec(self.bit_widths)
+                    .try_into()
+                    .expect("Failed to create scalar BitWidthFreq"),
+            ),
             (
                 Stat::TrailingZeroFreq,
-                ListScalarVec(self.trailing_zeros).into(),
+                ListScalarVec(self.trailing_zeros)
+                    .try_into()
+                    .expect("Failed to create scalar TrailingZeroFreq"),
             ),
             (Stat::IsSorted, self.is_sorted.into()),
             (
