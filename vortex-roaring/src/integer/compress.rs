@@ -3,7 +3,7 @@ use log::debug;
 use num_traits::NumCast;
 use vortex::array::primitive::PrimitiveArray;
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
-use vortex::stats::{ArrayStatistics, Stat};
+use vortex::stats::ArrayStatistics;
 use vortex::{Array, ArrayDType, ArrayDef, IntoArray, OwnedArray, ToStatic};
 use vortex_dtype::{NativePType, PType};
 use vortex_error::VortexResult;
@@ -30,19 +30,14 @@ impl EncodingCompression for RoaringIntEncoding {
         // Only support sorted unique arrays
         if !array
             .statistics()
-            .compute_as(Stat::IsStrictSorted)
+            .compute_is_strict_sorted()
             .unwrap_or(false)
         {
             debug!("Skipping roaring int, not strict sorted");
             return None;
         }
 
-        if array
-            .statistics()
-            .compute_as(Stat::Max)
-            .map(|s: usize| s > u32::MAX as usize)
-            .unwrap_or(false)
-        {
+        if array.statistics().compute_max().unwrap_or(0) > u32::MAX as usize {
             debug!("Skipping roaring int, max is larger than {}", u32::MAX);
             return None;
         }

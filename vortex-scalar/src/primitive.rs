@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::mem::size_of;
 
+use num_traits::identities::Zero;
 use vortex_dtype::half::f16;
 use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype};
 use vortex_dtype::{DType, Nullability};
@@ -12,6 +13,7 @@ use vortex_error::{vortex_bail, vortex_err, VortexError, VortexResult};
 use crate::Scalar;
 
 pub trait PScalarType: NativePType + Into<PScalar> + TryFrom<PScalar, Error = VortexError> {}
+
 impl<T: NativePType + Into<PScalar> + TryFrom<PScalar, Error = VortexError>> PScalarType for T {}
 
 #[derive(Debug, Clone, PartialEq)]
@@ -227,6 +229,54 @@ impl PScalar {
             },
             PScalar::F32(v) => from_floating!(ptype, v),
             PScalar::F64(v) => from_floating!(ptype, v),
+        }
+    }
+
+    pub fn is_positive(&self) -> bool {
+        match self {
+            PScalar::U8(v) => *v > 0,
+            PScalar::U16(v) => *v > 0,
+            PScalar::U32(v) => *v > 0,
+            PScalar::U64(v) => *v > 0,
+            PScalar::I8(v) => *v > 0,
+            PScalar::I16(v) => *v > 0,
+            PScalar::I32(v) => *v > 0,
+            PScalar::I64(v) => *v > 0,
+            PScalar::F16(v) => v.to_f32() > 0.0,
+            PScalar::F32(v) => *v > 0.0,
+            PScalar::F64(v) => *v > 0.0,
+        }
+    }
+
+    pub fn is_negative(&self) -> bool {
+        match self {
+            PScalar::U8(_) => false,
+            PScalar::U16(_) => false,
+            PScalar::U32(_) => false,
+            PScalar::U64(_) => false,
+            PScalar::I8(v) => *v < 0,
+            PScalar::I16(v) => *v < 0,
+            PScalar::I32(v) => *v < 0,
+            PScalar::I64(v) => *v < 0,
+            PScalar::F16(v) => v.to_f32() < 0.0,
+            PScalar::F32(v) => *v < 0.0,
+            PScalar::F64(v) => *v < 0.0,
+        }
+    }
+
+    pub fn is_zero(&self) -> bool {
+        match self {
+            PScalar::U8(v) => *v == 0,
+            PScalar::U16(v) => *v == 0,
+            PScalar::U32(v) => *v == 0,
+            PScalar::U64(v) => *v == 0,
+            PScalar::I8(v) => *v == 0,
+            PScalar::I16(v) => *v == 0,
+            PScalar::I32(v) => *v == 0,
+            PScalar::I64(v) => *v == 0,
+            PScalar::F16(v) => (*v).is_zero(),
+            PScalar::F32(v) => (*v).is_zero(),
+            PScalar::F64(v) => (*v).is_zero(),
         }
     }
 }

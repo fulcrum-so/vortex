@@ -25,14 +25,16 @@ table Primitive {
 
 table Struct_ {
     names: [string];
-    value: [Scalar];
+    scalars: [Scalar];
 }
 
 table UTF8 {
     value: string;
 }
 
-table Composite {
+table Extension {
+    id: string;
+    metadata: [ubyte];
     value: Scalar;
 }
 
@@ -44,7 +46,7 @@ union Type {
     Primitive,
     Struct_,
     UTF8,
-    Composite,
+    Extension,
 }
 
 // TODO(ngates): separate out ScalarValue from Scalar, even in-memory, so we can avoid duplicating dtype information (e.g. Struct field names).

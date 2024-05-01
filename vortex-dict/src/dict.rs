@@ -8,7 +8,7 @@ use vortex::visitor::{AcceptArrayVisitor, ArrayVisitor};
 use vortex::IntoArrayData;
 use vortex::{impl_encoding, ArrayDType, ArrayFlatten, ToArrayData};
 use vortex_dtype::match_each_integer_ptype;
-use vortex_error::{vortex_bail, VortexResult};
+use vortex_error::vortex_bail;
 
 impl_encoding!("vortex.dict", Dict);
 
@@ -27,8 +27,8 @@ impl DictArray<'_> {
             DictMetadata {
                 codes_dtype: codes.dtype().clone(),
             },
-            vec![values.to_array_data(), codes.to_array_data()].into(),
-            HashMap::new(),
+            [values.to_array_data(), codes.to_array_data()].into(),
+            StatsSet::new(),
         )
     }
 

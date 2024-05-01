@@ -17,7 +17,7 @@ pub fn fill_forward(array: &Array) -> VortexResult<OwnedArray> {
             .unwrap_or_else(|| {
                 Err(vortex_err!(
                     NotImplemented: "fill_forward",
-                    array.encoding().id().name()
+                    array.encoding().id()
                 ))
             })
     })

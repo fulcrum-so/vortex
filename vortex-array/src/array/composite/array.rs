@@ -1,7 +1,7 @@
 use flatbuffers::root;
 use vortex_dtype::flatbuffers as fb;
-use vortex_dtype::{CompositeID, DTypeSerdeContext};
-use vortex_error::{vortex_err, VortexResult};
+use vortex_dtype::CompositeID;
+use vortex_error::vortex_err;
 use vortex_flatbuffers::{FlatBufferToBytes, ReadFlatBuffer};
 
 use crate::array::composite::{find_extension, CompositeExtensionRef, TypedCompositeArray};
@@ -53,11 +53,8 @@ impl TryDeserializeArrayMetadata<'_> for CompositeMetadata {
             .ok_or_else(|| vortex_err!("Unrecognized composite extension: {}", ext_id))?;
 
         let dtype_blob = elems.index(1).expect("missing dtype").as_blob();
-        let ctx = DTypeSerdeContext::new(vec![]); // FIXME: composite_ids
-        let underlying_dtype = DType::read_flatbuffer(
-            &ctx,
-            &root::<fb::DType>(dtype_blob.0).expect("invalid dtype"),
-        )?;
+        let underlying_dtype =
+            DType::read_flatbuffer(&root::<fb::DType>(dtype_blob.0).expect("invalid dtype"))?;
 
         let underlying_metadata: Arc<[u8]> = elems
             .index(2)
@@ -86,8 +83,8 @@ impl<'a> CompositeArray<'a> {
                 underlying_dtype: underlying.dtype().clone(),
                 underlying_metadata: metadata,
             },
-            vec![underlying.into_array_data()].into(),
-            HashMap::default(),
+            [underlying.into_array_data()].into(),
+            StatsSet::new(),
         )
         .unwrap()
     }

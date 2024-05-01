@@ -7,7 +7,7 @@ use vortex_dtype::PType;
 use vortex_dtype::{DType, Nullability};
 use vortex_error::{vortex_err, VortexResult};
 
-use crate::array::datetime::{LocalDateTimeExtension, TimeUnit};
+use crate::array::datetime::{LocalDateTime, TimeUnit};
 use crate::arrow::{FromArrowType, TryFromArrowType};
 
 impl TryFromArrowType<&DataType> for PType {
@@ -70,8 +70,8 @@ impl FromArrowType<&Field> for DType {
             DataType::Boolean => Bool(nullability),
             DataType::Utf8 | DataType::LargeUtf8 => Utf8(nullability),
             DataType::Binary | DataType::LargeBinary => Binary(nullability),
-            DataType::Timestamp(_u, tz) => match tz {
-                None => LocalDateTimeExtension::dtype(nullability),
+            DataType::Timestamp(time_unit, tz) => match tz {
+                None => LocalDateTime::dtype(time_unit.into(), nullability),
                 Some(_) => unimplemented!("Timezone not yet supported"),
             },
             // DataType::Date32 => localdate(IntWidth::_32, nullability),

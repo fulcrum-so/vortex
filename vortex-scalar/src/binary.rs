@@ -51,6 +51,19 @@ impl TryFrom<Scalar> for Vec<u8> {
     }
 }
 
+impl TryFrom<&Scalar> for Vec<u8> {
+    type Error = VortexError;
+
+    fn try_from(value: &Scalar) -> VortexResult<Self> {
+        let Scalar::Binary(b) = value else {
+            vortex_bail!(MismatchedTypes: "binary", value.dtype());
+        };
+        b.value()
+            .cloned()
+            .ok_or_else(|| vortex_err!("Can't extract present value from null scalar"))
+    }
+}
+
 impl Display for BinaryScalar {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self.value() {

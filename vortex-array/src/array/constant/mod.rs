@@ -1,10 +1,12 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
-use vortex_error::VortexResult;
+use vortex_scalar::Scalar;
 
 use crate::impl_encoding;
+use crate::stats::Stat;
 use crate::validity::{ArrayValidity, LogicalValidity};
 use crate::visitor::{AcceptArrayVisitor, ArrayVisitor};
-
 mod compute;
 mod flatten;
 mod stats;
@@ -23,17 +25,17 @@ impl ConstantArray<'_> {
         Scalar: From<S>,
     {
         let scalar: Scalar = scalar.into();
-        let stats = HashMap::from([
+        let stats = StatsSet::from(HashMap::from([
             (Stat::Max, scalar.clone()),
             (Stat::Min, scalar.clone()),
             (Stat::IsConstant, true.into()),
             (Stat::IsSorted, true.into()),
             (Stat::RunCount, 1.into()),
-        ]);
+        ]));
         Self::try_from_parts(
             scalar.dtype().clone(),
             ConstantMetadata { scalar, length },
-            vec![].into(),
+            [].into(),
             stats,
         )
         .unwrap()

@@ -14,8 +14,8 @@ pub fn cast(array: &Array, dtype: &DType) -> VortexResult<OwnedArray> {
 
     // TODO(ngates): check for null_count if dtype is non-nullable
     array.with_dyn(|a| {
-        a.cast().map(|f| f.cast(dtype)).unwrap_or_else(|| {
-            Err(vortex_err!(NotImplemented: "cast", array.encoding().id().name()))
-        })
+        a.cast()
+            .map(|f| f.cast(dtype))
+            .unwrap_or_else(|| Err(vortex_err!(NotImplemented: "cast", array.encoding().id())))
     })
 }

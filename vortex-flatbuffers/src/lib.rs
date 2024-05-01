@@ -5,11 +5,11 @@ use flatbuffers::{FlatBufferBuilder, WIPOffset};
 
 pub trait FlatBufferRoot {}
 
-pub trait ReadFlatBuffer<Ctx>: Sized {
+pub trait ReadFlatBuffer: Sized {
     type Source<'a>;
     type Error;
 
-    fn read_flatbuffer(ctx: &Ctx, fb: &Self::Source<'_>) -> Result<Self, Self::Error>;
+    fn read_flatbuffer(fb: &Self::Source<'_>) -> Result<Self, Self::Error>;
 }
 
 pub trait WriteFlatBuffer {

@@ -4,13 +4,13 @@ use vortex::array::primitive::PrimitiveArray;
 use vortex::array::sparse::{Sparse, SparseArray};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
 use vortex::compute::cast::cast;
-use vortex::stats::{ArrayStatistics, Stat};
+use vortex::stats::ArrayStatistics;
 use vortex::validity::Validity;
 use vortex::{Array, ArrayDType, ArrayDef, ArrayTrait, IntoArray, OwnedArray, ToStatic};
 use vortex_dtype::PType::U8;
 use vortex_dtype::{match_each_integer_ptype, NativePType, PType};
 use vortex_error::{vortex_bail, vortex_err, VortexResult};
-use vortex_scalar::{ListScalarVec, Scalar};
+use vortex_scalar::Scalar;
 
 use crate::{match_integers_by_width, BitPackedArray, BitPackedEncoding};
 
@@ -33,10 +33,7 @@ impl EncodingCompression for BitPackedEncoding {
         }
 
         let bytes_per_exception = bytes_per_exception(parray.ptype());
-        let bit_width_freq = parray
-            .statistics()
-            .compute_as::<ListScalarVec<usize>>(Stat::BitWidthFreq)?
-            .0;
+        let bit_width_freq = parray.statistics().compute_bit_width_freq().ok()?;
         let bit_width = best_bit_width(&bit_width_freq, bytes_per_exception);
 
         // Check that the bit width is less than the type's bit width
@@ -54,11 +51,7 @@ impl EncodingCompression for BitPackedEncoding {
         ctx: CompressCtx,
     ) -> VortexResult<OwnedArray> {
         let parray = array.as_primitive();
-        let bit_width_freq = parray
-            .statistics()
-            .compute_as::<ListScalarVec<usize>>(Stat::BitWidthFreq)
-            .unwrap()
-            .0;
+        let bit_width_freq = parray.statistics().compute_bit_width_freq()?;
 
         let like_bp = like.map(|l| BitPackedArray::try_from(l).unwrap());
         let bit_width = best_bit_width(&bit_width_freq, bytes_per_exception(parray.ptype()));
@@ -96,11 +89,7 @@ pub(crate) fn bitpack_encode(
     array: PrimitiveArray<'_>,
     bit_width: usize,
 ) -> VortexResult<BitPackedArray> {
-    let bit_width_freq = array
-        .statistics()
-        .compute_as::<ListScalarVec<usize>>(Stat::BitWidthFreq)
-        .ok_or_else(|| vortex_err!("Could not compute bit width frequencies"))?
-        .0;
+    let bit_width_freq = array.statistics().compute_bit_width_freq()?;
     let num_exceptions = count_exceptions(bit_width, &bit_width_freq);
 
     if bit_width >= array.ptype().bit_width() {

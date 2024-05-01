@@ -1,4 +1,5 @@
-use vortex_error::VortexResult;
+use vortex_dtype::DType;
+use vortex_error::{vortex_bail, VortexResult};
 
 use crate::array::bool::BoolArray;
 use crate::array::chunked::ChunkedArray;
@@ -8,7 +9,7 @@ use crate::array::r#struct::StructArray;
 use crate::array::varbin::VarBinArray;
 use crate::array::varbinview::VarBinViewArray;
 use crate::encoding::ArrayEncoding;
-use crate::{Array, IntoArray};
+use crate::{Array, ArrayDType, IntoArray};
 
 /// The set of encodings that can be converted to Arrow with zero-copy.
 pub enum Flattened<'a> {
@@ -19,6 +20,36 @@ pub enum Flattened<'a> {
     Struct(StructArray<'a>),
     VarBin(VarBinArray<'a>),
     VarBinView(VarBinViewArray<'a>),
+    // The flattened representation of an extension DType is an array whose EncodingId == ExtID
+    Extension(FlattenedExtension<'a>),
+}
+
+// We wrap this in a struct to validate the array is indeed the canonical extension encoding.
+pub struct FlattenedExtension<'a> {
+    array: Array<'a>,
+}
+
+impl<'a> FlattenedExtension<'a> {
+    pub fn try_new(array: Array<'a>) -> VortexResult<Self> {
+        let DType::Extension(ext, _) = array.dtype() else {
+            vortex_bail!("Expected extension dtype, got: {:?}", array.dtype());
+        };
+        if array.encoding().id().as_ref() != ext.id().as_ref() {
+            vortex_bail!(
+                "Canonical extension array for DType {} must have encoding {}, got: {}",
+                array.dtype(),
+                ext.id(),
+                array.encoding().id()
+            );
+        }
+        Ok(Self { array })
+    }
+}
+
+impl<'a> IntoArray<'a> for FlattenedExtension<'a> {
+    fn into_array(self) -> Array<'a> {
+        self.array
+    }
 }
 
 pub trait ArrayFlatten {
@@ -54,6 +85,7 @@ impl<'a> IntoArray<'a> for Flattened<'a> {
             Flattened::Chunked(a) => a.into_array(),
             Flattened::VarBin(a) => a.into_array(),
             Flattened::Composite(a) => a.into_array(),
+            Flattened::Extension(a) => a.into_array(),
             Flattened::VarBinView(a) => a.into_array(),
         }
     }

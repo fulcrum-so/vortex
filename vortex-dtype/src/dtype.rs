@@ -5,7 +5,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 use DType::*;
 
-use crate::{CompositeID, PType};
+use crate::{CompositeID, ExtDType, PType};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
@@ -47,7 +47,8 @@ pub type FieldNames = Vec<Arc<String>>;
 
 pub type Metadata = Vec<u8>;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialOrd, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum DType {
     Null,
     Bool(Nullability),
@@ -57,6 +58,8 @@ pub enum DType {
     Binary(Nullability),
     Struct(FieldNames, Vec<DType>),
     List(Box<DType>, Nullability),
+    Extension(ExtDType, Nullability),
+    #[serde(skip)]
     Composite(CompositeID, Nullability),
 }
 
@@ -82,6 +85,7 @@ impl DType {
             Binary(n) => matches!(n, Nullable),
             Struct(_, fs) => fs.iter().all(|f| f.is_nullable()),
             List(_, n) => matches!(n, Nullable),
+            Extension(_, n) => matches!(n, Nullable),
             Composite(_, n) => matches!(n, Nullable),
         }
     }
@@ -107,6 +111,7 @@ impl DType {
                 fs.iter().map(|f| f.with_nullability(nullability)).collect(),
             ),
             List(c, _) => List(c.clone(), nullability),
+            Extension(ext, _) => Extension(ext.clone(), nullability),
             Composite(id, _) => Composite(*id, nullability),
         }
     }
@@ -158,6 +163,15 @@ impl Display for DType {
                     .join(", ")
             ),
             List(c, n) => write!(f, "list({}){}", c, n),
+            Extension(ext, n) => write!(
+                f,
+                "ext({}{}){}",
+                ext.id(),
+                ext.metadata()
+                    .map(|m| format!(", {:?}", m))
+                    .unwrap_or_else(|| "".to_string()),
+                n
+            ),
             Composite(id, n) => write!(f, "<{}>{}", id, n),
         }
     }
@@ -171,6 +185,6 @@ mod test {
 
     #[test]
     fn size_of() {
-        assert_eq!(mem::size_of::<DType>(), 48);
+        assert_eq!(mem::size_of::<DType>(), 56);
     }
 }

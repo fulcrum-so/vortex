@@ -5,7 +5,7 @@ use vortex::validity::{ArrayValidity, LogicalValidity};
 use vortex::visitor::{AcceptArrayVisitor, ArrayVisitor};
 use vortex::{impl_encoding, ArrayDType, ArrayFlatten, IntoArrayData};
 use vortex_dtype::PType;
-use vortex_error::{vortex_bail, vortex_err, VortexResult};
+use vortex_error::{vortex_bail, vortex_err};
 
 use crate::compress::zigzag_encode;
 
@@ -33,7 +33,7 @@ impl ZigZagArray<'_> {
         let children = vec![encoded.into_array_data()];
 
         let metadata = ZigZagMetadata { encoded_dtype };
-        Self::try_from_parts(dtype, metadata, children.into(), HashMap::default())
+        Self::try_from_parts(dtype, metadata, children.into(), StatsSet::new())
     }
 
     pub fn encode<'a>(array: &'a Array<'a>) -> VortexResult<Array<'a>> {
@@ -51,12 +51,12 @@ impl ZigZagArray<'_> {
 }
 
 impl ArrayValidity for ZigZagArray<'_> {
-    fn logical_validity(&self) -> LogicalValidity {
-        self.encoded().with_dyn(|a| a.logical_validity())
-    }
-
     fn is_valid(&self, index: usize) -> bool {
         self.encoded().with_dyn(|a| a.is_valid(index))
+    }
+
+    fn logical_validity(&self) -> LogicalValidity {
+        self.encoded().with_dyn(|a| a.logical_validity())
     }
 }
 

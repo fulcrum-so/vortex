@@ -6,9 +6,7 @@ use vortex::array::primitive::{Primitive, PrimitiveArray};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
 use vortex::stats::{ArrayStatistics, Stat};
 use vortex::validity::Validity;
-use vortex::ArrayDType;
-use vortex::ArrayTrait;
-use vortex::{Array, ArrayDef, IntoArray, OwnedArray};
+use vortex::{Array, ArrayDType, ArrayDef, ArrayTrait, IntoArray, OwnedArray};
 use vortex_dtype::Nullability;
 use vortex_dtype::{match_each_integer_ptype, match_each_native_ptype, NativePType};
 use vortex_error::VortexResult;
@@ -28,7 +26,7 @@ impl EncodingCompression for REEEncoding {
         let avg_run_length = array.len() as f32
             / array
                 .statistics()
-                .compute_as(Stat::RunCount)
+                .compute_run_count()
                 .unwrap_or(array.len()) as f32;
         if avg_run_length < config.ree_average_run_threshold {
             return None;

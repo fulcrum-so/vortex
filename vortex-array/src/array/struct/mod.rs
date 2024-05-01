@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use vortex_dtype::FieldNames;
-use vortex_error::{vortex_bail, VortexResult};
+use vortex_error::vortex_bail;
 
 use crate::stats::ArrayStatisticsCompute;
 use crate::validity::{ArrayValidity, LogicalValidity};
@@ -66,7 +66,7 @@ impl StructArray<'_> {
             DType::Struct(names, field_dtypes),
             StructMetadata { length },
             fields.into_iter().map(|a| a.into_array_data()).collect(),
-            HashMap::default(),
+            StatsSet::new(),
         )
     }
 }

@@ -15,7 +15,7 @@ use crate::compute::scalar_at::scalar_at;
 use crate::compute::slice::slice;
 use crate::encoding::{ArrayEncoding, EncodingRef, VORTEX_ENCODINGS};
 use crate::sampling::stratified_slices;
-use crate::stats::Stat;
+use crate::stats::ArrayStatistics;
 use crate::validity::Validity;
 use crate::{compute, Array, ArrayDType, ArrayDef, ArrayTrait, IntoArray, OwnedArray, ToStatic};
 
@@ -38,7 +38,7 @@ pub trait EncodingCompression: ArrayEncoding {
         _like: Option<&Array>,
         _ctx: CompressCtx,
     ) -> VortexResult<OwnedArray> {
-        vortex_bail!(NotImplemented: "compress not implemented for {}", self.id().name())
+        vortex_bail!(NotImplemented: "compress", self.id())
     }
 
     // For an array returned by this encoding, give the size in bytes minus any constant overheads.
@@ -266,13 +266,7 @@ impl Default for CompressCtx {
 
 pub fn sampled_compression(array: &Array, ctx: &CompressCtx) -> VortexResult<Option<OwnedArray>> {
     // First, we try constant compression and shortcut any sampling.
-    if !array.is_empty()
-        && array.with_dyn(|a| {
-            a.statistics()
-                .compute_as::<bool>(Stat::IsConstant)
-                .unwrap_or(false)
-        })
-    {
+    if !array.is_empty() && array.statistics().compute_is_constant().unwrap_or(false) {
         return Ok(Some(
             ConstantArray::new(scalar_at(array, 0)?, array.len()).into_array(),
         ));

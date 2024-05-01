@@ -17,16 +17,17 @@ impl EncodingId {
     pub const fn new(id: &'static str) -> Self {
         Self(id)
     }
-
-    #[inline]
-    pub fn name(&self) -> &'static str {
-        self.0
-    }
 }
 
 impl Display for EncodingId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Display::fmt(self.0, f)
+    }
+}
+
+impl AsRef<str> for EncodingId {
+    fn as_ref(&self) -> &str {
+        self.0
     }
 }
 
@@ -38,7 +39,7 @@ pub type EncodingRef = &'static dyn ArrayEncoding;
 pub fn find_encoding(id: &str) -> Option<EncodingRef> {
     VORTEX_ENCODINGS
         .iter()
-        .find(|&x| x.id().name() == id)
+        .find(|&x| x.id().as_ref() == id)
         .cloned()
 }
 

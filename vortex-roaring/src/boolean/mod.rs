@@ -11,7 +11,7 @@ use vortex::visitor::{AcceptArrayVisitor, ArrayVisitor};
 use vortex::{impl_encoding, ArrayDType, ArrayFlatten, OwnedArray};
 use vortex_dtype::Nullability;
 use vortex_dtype::Nullability::NonNullable;
-use vortex_error::{vortex_bail, vortex_err, VortexResult};
+use vortex_error::{vortex_bail, vortex_err};
 use Nullability::Nullable;
 
 mod compress;
@@ -35,7 +35,7 @@ impl RoaringBoolArray<'_> {
                     RoaringBoolMetadata { length },
                     Some(Buffer::Owned(bitmap.serialize::<Portable>().into())),
                     vec![].into(),
-                    HashMap::default(),
+                    StatsSet::new(),
                 )?,
             })
         }

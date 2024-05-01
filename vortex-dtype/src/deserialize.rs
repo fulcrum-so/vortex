@@ -3,34 +3,14 @@ use std::sync::Arc;
 use vortex_error::{vortex_err, VortexError, VortexResult};
 use vortex_flatbuffers::ReadFlatBuffer;
 
-use crate::{flatbuffers as fb, Nullability};
-use crate::{CompositeID, DType};
+use crate::DType;
+use crate::{flatbuffers as fb, ExtDType, ExtID, ExtMetadata, Nullability};
 
-#[allow(dead_code)]
-pub struct DTypeSerdeContext {
-    composite_ids: Arc<[CompositeID]>,
-}
-
-impl DTypeSerdeContext {
-    pub fn new(composite_ids: Vec<CompositeID>) -> Self {
-        Self {
-            composite_ids: composite_ids.into(),
-        }
-    }
-
-    pub fn find_composite_id(&self, id: &str) -> Option<CompositeID> {
-        self.composite_ids.iter().find(|c| c.0 == id).copied()
-    }
-}
-
-impl ReadFlatBuffer<DTypeSerdeContext> for DType {
+impl ReadFlatBuffer for DType {
     type Source<'a> = fb::DType<'a>;
     type Error = VortexError;
 
-    fn read_flatbuffer(
-        ctx: &DTypeSerdeContext,
-        fb: &Self::Source<'_>,
-    ) -> Result<Self, Self::Error> {
+    fn read_flatbuffer(fb: &Self::Source<'_>) -> Result<Self, Self::Error> {
         match fb.type_type() {
             fb::Type::Null => Ok(DType::Null),
             fb::Type::Bool => Ok(DType::Bool(
@@ -75,7 +55,6 @@ impl ReadFlatBuffer<DTypeSerdeContext> for DType {
                     .type__as_list()
                     .ok_or_else(|| vortex_err!("type__as_list returned None"))?;
                 let element_dtype = DType::read_flatbuffer(
-                    ctx,
                     &fb_list
                         .element_type()
                         .ok_or_else(|| vortex_err!("list element_type returned None"))?,
@@ -99,22 +78,24 @@ impl ReadFlatBuffer<DTypeSerdeContext> for DType {
                     .fields()
                     .ok_or_else(|| vortex_err!("struct fields returned None"))?
                     .iter()
-                    .map(|f| DType::read_flatbuffer(ctx, &f))
+                    .map(|f| DType::read_flatbuffer(&f))
                     .collect::<VortexResult<Vec<_>>>()?;
                 Ok(DType::Struct(names, fields))
             }
-            fb::Type::Composite => {
-                let fb_composite = fb
-                    .type__as_composite()
-                    .ok_or_else(|| vortex_err!("type__as_composite returned None"))?;
-                let id = ctx
-                    .find_composite_id(
-                        fb_composite
-                            .id()
-                            .ok_or_else(|| vortex_err!("composite id returned None"))?,
-                    )
-                    .ok_or_else(|| vortex_err!("Couldn't find composite id"))?;
-                Ok(DType::Composite(id, fb_composite.nullability().try_into()?))
+            fb::Type::Extension => {
+                let fb_ext = fb
+                    .type__as_extension()
+                    .ok_or_else(|| vortex_err!("type__as_extension returned None"))?;
+                let id = ExtID::from(
+                    fb_ext
+                        .id()
+                        .ok_or_else(|| vortex_err!("extension id returned None"))?,
+                );
+                let metadata = fb_ext.metadata().map(|m| ExtMetadata::from(m.bytes()));
+                Ok(DType::Extension(
+                    ExtDType::new(id, metadata),
+                    fb_ext.nullability().try_into()?,
+                ))
             }
             _ => Err(vortex_err!("Unknown DType variant")),
         }

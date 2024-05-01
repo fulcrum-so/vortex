@@ -45,12 +45,9 @@ impl TryFrom<Scalar> for String {
         let Scalar::Utf8(u) = value else {
             vortex_bail!(MismatchedTypes: "Utf8", value.dtype());
         };
-        match u.into_value() {
-            None => Err(vortex_err!(
-                "cannot extract present value out of null scalar",
-            )),
-            Some(s) => Ok(s),
-        }
+
+        u.into_value()
+            .ok_or_else(|| vortex_err!("Can't extract present value from null scalar"))
     }
 }
 
@@ -61,12 +58,10 @@ impl TryFrom<&Scalar> for String {
         let Scalar::Utf8(u) = value else {
             vortex_bail!(MismatchedTypes: "Utf8", value.dtype());
         };
-        match u.value() {
-            None => Err(vortex_err!(
-                "cannot extract present value out of null scalar",
-            )),
-            Some(s) => Ok(s.to_string()),
-        }
+
+        u.value()
+            .cloned()
+            .ok_or_else(|| vortex_err!("Can't extract present value from null scalar"))
     }
 }
 

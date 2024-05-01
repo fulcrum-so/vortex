@@ -1,12 +1,10 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use vortex_dtype::DType;
 use vortex_error::{vortex_err, VortexError, VortexResult};
-use vortex_scalar::Scalar;
 
 use crate::buffer::OwnedBuffer;
-use crate::stats::Stat;
+use crate::stats::StatsSet;
 use crate::{Array, ArrayData, ArrayDef, AsArray, IntoArray, ToArray, TryDeserializeArrayMetadata};
 
 #[derive(Debug, Clone)]
@@ -21,7 +19,7 @@ impl<D: ArrayDef> TypedArray<'_, D> {
         metadata: D::Metadata,
         buffer: Option<OwnedBuffer>,
         children: Arc<[ArrayData]>,
-        stats: HashMap<Stat, Scalar>,
+        stats: StatsSet,
     ) -> VortexResult<Self> {
         let array = Array::Data(ArrayData::try_new(
             D::ENCODING,

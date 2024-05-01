@@ -27,7 +27,7 @@ use vortex_scalar::NullScalar;
 
 use crate::array::bool::BoolArray;
 use crate::array::constant::ConstantArray;
-use crate::array::datetime::{LocalDateTime, LocalDateTimeArray};
+use crate::array::datetime::LocalDateTimeArray;
 use crate::array::primitive::PrimitiveArray;
 use crate::array::r#struct::StructArray;
 use crate::array::varbin::VarBinArray;
@@ -101,13 +101,9 @@ where
             DataType::Timestamp(time_unit, tz) => match tz {
                 // A timestamp with no timezone is the equivalent of an "unknown" timezone.
                 // Therefore, we must treat it as a LocalDateTime and not an Instant.
-                None => LocalDateTimeArray::new(
-                    LocalDateTime::new((&time_unit).into()),
-                    arr.into_array(),
-                )
-                .as_composite()
-                .unwrap()
-                .into_array_data(),
+                None => {
+                    LocalDateTimeArray::new((&time_unit).into(), arr.into_array()).into_array_data()
+                }
                 Some(_tz) => todo!(),
             },
             DataType::Date32 => todo!(),

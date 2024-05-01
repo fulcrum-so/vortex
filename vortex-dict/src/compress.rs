@@ -8,7 +8,7 @@ use vortex::accessor::ArrayAccessor;
 use vortex::array::primitive::{Primitive, PrimitiveArray};
 use vortex::array::varbin::{VarBin, VarBinArray};
 use vortex::compress::{CompressConfig, CompressCtx, EncodingCompression};
-use vortex::stats::{ArrayStatistics, Stat};
+use vortex::stats::ArrayStatistics;
 use vortex::validity::Validity;
 use vortex::{Array, ArrayDType, ArrayDef, IntoArray, OwnedArray, ToArray};
 use vortex_dtype::NativePType;
@@ -33,7 +33,7 @@ impl EncodingCompression for DictEncoding {
         // We don't have a unique stat yet, but strict-sorted implies unique.
         if array
             .statistics()
-            .compute_as(Stat::IsStrictSorted)
+            .compute_is_strict_sorted()
             .unwrap_or(false)
         {
             return None;

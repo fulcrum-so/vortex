@@ -12,9 +12,12 @@ use vortex_dtype::NativePType;
 use vortex_dtype::{DType, Nullability};
 use vortex_error::VortexResult;
 
+use crate::extension::ExtScalar;
+
 mod binary;
 mod bool;
 mod composite;
+mod extension;
 mod list;
 mod null;
 mod primitive;
@@ -53,6 +56,7 @@ pub enum Scalar {
     Primitive(PrimitiveScalar),
     Struct(StructScalar),
     Utf8(Utf8Scalar),
+    Extension(ExtScalar),
     Composite(CompositeScalar),
 }
 
@@ -73,6 +77,7 @@ impls_for_scalars!(Null, NullScalar);
 impls_for_scalars!(Primitive, PrimitiveScalar);
 impls_for_scalars!(Struct, StructScalar);
 impls_for_scalars!(Utf8, Utf8Scalar);
+impls_for_scalars!(Extension, ExtScalar);
 impls_for_scalars!(Composite, CompositeScalar);
 
 macro_rules! match_each_scalar {
@@ -86,6 +91,7 @@ macro_rules! match_each_scalar {
             Scalar::Primitive(s) => __with_scalar__! { s },
             Scalar::Struct(s) => __with_scalar__! { s },
             Scalar::Utf8(s) => __with_scalar__! { s },
+            Scalar::Extension(s) => __with_scalar__! { s },
             Scalar::Composite(s) => __with_scalar__! { s },
         }
     })
@@ -118,6 +124,7 @@ impl Scalar {
             // FIXME(ngates): can't have a null struct?
             Scalar::Struct(_) => false,
             Scalar::Utf8(u) => u.value().is_none(),
+            Scalar::Extension(e) => e.value().is_none(),
             Scalar::Composite(c) => c.scalar().is_null(),
         }
     }
@@ -133,7 +140,8 @@ impl Scalar {
             DType::Binary(_) => BinaryScalar::none().into(),
             DType::Struct(..) => StructScalar::new(dtype.clone(), vec![]).into(),
             DType::List(..) => ListScalar::new(dtype.clone(), None).into(),
-            DType::Composite(..) => unimplemented!("CompositeScalar"),
+            DType::Extension(ext, _) => ExtScalar::null(ext.clone()).into(),
+            DType::Composite(..) => unimplemented!(),
         }
     }
 }
@@ -166,6 +174,6 @@ mod test {
 
     #[test]
     fn size_of() {
-        assert_eq!(mem::size_of::<Scalar>(), 80);
+        assert_eq!(mem::size_of::<Scalar>(), 88);
     }
 }

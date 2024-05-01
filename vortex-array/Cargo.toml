@@ -23,10 +23,12 @@ allocator-api2 = { workspace = true }
 arrow-array = { workspace = true }
 arrow-buffer = { workspace = true }
 arrow-schema = { workspace = true }
+enum-iterator = { workspace = true }
 flatbuffers = { workspace = true }
 flexbuffers = { workspace = true }
 humansize = { workspace = true }
 itertools = { workspace = true }
+lazy_static = { workspace = true }
 leb128 = { workspace = true }
 linkme = { workspace = true }
 log = { workspace = true }
@@ -51,4 +53,8 @@ criterion = { workspace = true }
 
 [[bench]]
 name = "search_sorted"
+harness = false
+
+[[bench]]
+name = "scalar_subtract"
 harness = false

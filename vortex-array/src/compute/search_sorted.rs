@@ -56,7 +56,7 @@ pub fn search_sorted<T: Into<Scalar>>(
 
         Err(vortex_err!(
             NotImplemented: "search_sorted",
-            array.encoding().id().name()
+            array.encoding().id()
         ))
     })
 }

@@ -2,15 +2,14 @@ use num_traits::AsPrimitive;
 use serde::{Deserialize, Serialize};
 use vortex_dtype::Nullability;
 use vortex_dtype::{match_each_native_ptype, NativePType};
-use vortex_error::{vortex_bail, VortexResult};
-use vortex_scalar::{BinaryScalar, Utf8Scalar};
+use vortex_error::vortex_bail;
+use vortex_scalar::{BinaryScalar, Scalar, Utf8Scalar};
 
 use crate::array::varbin::builder::VarBinBuilder;
 use crate::compute::scalar_at::scalar_at;
 use crate::compute::slice::slice;
 use crate::validity::{Validity, ValidityMetadata};
-use crate::ArrayDType;
-use crate::{impl_encoding, OwnedArray, ToArrayData};
+use crate::{impl_encoding, ArrayDType, OwnedArray, ToArrayData};
 
 mod accessor;
 mod array;
@@ -18,6 +17,7 @@ pub mod builder;
 mod compute;
 mod flatten;
 mod stats;
+
 pub use stats::compute_stats;
 
 use crate::array::primitive::PrimitiveArray;
@@ -62,7 +62,7 @@ impl VarBinArray<'_> {
             children.push(a)
         }
 
-        Self::try_from_parts(dtype, metadata, children.into(), HashMap::default())
+        Self::try_from_parts(dtype, metadata, children.into(), StatsSet::new())
     }
 
     #[inline]

@@ -977,7 +977,6 @@ dependencies = [
  "uuid",
  "vortex-alp",
  "vortex-array",
- "vortex-datetime-parts",
  "vortex-dict",
  "vortex-dtype",
  "vortex-error",
@@ -5183,11 +5182,13 @@ dependencies = [
  "arrow-buffer 51.0.0",
  "arrow-schema 51.0.0",
  "criterion",
+ "enum-iterator",
  "flatbuffers",
  "flatc",
  "flexbuffers",
  "humansize",
  "itertools 0.12.1",
+ "lazy_static",
  "leb128",
  "linkme",
  "log",
@@ -5203,19 +5204,6 @@ dependencies = [
  "vortex-flatbuffers",
  "vortex-scalar",
  "walkdir",
-]
-
-[[package]]
-name = "vortex-datetime-parts"
-version = "0.1.0"
-dependencies = [
- "linkme",
- "log",
- "serde",
- "vortex-array",
- "vortex-dtype",
- "vortex-error",
- "vortex-scalar",
 ]
 
 [[package]]
@@ -5320,6 +5308,7 @@ dependencies = [
  "vortex-error",
  "vortex-fastlanes",
  "vortex-flatbuffers",
+ "vortex-scalar",
  "walkdir",
 ]
 
@@ -5364,6 +5353,7 @@ dependencies = [
  "flatbuffers",
  "flatc",
  "itertools 0.12.1",
+ "num-traits",
  "serde",
  "vortex-dtype",
  "vortex-error",

@@ -3,7 +3,7 @@ use itertools::Itertools;
 use num_traits::AsPrimitive;
 use serde::{Deserialize, Serialize};
 use vortex_dtype::{match_each_native_ptype, NativePType, PType};
-use vortex_error::{vortex_bail, VortexResult};
+use vortex_error::vortex_bail;
 
 use crate::buffer::Buffer;
 use crate::validity::{ArrayValidity, LogicalValidity, Validity, ValidityMetadata};
@@ -36,7 +36,7 @@ impl PrimitiveArray<'_> {
                 },
                 Some(Buffer::Owned(buffer.into_inner())),
                 validity.into_array_data().into_iter().collect_vec().into(),
-                HashMap::default(),
+                StatsSet::new(),
             )?,
         })
     }

@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 
 use itertools::Itertools;
@@ -7,7 +6,7 @@ use vortex_error::{vortex_bail, vortex_err, VortexError, VortexResult};
 
 use crate::Scalar;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct ListScalar {
     dtype: DType,
     values: Option<Vec<Scalar>>,
@@ -59,13 +58,7 @@ impl ListScalar {
     }
 }
 
-impl PartialOrd for ListScalar {
-    fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
-        todo!()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct ListScalarVec<T>(pub Vec<T>);
 
 impl<T: Into<Scalar>> TryFrom<ListScalarVec<T>> for Scalar {

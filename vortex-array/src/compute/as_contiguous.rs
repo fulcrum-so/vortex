@@ -29,7 +29,7 @@ pub fn as_contiguous(arrays: &[Array]) -> VortexResult<OwnedArray> {
             .unwrap_or_else(|| {
                 Err(vortex_err!(
                     NotImplemented: "as_contiguous",
-                    first.encoding().id().name()
+                    first.encoding().id()
                 ))
             })
     })

@@ -14,7 +14,7 @@ pub fn slice(array: &Array, start: usize, stop: usize) -> VortexResult<OwnedArra
         c.slice().map(|t| t.slice(start, stop)).unwrap_or_else(|| {
             Err(vortex_err!(
                 NotImplemented: "slice",
-                array.encoding().id().name()
+                array.encoding().id()
             ))
         })
     })

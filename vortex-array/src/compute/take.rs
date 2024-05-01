@@ -16,9 +16,9 @@ pub fn take(array: &Array, indices: &Array) -> VortexResult<OwnedArray> {
         // Otherwise, flatten and try again.
         info!("TakeFn not implemented for {}, flattening", array);
         array.clone().flatten()?.into_array().with_dyn(|a| {
-            a.take().map(|t| t.take(indices)).unwrap_or_else(|| {
-                Err(vortex_err!(NotImplemented: "take", array.encoding().id().name()))
-            })
+            a.take()
+                .map(|t| t.take(indices))
+                .unwrap_or_else(|| Err(vortex_err!(NotImplemented: "take", array.encoding().id())))
         })
     })
 }

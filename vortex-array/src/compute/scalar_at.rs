@@ -15,8 +15,6 @@ pub fn scalar_at(array: &Array, index: usize) -> VortexResult<Scalar> {
     array.with_dyn(|a| {
         a.scalar_at()
             .map(|t| t.scalar_at(index))
-            .unwrap_or_else(|| {
-                Err(vortex_err!(NotImplemented: "scalar_at", array.encoding().id().name()))
-            })
+            .unwrap_or_else(|| Err(vortex_err!(NotImplemented: "scalar_at", array.encoding().id())))
     })
 }

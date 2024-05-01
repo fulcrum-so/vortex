@@ -2,11 +2,11 @@ use serde::{Deserialize, Serialize};
 use vortex::array::primitive::{Primitive, PrimitiveArray};
 use vortex::compute::scalar_at::scalar_at;
 use vortex::compute::search_sorted::{search_sorted, SearchSortedSide};
-use vortex::stats::{ArrayStatistics, ArrayStatisticsCompute};
+use vortex::stats::{ArrayStatistics, ArrayStatisticsCompute, Stat};
 use vortex::validity::{ArrayValidity, LogicalValidity, Validity, ValidityMetadata};
 use vortex::visitor::{AcceptArrayVisitor, ArrayVisitor};
 use vortex::{impl_encoding, ArrayDType, ArrayFlatten, IntoArrayData};
-use vortex_error::{vortex_bail, VortexResult};
+use vortex_error::vortex_bail;
 
 use crate::compress::{ree_decode, ree_encode};
 
@@ -59,7 +59,7 @@ impl REEArray<'_> {
             children.push(a)
         }
 
-        Self::try_from_parts(dtype, metadata, children.into(), HashMap::new())
+        Self::try_from_parts(dtype, metadata, children.into(), StatsSet::new())
     }
 
     pub fn find_physical_index(&self, index: usize) -> VortexResult<usize> {

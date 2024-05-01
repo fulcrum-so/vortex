@@ -22,6 +22,7 @@ vortex-array = { path = "../vortex-array" }
 vortex-error = { path = "../vortex-error" }
 vortex-flatbuffers = { path = "../vortex-flatbuffers" }
 vortex-dtype = { path = "../vortex-dtype" }
+vortex-scalar = { path = "../vortex-scalar" }
 
 [build-dependencies]
 flatc = { workspace = true }

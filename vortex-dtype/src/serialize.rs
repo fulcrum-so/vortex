@@ -80,17 +80,20 @@ impl WriteFlatBuffer for DType {
                 )
                 .as_union_value()
             }
-            DType::Composite(id, n) => {
-                let id = Some(fbb.create_string(id.0));
-                fb::Composite::create(
+            DType::Extension(ext, n) => {
+                let id = Some(fbb.create_string(ext.id().as_ref()));
+                let metadata = ext.metadata().map(|m| fbb.create_vector(m.as_ref()));
+                fb::Extension::create(
                     fbb,
-                    &fb::CompositeArgs {
+                    &fb::ExtensionArgs {
                         id,
+                        metadata,
                         nullability: n.into(),
                     },
                 )
                 .as_union_value()
             }
+            DType::Composite(..) => todo!(),
         };
 
         let dtype_type = match self {
@@ -102,7 +105,8 @@ impl WriteFlatBuffer for DType {
             DType::Binary(_) => fb::Type::Binary,
             DType::Struct(..) => fb::Type::Struct_,
             DType::List(..) => fb::Type::List,
-            DType::Composite(..) => fb::Type::Composite,
+            DType::Extension { .. } => fb::Type::Extension,
+            DType::Composite(..) => unreachable!(),
         };
 
         fb::DType::create(
@@ -180,15 +184,11 @@ mod test {
     use vortex_flatbuffers::{FlatBufferToBytes, ReadFlatBuffer};
 
     use crate::{flatbuffers as fb, PType};
-    use crate::{DType, DTypeSerdeContext, Nullability};
+    use crate::{DType, Nullability};
 
     fn roundtrip_dtype(dtype: DType) {
         let bytes = dtype.with_flatbuffer_bytes(|bytes| bytes.to_vec());
-        let deserialized = DType::read_flatbuffer(
-            &DTypeSerdeContext::new(vec![]),
-            &root::<fb::DType>(&bytes).unwrap(),
-        )
-        .unwrap();
+        let deserialized = DType::read_flatbuffer(&root::<fb::DType>(&bytes).unwrap()).unwrap();
         assert_eq!(dtype, deserialized);
     }
 

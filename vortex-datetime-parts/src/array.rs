@@ -3,7 +3,7 @@ use vortex::stats::ArrayStatisticsCompute;
 use vortex::validity::{ArrayValidity, LogicalValidity, Validity, ValidityMetadata};
 use vortex::visitor::{AcceptArrayVisitor, ArrayVisitor};
 use vortex::{impl_encoding, ArrayDType, ArrayFlatten, ToArrayData};
-use vortex_error::{vortex_bail, VortexResult};
+use vortex_error::vortex_bail;
 
 impl_encoding!("vortex.datetimeparts", DateTimeParts);
 
@@ -63,7 +63,7 @@ impl DateTimePartsArray<'_> {
                 validity: validity_metadata,
             },
             children.into(),
-            HashMap::new(),
+            StatsSet::new(),
         )
     }
 

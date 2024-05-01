@@ -59,9 +59,9 @@ impl<'a> WriteFlatBuffer for IPCContext<'a> {
             .0
             .encodings()
             .iter()
-            .map(|e| e.id().name())
-            .map(|name| {
-                let encoding_id = fbb.create_string(name);
+            .map(|e| e.id())
+            .map(|id| {
+                let encoding_id = fbb.create_string(id.as_ref());
                 fb::Encoding::create(
                     fbb,
                     &fb::EncodingArgs {

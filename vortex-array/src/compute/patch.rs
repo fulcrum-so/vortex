@@ -21,8 +21,8 @@ pub fn patch(array: &Array, patch: &Array) -> VortexResult<OwnedArray> {
     }
 
     array.with_dyn(|a| {
-        a.patch().map(|t| t.patch(patch)).unwrap_or_else(|| {
-            Err(vortex_err!(NotImplemented: "take", array.encoding().id().name()))
-        })
+        a.patch()
+            .map(|t| t.patch(patch))
+            .unwrap_or_else(|| Err(vortex_err!(NotImplemented: "take", array.encoding().id())))
     })
 }

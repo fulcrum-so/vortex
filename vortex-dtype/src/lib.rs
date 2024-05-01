@@ -2,11 +2,13 @@ use std::fmt::{Display, Formatter};
 
 pub use deserialize::*;
 pub use dtype::*;
+pub use extension::*;
 pub use half;
 pub use ptype::*;
 
 mod deserialize;
 mod dtype;
+mod extension;
 mod ptype;
 mod serde;
 mod serialize;

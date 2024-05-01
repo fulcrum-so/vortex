@@ -1,6 +1,6 @@
 namespace vortex.dtype;
 
-enum Nullability: byte {
+enum Nullability: uint8 {
     NonNullable,
     Nullable,
 }
@@ -32,10 +32,10 @@ table Primitive {
 
 table Decimal {
     /// Total number of decimal digits
-    precision: ubyte;
+    precision: uint8;
 
     /// Number of digits after the decimal point "."
-    scale: byte;
+    scale: int8;
     nullability: Nullability;
 }
 
@@ -57,8 +57,9 @@ table List {
     nullability: Nullability;
 }
 
-table Composite {
+table Extension {
     id: string;
+    metadata: [ubyte];
     nullability: Nullability;
 }
 
@@ -71,7 +72,7 @@ union Type {
     Binary,
     Struct_,
     List,
-    Composite,
+    Extension,
 }
 
 table DType {

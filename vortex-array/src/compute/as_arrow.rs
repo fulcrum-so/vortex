@@ -17,9 +17,9 @@ pub fn as_arrow(array: &Array) -> VortexResult<ArrowArrayRef> {
 
         // Otherwise, flatten and try again.
         let array = array.clone().flatten()?.into_array();
-        a.as_arrow().map(|a| a.as_arrow()).unwrap_or_else(|| {
-            Err(vortex_err!(NotImplemented: "as_arrow", array.encoding().id().name()))
-        })
+        a.as_arrow()
+            .map(|a| a.as_arrow())
+            .unwrap_or_else(|| Err(vortex_err!(NotImplemented: "as_arrow", array.encoding().id())))
     })
 }
 

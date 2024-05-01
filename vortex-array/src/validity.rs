@@ -8,7 +8,7 @@ use crate::compute::as_contiguous::as_contiguous;
 use crate::compute::scalar_at::scalar_at;
 use crate::compute::slice::slice;
 use crate::compute::take::take;
-use crate::stats::{ArrayStatistics, Stat};
+use crate::stats::ArrayStatistics;
 use crate::{Array, ArrayData, IntoArray, IntoArrayData, OwnedArray, ToArray, ToArrayData};
 
 pub trait ArrayValidity {
@@ -123,9 +123,14 @@ impl<'v> Validity<'v> {
             Validity::AllInvalid => LogicalValidity::AllInvalid(length),
             Validity::Array(a) => {
                 // Logical validity should map into AllValid/AllInvalid where possible.
-                if a.statistics().compute_as::<bool>(Stat::Min) == Some(true) {
+                if a.statistics().compute_min::<bool>().unwrap_or(false) {
                     LogicalValidity::AllValid(length)
-                } else if a.statistics().compute_as::<bool>(Stat::Max) == Some(false) {
+                } else if a
+                    .statistics()
+                    .compute_max::<bool>()
+                    .map(|m| !m)
+                    .unwrap_or(false)
+                {
                     LogicalValidity::AllInvalid(length)
                 } else {
                     LogicalValidity::Array(a.to_array_data())

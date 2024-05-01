@@ -9,8 +9,8 @@ use crate::DType;
 use crate::DType::*;
 use crate::Nullability::NonNullable;
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum PType {
     U8,
     U16,
@@ -100,6 +100,21 @@ macro_rules! match_each_integer_ptype {
             PType::U16 => __with__! { u16 },
             PType::U32 => __with__! { u32 },
             PType::U64 => __with__! { u64 },
+            _ => panic!("Unsupported ptype {}", $self),
+        }
+    })
+}
+
+#[macro_export]
+macro_rules! match_each_float_ptype {
+    ($self:expr, | $_:tt $enc:ident | $($body:tt)*) => ({
+        macro_rules! __with__ {( $_ $enc:ident ) => ( $($body)* )}
+        use $crate::PType;
+        use vortex_dtype::half::f16;
+        match $self {
+            PType::F16 => __with__! { f16 },
+            PType::F32 => __with__! { f32 },
+            PType::F64 => __with__! { f64 },
             _ => panic!("Unsupported ptype {}", $self),
         }
     })

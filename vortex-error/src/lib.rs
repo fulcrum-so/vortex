@@ -133,10 +133,10 @@ macro_rules! vortex_err {
             $crate::VortexError::OutOfBounds($idx, $start, $stop, Backtrace::capture())
         )
     }};
-    (NotImplemented: $func:expr, $arr:expr) => {{
+    (NotImplemented: $func:expr, $by_whom:expr) => {{
         use std::backtrace::Backtrace;
         $crate::__private::must_use(
-            $crate::VortexError::NotImplemented($func.into(), $arr.into(), Backtrace::capture())
+            $crate::VortexError::NotImplemented($func.into(), format!("{}", $by_whom).into(), Backtrace::capture())
         )
     }};
     (MismatchedTypes: $expected:literal, $actual:expr) => {{

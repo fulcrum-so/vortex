@@ -1,14 +1,12 @@
-use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use vortex_dtype::DType;
-use vortex_error::VortexResult;
+use vortex_error::{vortex_err, VortexResult};
 use vortex_scalar::Scalar;
 
 use crate::buffer::{Buffer, OwnedBuffer};
 use crate::encoding::EncodingRef;
-use crate::stats::Stat;
-use crate::stats::Statistics;
+use crate::stats::{Stat, Statistics, StatsSet};
 use crate::{Array, ArrayMetadata, IntoArray, OwnedArray, ToArray};
 
 #[derive(Clone, Debug)]
@@ -18,7 +16,7 @@ pub struct ArrayData {
     metadata: Arc<dyn ArrayMetadata>,
     buffer: Option<OwnedBuffer>,
     children: Arc<[ArrayData]>,
-    stats_map: Arc<RwLock<HashMap<Stat, Scalar>>>,
+    stats_map: Arc<RwLock<StatsSet>>,
 }
 
 impl ArrayData {
@@ -28,7 +26,7 @@ impl ArrayData {
         metadata: Arc<dyn ArrayMetadata>,
         buffer: Option<OwnedBuffer>,
         children: Arc<[ArrayData]>,
-        statistics: HashMap<Stat, Scalar>,
+        statistics: StatsSet,
     ) -> VortexResult<Self> {
         let data = Self {
             encoding,
@@ -140,29 +138,59 @@ impl IntoArray<'static> for ArrayData {
 }
 
 impl Statistics for ArrayData {
-    fn compute(&self, stat: Stat) -> Option<Scalar> {
-        let mut locked = self.stats_map.write().unwrap();
-        let stats = self
-            .to_array()
-            .with_dyn(|a| a.compute_statistics(stat))
-            .ok()?;
-        for (k, v) in &stats {
-            locked.insert(*k, v.clone());
-        }
-        stats.get(&stat).cloned()
+    fn get(&self, stat: Stat) -> Option<Scalar> {
+        self.stats_map.read().unwrap().get(stat).cloned()
     }
 
-    fn get(&self, stat: Stat) -> Option<Scalar> {
-        let locked = self.stats_map.read().unwrap();
-        locked.get(&stat).cloned()
+    fn to_set(&self) -> StatsSet {
+        self.stats_map.read().unwrap().clone()
     }
 
     fn set(&self, stat: Stat, value: Scalar) {
-        let mut locked = self.stats_map.write().unwrap();
-        locked.insert(stat, value);
+        self.stats_map.write().unwrap().set(stat, value);
     }
 
-    fn to_map(&self) -> HashMap<Stat, Scalar> {
-        self.stats_map.read().unwrap().clone()
+    fn compute(&self, stat: Stat) -> Option<Scalar> {
+        if let Some(s) = self.get(stat) {
+            return Some(s);
+        }
+
+        self.stats_map.write().unwrap().extend(
+            self.to_array()
+                .with_dyn(|a| a.compute_statistics(stat))
+                .ok()?,
+        );
+        self.get(stat)
+    }
+
+    #[inline]
+    fn with_stat_value<'a>(
+        &self,
+        stat: Stat,
+        f: &'a mut dyn FnMut(&Scalar) -> VortexResult<()>,
+    ) -> VortexResult<()> {
+        self.stats_map
+            .read()
+            .unwrap()
+            .get(stat)
+            .ok_or_else(|| vortex_err!(ComputeError: "statistic {} missing", stat))
+            .and_then(f)
+    }
+
+    #[inline]
+    fn with_computed_stat_value<'a>(
+        &self,
+        stat: Stat,
+        f: &'a mut dyn FnMut(&Scalar) -> VortexResult<()>,
+    ) -> VortexResult<()> {
+        if let Some(s) = self.stats_map.read().unwrap().get(stat) {
+            return f(s);
+        }
+
+        self.stats_map
+            .write()
+            .unwrap()
+            .extend(self.to_array().with_dyn(|a| a.compute_statistics(stat))?);
+        self.with_stat_value(stat, f)
     }
 }
