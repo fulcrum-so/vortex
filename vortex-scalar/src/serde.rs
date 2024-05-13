@@ -4,7 +4,7 @@ use flatbuffers::{root, FlatBufferBuilder, WIPOffset};
 use serde::de::Visitor;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use vortex_dtype::match_each_native_ptype;
-use vortex_dtype::{DTypeSerdeContext, Nullability};
+use vortex_dtype::Nullability;
 use vortex_error::{vortex_bail, vortex_err, VortexError};
 use vortex_flatbuffers::{FlatBufferRoot, FlatBufferToBytes, ReadFlatBuffer, WriteFlatBuffer};
 
