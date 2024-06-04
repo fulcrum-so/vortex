@@ -1,14 +1,15 @@
 use std::ops::{BitAnd, BitOr};
 
 use arrow_buffer::BooleanBuffer;
-use vortex_dtype::{match_each_native_ptype, NativePType};
 use vortex_error::{vortex_bail, VortexResult};
 use vortex_expr::expressions::{Disjunction, Predicate, Value};
 
 use crate::array::bool::BoolArray;
 use crate::array::primitive::PrimitiveArray;
+use crate::compute::compare::CompareFn;
+use crate::compute::compare_scalar::CompareScalarFn;
 use crate::compute::filter_indices::FilterIndicesFn;
-use crate::{Array, ArrayTrait, IntoArray};
+use crate::{Array, ArrayDType, ArrayTrait, IntoArray};
 
 impl FilterIndicesFn for PrimitiveArray {
     fn filter_indices(&self, predicate: &Disjunction) -> VortexResult<Array> {
@@ -42,39 +43,32 @@ fn indices_matching_predicate(
         vortex_bail!("Invalid path for primitive array")
     }
 
-    let rhs = match &predicate.right {
-        Value::Field(_) => {
-            vortex_bail!("Cannot apply field reference to primitive array")
+    match &predicate.right {
+        Value::Field(path) => {
+            let rhs = arr.clone().into_array().resolve_field(arr.dtype(), path)?;
+            arr.compare(&rhs, predicate.op)?
+                .flatten_bool()
+                .map(|arr| arr.boolean_buffer())
         }
-        Value::Literal(scalar) => scalar,
-    };
-
-    let matching_idxs = match_each_native_ptype!(arr.ptype(), |$T| {
-        let rhs_typed: $T = rhs.try_into().unwrap();
-        let predicate_fn = &predicate.op.to_predicate::<$T>();
-        apply_predicate(arr.typed_data::<$T>(), &rhs_typed, predicate_fn)
-    });
-
-    Ok(matching_idxs)
-}
-
-fn apply_predicate<T: NativePType, F: Fn(&T, &T) -> bool>(
-    lhs: &[T],
-    rhs: &T,
-    f: F,
-) -> BooleanBuffer {
-    let matches = lhs.iter().map(|lhs| f(lhs, rhs));
-    BooleanBuffer::from_iter(matches)
+        Value::Literal(scalar) => arr
+            .compare_scalar(predicate.op, scalar)?
+            .flatten_bool()
+            .map(|arr| arr.boolean_buffer()),
+    }
 }
 
 #[cfg(test)]
 mod test {
+    use std::sync::Arc;
+
     use itertools::Itertools;
-    use vortex_dtype::field_paths::FieldPathBuilder;
+    use vortex_dtype::field_paths::{field, FieldPathBuilder};
     use vortex_expr::expressions::{lit, Conjunction};
     use vortex_expr::field_paths::FieldPathOperations;
+    use vortex_expr::operators::{field_comparison, Operator};
 
     use super::*;
+    use crate::array::r#struct::StructArray;
     use crate::validity::Validity;
 
     fn apply_conjunctive_filter(arr: &PrimitiveArray, conj: Conjunction) -> VortexResult<Array> {
@@ -241,5 +235,48 @@ mod test {
             },
         )
         .expect_err("Cannot apply field reference to primitive array");
+    }
+
+    #[test]
+    fn test_basic_field_comparisons() -> VortexResult<()> {
+        let ints =
+            PrimitiveArray::from_nullable_vec(vec![Some(0u64), Some(1), None, Some(3), Some(4)]);
+        let other =
+            PrimitiveArray::from_nullable_vec(vec![Some(0u64), Some(2), None, Some(5), Some(1)]);
+
+        let structs = StructArray::try_new(
+            Arc::new([Arc::from("field_a"), Arc::from("field_b")]),
+            vec![ints.into_array(), other.clone().into_array()],
+            5,
+            Validity::AllValid,
+        )?;
+
+        fn comparison(op: Operator) -> Disjunction {
+            field_comparison(op, field("field_a"), field("field_b"))
+        }
+
+        let matches = FilterIndicesFn::filter_indices(&structs, &comparison(Operator::EqualTo))?
+            .flatten_bool()?;
+        assert_eq!(to_int_indices(matches), [0]);
+
+        let matches = FilterIndicesFn::filter_indices(&structs, &comparison(Operator::LessThan))?
+            .flatten_bool()?;
+        assert_eq!(to_int_indices(matches), [1, 3]);
+
+        let matches =
+            FilterIndicesFn::filter_indices(&structs, &comparison(Operator::LessThanOrEqualTo))?
+                .flatten_bool()?;
+        assert_eq!(to_int_indices(matches), [0, 1, 3]);
+
+        let matches =
+            FilterIndicesFn::filter_indices(&structs, &comparison(Operator::GreaterThan))?
+                .flatten_bool()?;
+        assert_eq!(to_int_indices(matches), [4]);
+
+        let matches =
+            FilterIndicesFn::filter_indices(&structs, &comparison(Operator::GreaterThanOrEqualTo))?
+                .flatten_bool()?;
+        assert_eq!(to_int_indices(matches), [0, 4]);
+        Ok(())
     }
 }

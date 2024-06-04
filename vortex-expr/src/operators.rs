@@ -1,8 +1,9 @@
 use std::ops;
 
+use vortex_dtype::field_paths::FieldPath;
 use vortex_dtype::NativePType;
 
-use crate::expressions::Predicate;
+use crate::expressions::{Conjunction, Disjunction, Predicate, Value};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -57,5 +58,17 @@ impl Operator {
             Operator::LessThan => PartialOrd::lt,
             Operator::LessThanOrEqualTo => PartialOrd::le,
         }
+    }
+}
+
+pub fn field_comparison(op: Operator, left: FieldPath, right: FieldPath) -> Disjunction {
+    Disjunction {
+        conjunctions: vec![Conjunction {
+            predicates: vec![Predicate {
+                left,
+                op,
+                right: Value::Field(right),
+            }],
+        }],
     }
 }

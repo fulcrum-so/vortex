@@ -9,6 +9,7 @@ use search_sorted::SearchSortedFn;
 use slice::SliceFn;
 use take::TakeFn;
 
+use crate::compute::compare_scalar::CompareScalarFn;
 use crate::compute::filter_indices::FilterIndicesFn;
 use crate::compute::scalar_subtract::SubtractScalarFn;
 
@@ -16,6 +17,7 @@ pub mod as_arrow;
 pub mod as_contiguous;
 pub mod cast;
 pub mod compare;
+pub mod compare_scalar;
 pub mod fill;
 pub mod filter_indices;
 pub mod patch;
@@ -39,6 +41,10 @@ pub trait ArrayCompute {
     }
 
     fn compare(&self) -> Option<&dyn CompareFn> {
+        None
+    }
+
+    fn compare_scalar(&self) -> Option<&dyn CompareScalarFn> {
         None
     }
 

@@ -32,8 +32,9 @@ pub use metadata::*;
 pub use typed::*;
 pub use view::*;
 use vortex_buffer::Buffer;
+use vortex_dtype::field_paths::{FieldIdentifier, FieldPath};
 use vortex_dtype::DType;
-use vortex_error::VortexResult;
+use vortex_error::{vortex_bail, vortex_err, VortexResult};
 
 use crate::compute::ArrayCompute;
 use crate::encoding::{ArrayEncodingRef, EncodingRef};
@@ -59,6 +60,7 @@ pub mod flatbuffers {
             #[allow(unused_imports)]
             pub use vortex_dtype::flatbuffers as dtype;
         }
+
         pub mod scalar {
             #[allow(unused_imports)]
             pub use vortex_scalar::flatbuffers as scalar;
@@ -123,6 +125,44 @@ impl Array {
             futures_util::stream::once(ready(Ok(self))),
         )
     }
+
+    pub fn resolve_field(self, dtype: &DType, path: &FieldPath) -> VortexResult<Array> {
+        match dtype {
+            DType::Struct(struct_dtype, _) => {
+                let current = path
+                    .head()
+                    .ok_or_else(|| vortex_err!("Invalid path for struct array"))?;
+                if let FieldIdentifier::Name(field_name) = current {
+                    let idx = struct_dtype
+                        .find_name(field_name.as_str())
+                        .ok_or_else(|| vortex_err!("Query not compatible with dtype"))?;
+                    let inner_dtype = struct_dtype
+                        .dtypes()
+                        .get(idx)
+                        .expect("Looking up known index should never fail");
+                    let inner_name = path
+                        .tail()
+                        .ok_or_else(|| vortex_err!("Invalid path for struct array"))?;
+                    self.child(idx, inner_dtype)
+                        .ok_or_else(|| vortex_err!("Invalid dtype for array"))?
+                        .resolve_field(inner_dtype, &inner_name)
+                } else {
+                    vortex_bail!("Query not compatible with dtype")
+                }
+            }
+            DType::List(..) => {
+                // TODO(@jcasale): resolve list fields in a follow-on
+                vortex_bail!(NotImplemented: "Resolving list fields not yet implemented", self.dtype())
+            }
+            _ => {
+                if path.head().is_none() {
+                    Ok(self)
+                } else {
+                    vortex_bail!("Invalid path for non-nested array")
+                }
+            }
+        }
+    }
 }
 
 pub trait ToArray {
@@ -177,6 +217,7 @@ pub trait ArrayDType {
 }
 
 struct NBytesVisitor(usize);
+
 impl ArrayVisitor for NBytesVisitor {
     fn visit_child(&mut self, _name: &str, array: &Array) -> VortexResult<()> {
         self.0 += array.with_dyn(|a| a.nbytes());

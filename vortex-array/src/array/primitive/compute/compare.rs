@@ -2,7 +2,7 @@ use std::ops::BitAnd;
 
 use arrow_buffer::BooleanBuffer;
 use vortex_dtype::{match_each_native_ptype, NativePType};
-use vortex_error::VortexResult;
+use vortex_error::{vortex_err, VortexResult};
 use vortex_expr::operators::Operator;
 
 use crate::array::bool::BoolArray;
@@ -11,26 +11,34 @@ use crate::compute::compare::CompareFn;
 use crate::{Array, ArrayTrait, IntoArray};
 
 impl CompareFn for PrimitiveArray {
+    // @TODO(@jcasale) take stats into account here, which may allow us to elide some comparison
+    // work based on sortedness/min/max/etc.
     fn compare(&self, other: &Array, predicate: Operator) -> VortexResult<Array> {
-        let flattened = other.clone().flatten_primitive()?;
+        let flattened = other
+            .clone()
+            .flatten_primitive()
+            .map_err(|_| vortex_err!("Cannot compare primitive array with non-primitive array"))?;
 
         let matching_idxs = match_each_native_ptype!(self.ptype(), |$T| {
             let predicate_fn = &predicate.to_predicate::<$T>();
             apply_predicate(self.typed_data::<$T>(), flattened.typed_data::<$T>(), predicate_fn)
         });
 
-        let present = self
-            .validity()
-            .to_logical(self.len())
-            .to_present_null_buffer()?
-            .into_inner();
+        let present = self.validity().to_logical(self.len()).to_null_buffer()?;
+        let with_validity_applied = present
+            .map(|p| matching_idxs.bitand(&p.into_inner()))
+            .unwrap_or(matching_idxs);
+
         let present_other = flattened
             .validity()
             .to_logical(self.len())
-            .to_present_null_buffer()?
-            .into_inner();
+            .to_null_buffer()?;
 
-        Ok(BoolArray::from(matching_idxs.bitand(&present).bitand(&present_other)).into_array())
+        let with_other_validity_applied = present_other
+            .map(|p| with_validity_applied.bitand(&p.into_inner()))
+            .unwrap_or(with_validity_applied);
+
+        Ok(BoolArray::from(with_other_validity_applied).into_array())
     }
 }
 

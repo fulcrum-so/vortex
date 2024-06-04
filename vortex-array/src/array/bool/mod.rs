@@ -1,7 +1,10 @@
+use std::ops::{BitAnd, BitOr, BitXor, Not};
+
 use arrow_buffer::BooleanBuffer;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use vortex_buffer::Buffer;
+use vortex_expr::operators::Operator;
 
 use crate::validity::{ArrayValidity, ValidityMetadata};
 use crate::validity::{LogicalValidity, Validity};
@@ -54,6 +57,17 @@ impl BoolArray {
     pub fn from_vec(bools: Vec<bool>, validity: Validity) -> Self {
         let buffer = BooleanBuffer::from(bools);
         Self::try_new(buffer, validity).unwrap()
+    }
+}
+
+pub fn apply_comparison_op(lhs: BooleanBuffer, rhs: BooleanBuffer, op: Operator) -> BooleanBuffer {
+    match op {
+        Operator::EqualTo => lhs.bitxor(&rhs).not(),
+        Operator::NotEqualTo => lhs.bitxor(&rhs),
+        Operator::GreaterThan => lhs.bitand(&rhs.not()),
+        Operator::GreaterThanOrEqualTo => lhs.bitor(&rhs.not()),
+        Operator::LessThan => lhs.not().bitand(&rhs),
+        Operator::LessThanOrEqualTo => lhs.not().bitor(&rhs),
     }
 }
 

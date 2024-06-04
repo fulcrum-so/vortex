@@ -69,3 +69,7 @@ harness = false
 [[bench]]
 name = "compare"
 harness = false
+
+[[bench]]
+name = "compare_scalar"
+harness = false
