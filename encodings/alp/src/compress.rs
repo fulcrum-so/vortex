@@ -196,7 +196,15 @@ mod tests {
         let values = vec![1.234f64, 2.718, std::f64::consts::PI, 4.0];
         let array = PrimitiveArray::from(values.clone());
         let encoded = alp_encode(&array).unwrap();
-        assert!(encoded.patches().is_some());
+        assert_eq!(
+            SparseArray::try_from(encoded.patches().unwrap())
+                .unwrap()
+                .values()
+                .flatten_primitive()
+                .unwrap()
+                .typed_data::<f64>(),
+            vec![std::f64::consts::PI]
+        );
         assert_eq!(
             encoded.encoded().into_primitive().typed_data::<i64>(),
             vec![1234i64, 2718, 2718, 4000] // fill forward

@@ -1,4 +1,4 @@
-use std::mem::size_of;
+use std::mem::{size_of, ManuallyDrop};
 
 use arrow_buffer::{ArrowNativeType, ScalarBuffer};
 use itertools::Itertools;
@@ -113,12 +113,15 @@ impl PrimitiveArray {
             .into_vec()
             .unwrap_or_else(|b| Vec::from(b.as_ref()));
 
+        let mut manual_bytes = ManuallyDrop::new(bytes);
+        let (prefix, aligned_data, suffix) = unsafe { manual_bytes.align_to_mut::<T>() };
+        assert!(prefix.is_empty() && suffix.is_empty());
+
         unsafe {
-            let mut bytes = std::mem::ManuallyDrop::new(bytes);
             Vec::from_raw_parts(
-                bytes.as_mut_ptr() as *mut T,
-                bytes.len() / size_of::<T>(),
-                bytes.capacity() / size_of::<T>(),
+                aligned_data.as_mut_ptr(),
+                manual_bytes.len() / size_of::<T>(),
+                manual_bytes.capacity() / size_of::<T>(),
             )
         }
     }
