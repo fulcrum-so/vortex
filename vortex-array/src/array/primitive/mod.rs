@@ -1,5 +1,3 @@
-use std::mem::{size_of, ManuallyDrop};
-
 use arrow_buffer::{ArrowNativeType, ScalarBuffer};
 use itertools::Itertools;
 use num_traits::AsPrimitive;
@@ -93,14 +91,14 @@ impl PrimitiveArray {
             self.ptype(),
         );
 
-        let (prefix, offsets, suffix) = unsafe { self.buffer().as_ref().align_to::<T>() };
+        let (prefix, data, suffix) = unsafe { self.buffer().as_ref().align_to::<T>() };
         assert!(prefix.is_empty() && suffix.is_empty());
-        offsets
+        data
     }
 
     /// Convert the array into a mutable vec of the given type.
     /// If possible, this will be zero-copy.
-    pub fn into_typed_data<T: NativePType>(self) -> Vec<T> {
+    pub fn into_typed_data<T: NativePType + ArrowNativeType>(self) -> Vec<T> {
         assert_eq!(
             T::PTYPE,
             self.ptype(),
@@ -108,22 +106,11 @@ impl PrimitiveArray {
             T::PTYPE,
             self.ptype(),
         );
-        let bytes = self
-            .into_buffer()
-            .into_vec()
-            .unwrap_or_else(|b| Vec::from(b.as_ref()));
-
-        let mut manual_bytes = ManuallyDrop::new(bytes);
-        let (prefix, aligned_data, suffix) = unsafe { manual_bytes.align_to_mut::<T>() };
-        assert!(prefix.is_empty() && suffix.is_empty());
-
-        unsafe {
-            Vec::from_raw_parts(
-                aligned_data.as_mut_ptr(),
-                manual_bytes.len() / size_of::<T>(),
-                manual_bytes.capacity() / size_of::<T>(),
-            )
-        }
+        self.into_buffer().into_vec::<T>().unwrap_or_else(|b| {
+            let (prefix, data, suffix) = unsafe { b.as_ref().align_to::<T>() };
+            assert!(prefix.is_empty() && suffix.is_empty());
+            Vec::from(data)
+        })
     }
 
     pub fn get_as_cast<T: NativePType>(&self, idx: usize) -> T {
@@ -152,7 +139,7 @@ impl PrimitiveArray {
         })
     }
 
-    pub fn patch<P: AsPrimitive<usize>, T: NativePType>(
+    pub fn patch<P: AsPrimitive<usize>, T: NativePType + ArrowNativeType>(
         self,
         positions: &[P],
         values: &[T],
