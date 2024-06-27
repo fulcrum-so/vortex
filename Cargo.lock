@@ -428,6 +428,7 @@ dependencies = [
  "criterion",
  "csv",
  "datafusion",
+ "divan",
  "enum-iterator",
  "flexbuffers",
  "futures",

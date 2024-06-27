@@ -1,28 +1,25 @@
+use std::hint::black_box;
+
 use bench_vortex::compress_taxi_data;
 use bench_vortex::data_downloads::BenchmarkDataset;
 use bench_vortex::public_bi_data::BenchmarkDatasets;
 use bench_vortex::public_bi_data::PBIDataset::Medicare1;
 use bench_vortex::taxi_data::taxi_data_parquet;
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use divan::Bencher;
 
-fn vortex_compress_taxi(c: &mut Criterion) {
+#[divan::bench]
+fn vortex_compress_taxi(bencher: Bencher) {
     taxi_data_parquet();
-    let mut group = c.benchmark_group("end to end - taxi");
-    group.sample_size(10);
-    group.bench_function("compress", |b| b.iter(|| black_box(compress_taxi_data())));
-    group.finish()
+    bencher.bench(|| black_box(compress_taxi_data()));
 }
 
-fn vortex_compress_medicare1(c: &mut Criterion) {
+#[divan::bench]
+fn vortex_compress_medicare1(bencher: Bencher) {
     let dataset = BenchmarkDatasets::PBI(Medicare1);
     dataset.as_uncompressed();
-    let mut group = c.benchmark_group("end to end - medicare");
-    group.sample_size(10);
-    group.bench_function("compress", |b| {
-        b.iter(|| black_box(dataset.compress_to_vortex()))
-    });
-    group.finish()
+    bencher.bench(|| black_box(dataset.compress_to_vortex()));
 }
 
-criterion_group!(benches, vortex_compress_taxi, vortex_compress_medicare1);
-criterion_main!(benches);
+fn main() {
+    divan::main();
+}

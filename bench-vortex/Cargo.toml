@@ -52,6 +52,7 @@ vortex-roaring = { path = "../encodings/roaring" }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports", "async_tokio"] }
+divan = { workspace = true }
 
 [[bench]]
 name = "compress_benchmark"

@@ -10,6 +10,7 @@ use datafusion::datasource::{MemTable, TableProvider};
 use datafusion::execution::memory_pool::human_readable_size;
 use datafusion::logical_expr::lit;
 use datafusion::prelude::{col, count_distinct, DataFrame, SessionContext};
+use divan::Bencher;
 use lazy_static::lazy_static;
 use vortex::compress::Compressor;
 use vortex::encoding::EncodingRef;
@@ -89,26 +90,21 @@ fn filter_agg_query(df: DataFrame) -> DFResult<DataFrame> {
         .aggregate(vec![], vec![count_distinct(col("names"))])
 }
 
-fn measure_provider<M: Measurement>(
-    group: &mut BenchmarkGroup<M>,
-    session: &SessionContext,
-    table: Arc<dyn TableProvider>,
-) {
-    group.bench_function("planning", |b| {
-        b.to_async(
-            tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap(),
-        )
-        .iter(|| async {
-            // Force physical planner to execute on our TableProvider.
-            filter_agg_query(black_box(session).read_table(table.clone()).unwrap())
-                .unwrap()
-                .create_physical_plan()
-                .await
-                .unwrap();
-        });
+fn measure_provider<M: Measurement>(bencher: Bencher, table: Arc<dyn TableProvider>) {
+    bencher.bench(|| {
+        tokio::sync::Runtime::new()
+            .unwrap()
+            .block_on(async {
+                let session = Arc::new(SessionContext::new());
+                let df = session.read_table(table.clone()).unwrap();
+                filter_agg_query(df).unwrap().collect().await.unwrap();
+            })
+        // Force physical planner to execute on our TableProvider.
+        filter_agg_query(black_box(session).read_table(table.clone()).unwrap())
+            .unwrap()
+            .create_physical_plan()
+            .await
+            .unwrap();
     });
 
     group.bench_function("exec", |b| {
@@ -137,12 +133,7 @@ fn bench_arrow<M: Measurement>(mut group: BenchmarkGroup<M>, session: &SessionCo
     measure_provider(&mut group, session, arrow_table);
 }
 
-fn bench_vortex<M: Measurement>(
-    mut group: BenchmarkGroup<M>,
-    session: &SessionContext,
-    disable_pushdown: bool,
-    compress: bool,
-) {
+fn bench_vortex(bencher: Bencher, disable_pushdown: bool, compress: bool) {
     let vortex_dataset = toy_dataset_vortex(compress);
     let vortex_table = Arc::new(
         VortexMemTable::try_new(
@@ -155,41 +146,30 @@ fn bench_vortex<M: Measurement>(
     measure_provider(&mut group, session, vortex_table);
 }
 
-fn bench_datafusion(c: &mut Criterion) {
-    bench_arrow(c.benchmark_group("arrow"), &SessionContext::new());
-
+#[divan::bench]
+fn vortex_pushdown_compressed(bencher: Bencher) {
     // compress=true, pushdown enabled
-    bench_vortex(
-        c.benchmark_group("vortex-pushdown-compressed"),
-        &SessionContext::new(),
-        false,
-        true,
-    );
-
-    // compress=false, pushdown enabled
-    bench_vortex(
-        c.benchmark_group("vortex-pushdown-uncompressed"),
-        &SessionContext::new(),
-        false,
-        false,
-    );
-
-    // compress=true, pushdown disabled
-    bench_vortex(
-        c.benchmark_group("vortex-nopushdown-compressed"),
-        &SessionContext::new(),
-        true,
-        true,
-    );
-
-    // compress=false, pushdown disabled
-    bench_vortex(
-        c.benchmark_group("vortex-nopushdown-uncompressed"),
-        &SessionContext::new(),
-        true,
-        false,
-    );
+    bench_vortex(bencher, false, true);
 }
 
-criterion_group!(benches, bench_datafusion);
-criterion_main!(benches);
+#[divan::bench]
+fn vortex_pushdown_uncompressed(bencher: Bencher) {
+    // compress=true, pushdown enabled
+    bench_vortex(bencher, false, false);
+}
+
+#[divan::bench]
+fn vortex_nopushdown_compressed(bencher: Bencher) {
+    // compress=true, pushdown enabled
+    bench_vortex(bencher, true, true);
+}
+
+#[divan::bench]
+fn vortex_nopushdown_uncompressed(bencher: Bencher) {
+    // compress=true, pushdown enabled
+    bench_vortex(bencher, true, false);
+}
+
+fn main() {
+    divan::main();
+}
