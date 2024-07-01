@@ -17,15 +17,15 @@ use crate::{Array, ArrayDType};
 use crate::{IntoArray, IntoCanonical};
 
 #[pin_project]
-pub struct TakeRows<'idx, R: ArrayStream> {
+pub struct TakeRows<R: ArrayStream> {
     #[pin]
     reader: R,
-    indices: &'idx Array,
+    indices: Array,
     row_offset: usize,
 }
 
-impl<'idx, R: ArrayStream> TakeRows<'idx, R> {
-    pub fn try_new(reader: R, indices: &'idx Array) -> VortexResult<Self> {
+impl<R: ArrayStream> TakeRows<R> {
+    pub fn try_new(reader: R, indices: Array) -> VortexResult<Self> {
         if !indices.is_empty() {
             if !indices.statistics().compute_is_sorted().unwrap_or(false) {
                 vortex_bail!("Indices must be sorted to take from IPC stream")
@@ -63,7 +63,7 @@ impl<'idx, R: ArrayStream> TakeRows<'idx, R> {
     }
 }
 
-impl<'idx, R: ArrayStream> Stream for TakeRows<'idx, R> {
+impl<R: ArrayStream> Stream for TakeRows<R> {
     type Item = VortexResult<Array>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -75,9 +75,8 @@ impl<'idx, R: ArrayStream> Stream for TakeRows<'idx, R> {
 
         while let Some(batch) = ready!(this.reader.as_mut().poll_next(cx)?) {
             let curr_offset = *this.row_offset;
-            let left = search_sorted::<usize>(this.indices, curr_offset, SearchSortedSide::Left)?
-                .to_index();
-            let right = search_sorted::<usize>(
+            let left = search_sorted(this.indices, curr_offset, SearchSortedSide::Left)?.to_index();
+            let right = search_sorted(
                 this.indices,
                 curr_offset + batch.len(),
                 SearchSortedSide::Left,

@@ -1,11 +1,11 @@
 #![cfg(feature = "tokio")]
 
 use std::io;
-use std::io::SeekFrom;
+use std::os::unix::prelude::FileExt;
 
 use bytes::BytesMut;
 use tokio::fs::File;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use vortex_buffer::io_buf::IoBuf;
 
 use crate::io::{VortexRead, VortexReadAt, VortexWrite};
@@ -19,10 +19,10 @@ impl<R: AsyncRead + Unpin> VortexRead for TokioAdapter<R> {
     }
 }
 
-impl<R: AsyncRead + AsyncSeek + Unpin> VortexReadAt for TokioAdapter<R> {
-    async fn read_at_into(&mut self, pos: u64, mut buffer: BytesMut) -> io::Result<BytesMut> {
-        self.0.seek(SeekFrom::Start(pos)).await?;
-        self.0.read_exact(buffer.as_mut()).await?;
+impl VortexReadAt for TokioAdapter<File> {
+    async fn read_at_into(&self, pos: u64, mut buffer: BytesMut) -> io::Result<BytesMut> {
+        let std_file = self.0.try_clone().await?.into_std().await;
+        std_file.read_exact_at(buffer.as_mut(), pos)?;
         Ok(buffer)
     }
 }

@@ -21,7 +21,7 @@ pub trait ArrayStreamExt: ArrayStream {
         }
     }
 
-    fn take_rows(self, indices: &Array) -> VortexResult<impl ArrayStream>
+    fn take_rows(self, indices: Array) -> VortexResult<impl ArrayStream>
     where
         Self: Sized,
     {

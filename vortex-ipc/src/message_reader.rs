@@ -246,6 +246,38 @@ impl<R: VortexRead> MessageReader<R> {
         )
     }
 
+    pub fn into_array_stream(
+        self,
+        view_context: Arc<ViewContext>,
+        dtype: DType,
+    ) -> impl ArrayStream {
+        struct State<R: VortexRead> {
+            msgs: MessageReader<R>,
+            view_context: Arc<ViewContext>,
+            dtype: DType,
+        }
+
+        let init = State {
+            msgs: self,
+            view_context,
+            dtype: dtype.clone(),
+        };
+
+        ArrayStreamAdapter::new(
+            dtype,
+            try_unfold(init, |mut state| async move {
+                match state
+                    .msgs
+                    .maybe_read_chunk(state.view_context.clone(), state.dtype.clone())
+                    .await?
+                {
+                    None => Ok(None),
+                    Some(array) => Ok(Some((array, state))),
+                }
+            }),
+        )
+    }
+
     pub async fn maybe_read_page(&mut self) -> VortexResult<Option<Buffer>> {
         let Some(page_msg) = self.peek().and_then(|m| m.header_as_page()) else {
             return Ok(None);

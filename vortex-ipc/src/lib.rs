@@ -112,7 +112,7 @@ pub mod test {
             .unwrap();
         let reader = messages.array_stream_from_messages(&ctx).await?;
 
-        let result_iter = reader.take_rows(&indices).unwrap();
+        let result_iter = reader.take_rows(indices).unwrap();
         pin_mut!(result_iter);
 
         let result = result_iter.next().await.unwrap().unwrap();
@@ -140,7 +140,7 @@ pub mod test {
         let take_iter = messages
             .array_stream_from_messages(&ctx)
             .await?
-            .take_rows(&indices)?;
+            .take_rows(indices)?;
         pin_mut!(take_iter);
 
         let next = take_iter.try_next().await?.expect("Expected a chunk");

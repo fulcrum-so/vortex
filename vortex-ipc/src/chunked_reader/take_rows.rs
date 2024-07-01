@@ -1,12 +1,8 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-
 use std::collections::HashMap;
-use std::future::ready;
-use std::ops::Deref;
+use std::ops::{Deref, Range};
 
 use bytes::BytesMut;
-use futures_util::TryStreamExt;
+use futures_util::{stream, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use vortex::array::chunked::ChunkedArray;
 use vortex::array::primitive::PrimitiveArray;
@@ -16,7 +12,7 @@ use vortex::compute::take::take;
 use vortex::compute::unary::cast::try_cast;
 use vortex::compute::unary::scalar_subtract::subtract_scalar;
 use vortex::stats::ArrayStatistics;
-use vortex::stream::ArrayStreamExt;
+use vortex::stream::{ArrayStream, ArrayStreamExt};
 use vortex::{Array, ArrayDType, IntoArray, IntoCanonical};
 use vortex_dtype::PType;
 use vortex_error::{vortex_bail, VortexResult};
@@ -57,8 +53,6 @@ impl<R: VortexReadAt> ChunkedArrayReader<R> {
     ///
     /// For now, we will find the relevant chunks, coalesce them, and read.
     async fn take_rows_strict_sorted(&mut self, indices: &Array) -> VortexResult<Array> {
-        let indices_len = indices.len();
-
         // Figure out which chunks are relevant.
         let chunk_idxs = find_chunks(&self.row_offsets, indices)?;
         // Coalesce the chunks that we're going to read from.
@@ -94,54 +88,22 @@ impl<R: VortexReadAt> ChunkedArrayReader<R> {
             .into_primitive()?;
 
         // For each chunk-range, read the data as an ArrayStream and call take on it.
-        let mut chunks = vec![];
-        for (range_idx, chunk_range) in coalesced_chunks.into_iter().enumerate() {
-            let start_chunk = chunk_range.first().unwrap().chunk_idx;
-            let stop_chunk = chunk_range.last().unwrap().chunk_idx + 1;
-
-            let (start_byte, stop_byte) = (
-                start_bytes.get_as_cast::<u64>(range_idx),
-                stop_bytes.get_as_cast::<u64>(range_idx),
-            );
-            let range_byte_len = (stop_byte - start_byte) as usize;
-            let (start_row, stop_row) = (
-                start_rows.get_as_cast::<u64>(range_idx),
-                stop_rows.get_as_cast::<u64>(range_idx),
-            );
-            let range_row_len = (stop_row - start_row) as usize;
-
-            // Relativize the indices to these chunks
-            let indices_start =
-                search_sorted(indices, start_row, SearchSortedSide::Left)?.to_index();
-            let indices_stop =
-                search_sorted(indices, stop_row, SearchSortedSide::Right)?.to_index();
-            let relative_indices = slice(indices, indices_start, indices_stop)?;
-            let start_row = Scalar::from(start_row).cast(relative_indices.dtype())?;
-            let relative_indices = subtract_scalar(&relative_indices, &start_row)?;
-
-            // Set up an array reader to read this range of chunks.
-            let mut buffer = BytesMut::with_capacity(range_byte_len);
-            unsafe { buffer.set_len(range_byte_len) }
-            // TODO(ngates): instead of reading the whole range into a buffer, we should stream
-            //  the byte range (e.g. if its coming from an HTTP endpoint) and wrap that with an
-            //  MesssageReader.
-            let buffer = self.read.read_at_into(start_byte, buffer).await?;
-
-            let mut reader = StreamArrayReader::try_new(buffer)
-                .await?
-                .with_view_context(self.view_context.deref().clone())
-                .with_dtype(self.dtype.clone());
-
-            // Take the indices from the stream.
-            reader
-                .array_stream()
-                .take_rows(&relative_indices)?
-                .try_for_each(|chunk| {
-                    chunks.push(chunk);
-                    ready(Ok(()))
-                })
-                .await?;
-        }
+        let chunks = stream::iter(0..coalesced_chunks.len())
+            .map(|chunk_idx| {
+                let (start_byte, stop_byte) = (
+                    start_bytes.get_as_cast::<u64>(chunk_idx),
+                    stop_bytes.get_as_cast::<u64>(chunk_idx),
+                );
+                let (start_row, stop_row) = (
+                    start_rows.get_as_cast::<u64>(chunk_idx),
+                    stop_rows.get_as_cast::<u64>(chunk_idx),
+                );
+                self.take_from_chunk(indices, start_byte..stop_byte, start_row..stop_row)
+            })
+            .buffered(10)
+            .try_flatten()
+            .try_collect()
+            .await?;
 
         Ok(ChunkedArray::try_new(chunks, self.dtype.clone())?.into_array())
     }
@@ -159,6 +121,40 @@ impl<R: VortexReadAt> ChunkedArrayReader<R> {
             .cloned()
             .map(|chunk_idx| vec![chunk_idx.clone()])
             .collect_vec()
+    }
+
+    async fn take_from_chunk(
+        &self,
+        indices: &Array,
+        byte_range: Range<u64>,
+        row_range: Range<u64>,
+    ) -> VortexResult<impl ArrayStream> {
+        let range_byte_len = (byte_range.end - byte_range.start) as usize;
+
+        // Relativize the indices to these chunks
+        let indices_start =
+            search_sorted(indices, row_range.start, SearchSortedSide::Left)?.to_index();
+        let indices_stop =
+            search_sorted(indices, row_range.end, SearchSortedSide::Right)?.to_index();
+        let relative_indices = slice(indices, indices_start, indices_stop)?;
+        let row_start_scalar = Scalar::from(row_range.start).cast(relative_indices.dtype())?;
+        let relative_indices = subtract_scalar(&relative_indices, &row_start_scalar)?;
+
+        // Set up an array reader to read this range of chunks.
+        let mut buffer = BytesMut::with_capacity(range_byte_len);
+        unsafe { buffer.set_len(range_byte_len) }
+        // TODO(ngates): instead of reading the whole range into a buffer, we should stream
+        //  the byte range (e.g. if its coming from an HTTP endpoint) and wrap that with an
+        //  MesssageReader.
+        let buffer = self.read.read_at_into(byte_range.start, buffer).await?;
+
+        let reader = StreamArrayReader::try_new(buffer)
+            .await?
+            .with_view_context(self.view_context.deref().clone())
+            .with_dtype(self.dtype.clone());
+
+        // Take the indices from the stream.
+        reader.into_array_stream().take_rows(relative_indices)
     }
 }
 
@@ -211,6 +207,7 @@ fn find_chunks(row_offsets: &Array, indices: &Array) -> VortexResult<Vec<ChunkIn
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ChunkIndices {
     chunk_idx: u32,
     // The position into the indices array that is covered by this chunk.

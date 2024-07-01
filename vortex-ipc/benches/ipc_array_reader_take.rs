@@ -53,7 +53,7 @@ fn ipc_array_reader_take(c: &mut Criterion) {
                 .array_stream_from_messages(&ctx)
                 .await
                 .unwrap()
-                .take_rows(&indices)
+                .take_rows(indices.clone())
                 .unwrap();
             pin_mut!(stream);
 

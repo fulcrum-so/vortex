@@ -73,6 +73,16 @@ impl<R: VortexRead> StreamArrayReader<R> {
         self.msgs.array_stream(view_context, dtype)
     }
 
+    pub fn into_array_stream(self) -> impl ArrayStream {
+        let view_context = self
+            .view_context
+            .as_ref()
+            .expect("View context not set")
+            .clone();
+        let dtype = self.dtype.as_ref().expect("DType not set").deref().clone();
+        self.msgs.into_array_stream(view_context, dtype)
+    }
+
     /// Reads a single page from the stream.
     pub async fn next_page(&mut self) -> VortexResult<Option<Buffer>> {
         self.msgs.maybe_read_page().await

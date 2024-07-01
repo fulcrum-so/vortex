@@ -18,7 +18,7 @@ impl<R: VortexReadAt> OffsetReadAt<R> {
 
 impl<R: VortexReadAt> VortexReadAt for OffsetReadAt<R> {
     fn read_at_into(
-        &mut self,
+        &self,
         pos: u64,
         buffer: BytesMut,
     ) -> impl Future<Output = std::io::Result<BytesMut>> {

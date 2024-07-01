@@ -12,7 +12,7 @@ pub trait VortexRead {
 
 pub trait VortexReadAt {
     fn read_at_into(
-        &mut self,
+        &self,
         pos: u64,
         buffer: BytesMut,
     ) -> impl Future<Output = io::Result<BytesMut>>;
@@ -60,16 +60,16 @@ impl VortexRead for Cursor<Buffer> {
 
 impl VortexReadAt for Vec<u8> {
     fn read_at_into(
-        &mut self,
+        &self,
         pos: u64,
         buffer: BytesMut,
     ) -> impl Future<Output = io::Result<BytesMut>> {
-        VortexReadAt::read_at_into(self.as_mut_slice(), pos, buffer)
+        VortexReadAt::read_at_into(self.as_slice(), pos, buffer)
     }
 }
 
 impl VortexReadAt for [u8] {
-    async fn read_at_into(&mut self, pos: u64, mut buffer: BytesMut) -> io::Result<BytesMut> {
+    async fn read_at_into(&self, pos: u64, mut buffer: BytesMut) -> io::Result<BytesMut> {
         let buffer_len = buffer.len();
         buffer.copy_from_slice(&self[pos as usize..][..buffer_len]);
         Ok(buffer)
@@ -77,7 +77,7 @@ impl VortexReadAt for [u8] {
 }
 
 impl VortexReadAt for Buffer {
-    async fn read_at_into(&mut self, pos: u64, mut buffer: BytesMut) -> io::Result<BytesMut> {
+    async fn read_at_into(&self, pos: u64, mut buffer: BytesMut) -> io::Result<BytesMut> {
         let buffer_len = buffer.len();
         buffer.copy_from_slice(
             self.slice(pos as usize..pos as usize + buffer_len)
