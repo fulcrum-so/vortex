@@ -8,19 +8,19 @@ use vortex::visitor::{AcceptArrayVisitor, ArrayVisitor};
 use vortex::{impl_encoding, ArrayDType, Canonical, IntoArrayVariant, IntoCanonical};
 use vortex_error::vortex_bail;
 
-use crate::compress::{ree_decode, ree_encode};
+use crate::compress::{runend_decode, runend_encode};
 
-impl_encoding!("vortex.ree", REE);
+impl_encoding!("vortex.runend", RunEnd);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct REEMetadata {
+pub struct RunEndMetadata {
     validity: ValidityMetadata,
     ends_dtype: DType,
     offset: usize,
     length: usize,
 }
 
-impl REEArray {
+impl RunEndArray {
     pub fn try_new(ends: Array, values: Array, validity: Validity) -> VortexResult<Self> {
         let length: usize = scalar_at(&ends, ends.len() - 1)?.as_ref().try_into()?;
         Self::with_offset_and_size(ends, values, validity, length, 0)
@@ -34,14 +34,18 @@ impl REEArray {
         offset: usize,
     ) -> VortexResult<Self> {
         if values.dtype().is_nullable() == (validity == Validity::NonNullable) {
-            vortex_bail!("incorrect validity {:?}", validity);
+            vortex_bail!(
+                "incorrect validity {:?} for dtype {}",
+                validity,
+                values.dtype()
+            );
         }
 
         if !ends.statistics().compute_is_strict_sorted().unwrap_or(true) {
             vortex_bail!("Ends array must be strictly sorted",);
         }
         let dtype = values.dtype().clone();
-        let metadata = REEMetadata {
+        let metadata = RunEndMetadata {
             validity: validity.to_metadata(length)?,
             ends_dtype: ends.dtype().clone(),
             offset,
@@ -66,7 +70,7 @@ impl REEArray {
     pub fn encode(array: Array) -> VortexResult<Self> {
         if array.encoding().id() == Primitive::ID {
             let primitive = PrimitiveArray::try_from(array)?;
-            let (ends, values) = ree_encode(&primitive);
+            let (ends, values) = runend_encode(&primitive);
             Self::try_new(ends.into_array(), values.into_array(), primitive.validity())
         } else {
             vortex_bail!("REE can only encode primitive arrays")
@@ -97,7 +101,7 @@ impl REEArray {
     }
 }
 
-impl ArrayValidity for REEArray {
+impl ArrayValidity for RunEndArray {
     fn is_valid(&self, index: usize) -> bool {
         self.validity().is_valid(index)
     }
@@ -107,16 +111,16 @@ impl ArrayValidity for REEArray {
     }
 }
 
-impl IntoCanonical for REEArray {
+impl IntoCanonical for RunEndArray {
     fn into_canonical(self) -> VortexResult<Canonical> {
         let pends = self.ends().into_primitive()?;
         let pvalues = self.values().into_primitive()?;
-        ree_decode(&pends, &pvalues, self.validity(), self.offset(), self.len())
+        runend_decode(&pends, &pvalues, self.validity(), self.offset(), self.len())
             .map(Canonical::Primitive)
     }
 }
 
-impl AcceptArrayVisitor for REEArray {
+impl AcceptArrayVisitor for RunEndArray {
     fn accept(&self, visitor: &mut dyn ArrayVisitor) -> VortexResult<()> {
         visitor.visit_child("ends", &self.ends())?;
         visitor.visit_child("values", &self.values())?;
@@ -124,9 +128,9 @@ impl AcceptArrayVisitor for REEArray {
     }
 }
 
-impl ArrayStatisticsCompute for REEArray {}
+impl ArrayStatisticsCompute for RunEndArray {}
 
-impl ArrayTrait for REEArray {
+impl ArrayTrait for RunEndArray {
     fn len(&self) -> usize {
         self.metadata().length
     }
@@ -140,11 +144,11 @@ mod test {
     use vortex::{ArrayDType, ArrayTrait, IntoArray, IntoCanonical};
     use vortex_dtype::{DType, Nullability, PType};
 
-    use crate::REEArray;
+    use crate::RunEndArray;
 
     #[test]
     fn new() {
-        let arr = REEArray::try_new(
+        let arr = RunEndArray::try_new(
             vec![2u32, 5, 10].into_array(),
             vec![1i32, 2, 3].into_array(),
             Validity::NonNullable,
@@ -168,7 +172,7 @@ mod test {
     #[test]
     fn slice_array() {
         let arr = slice(
-            REEArray::try_new(
+            RunEndArray::try_new(
                 vec![2u32, 5, 10].into_array(),
                 vec![1i32, 2, 3].into_array(),
                 Validity::NonNullable,
@@ -197,7 +201,7 @@ mod test {
 
     #[test]
     fn flatten() {
-        let arr = REEArray::try_new(
+        let arr = RunEndArray::try_new(
             vec![2u32, 5, 10].into_array(),
             vec![1i32, 2, 3].into_array(),
             Validity::NonNullable,

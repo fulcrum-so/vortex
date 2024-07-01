@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 const SAMPLE_SIZE: usize = 32;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Exponents {
     pub e: u8,
     pub f: u8,
@@ -48,7 +48,7 @@ pub trait ALPFloat: Float + 'static {
             for f in 0..e {
                 let (_, encoded, exc_pos, exc_patches) = Self::encode(
                     sample.as_deref().unwrap_or(values),
-                    Some(&Exponents { e, f }),
+                    Some(Exponents { e, f }),
                 );
                 let size =
                     (encoded.len() + exc_patches.len()) * size_of::<Self>() + (exc_pos.len() * 4);
@@ -66,9 +66,9 @@ pub trait ALPFloat: Float + 'static {
 
     fn encode(
         values: &[Self],
-        exponents: Option<&Exponents>,
+        exponents: Option<Exponents>,
     ) -> (Exponents, Vec<Self::ALPInt>, Vec<u64>, Vec<Self>) {
-        let exp = exponents.map_or_else(|| Self::find_best_exponents(values), Exponents::clone);
+        let exp = exponents.unwrap_or_else(|| Self::find_best_exponents(values));
 
         let mut exc_pos = Vec::new();
         let mut exc_value = Vec::new();
@@ -111,7 +111,7 @@ pub trait ALPFloat: Float + 'static {
     }
 
     #[inline]
-    fn decode_single(encoded: Self::ALPInt, exponents: &Exponents) -> Self {
+    fn decode_single(encoded: Self::ALPInt, exponents: Exponents) -> Self {
         let encoded_float: Self = Self::from(encoded).unwrap();
         encoded_float * Self::F10[exponents.f as usize] * Self::IF10[exponents.e as usize]
     }

@@ -1,11 +1,9 @@
-use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 
 use vortex_error::VortexResult;
 
 use crate::canonical::{Canonical, IntoCanonical};
-use crate::compress::EncodingCompression;
 use crate::ArrayDef;
 use crate::{Array, ArrayTrait};
 
@@ -34,8 +32,6 @@ pub type EncodingRef = &'static dyn ArrayEncoding;
 
 /// Object-safe encoding trait for an array.
 pub trait ArrayEncoding: 'static + Sync + Send + Debug {
-    fn as_any(&self) -> &dyn Any;
-
     fn id(&self) -> EncodingId;
 
     /// Flatten the given array.
@@ -47,9 +43,6 @@ pub trait ArrayEncoding: 'static + Sync + Send + Debug {
         array: &Array,
         f: &mut dyn for<'b> FnMut(&'b (dyn ArrayTrait + 'b)) -> VortexResult<()>,
     ) -> VortexResult<()>;
-
-    /// Return a compressor for this encoding.
-    fn compression(&self) -> &dyn EncodingCompression;
 }
 
 impl PartialEq for dyn ArrayEncoding + '_ {

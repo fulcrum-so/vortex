@@ -1,5 +1,5 @@
 [package]
-name = "vortex-ree"
+name = "vortex-runend"
 version = { workspace = true }
 description = "Vortex run end encoded array"
 homepage = { workspace = true }

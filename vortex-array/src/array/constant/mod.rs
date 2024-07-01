@@ -75,5 +75,3 @@ impl ArrayTrait for ConstantArray {
         self.metadata().length
     }
 }
-
-impl EncodingCompression for ConstantEncoding {}

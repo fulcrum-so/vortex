@@ -453,8 +453,9 @@ dependencies = [
  "vortex-error",
  "vortex-fastlanes",
  "vortex-ipc",
- "vortex-ree",
  "vortex-roaring",
+ "vortex-runend",
+ "vortex-sampling-compressor",
 ]
 
 [[package]]
@@ -2795,8 +2796,8 @@ dependencies = [
  "vortex-dtype",
  "vortex-error",
  "vortex-fastlanes",
- "vortex-ree",
  "vortex-roaring",
+ "vortex-runend",
  "vortex-zigzag",
 ]
 
@@ -3989,19 +3990,7 @@ dependencies = [
  "vortex-error",
  "vortex-fastlanes",
  "vortex-flatbuffers",
- "vortex-scalar",
-]
-
-[[package]]
-name = "vortex-ree"
-version = "0.1.0"
-dependencies = [
- "itertools 0.13.0",
- "num-traits",
- "serde",
- "vortex-array",
- "vortex-dtype",
- "vortex-error",
+ "vortex-sampling-compressor",
  "vortex-scalar",
 ]
 
@@ -4019,6 +4008,37 @@ dependencies = [
  "vortex-dtype",
  "vortex-error",
  "vortex-scalar",
+]
+
+[[package]]
+name = "vortex-runend"
+version = "0.1.0"
+dependencies = [
+ "itertools 0.13.0",
+ "num-traits",
+ "serde",
+ "vortex-array",
+ "vortex-dtype",
+ "vortex-error",
+ "vortex-scalar",
+]
+
+[[package]]
+name = "vortex-sampling-compressor"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "rand",
+ "vortex-alp",
+ "vortex-array",
+ "vortex-datetime-parts",
+ "vortex-dict",
+ "vortex-dtype",
+ "vortex-error",
+ "vortex-fastlanes",
+ "vortex-roaring",
+ "vortex-runend",
+ "vortex-zigzag",
 ]
 
 [[package]]

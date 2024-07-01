@@ -63,5 +63,3 @@ impl ArrayTrait for NullArray {
         0
     }
 }
-
-impl EncodingCompression for NullEncoding {}

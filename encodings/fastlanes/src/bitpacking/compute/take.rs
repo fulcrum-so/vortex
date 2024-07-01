@@ -149,16 +149,11 @@ mod test {
     use rand::{thread_rng, Rng};
     use vortex::array::primitive::{Primitive, PrimitiveArray};
     use vortex::array::sparse::SparseArray;
-    use vortex::compress::Compressor;
     use vortex::compute::take::take;
     use vortex::compute::unary::scalar_at::scalar_at;
-    use vortex::{ArrayDef, Context, IntoArray, IntoArrayVariant};
+    use vortex::{ArrayDef, IntoArray, IntoArrayVariant};
 
-    use crate::{BitPackedArray, BitPackedEncoding};
-
-    fn ctx() -> Context {
-        Context::default().with_encoding(&BitPackedEncoding)
-    }
+    use crate::BitPackedArray;
 
     #[test]
     fn take_indices() {
@@ -167,11 +162,9 @@ mod test {
         // Create a u8 array modulo 63.
         let unpacked = PrimitiveArray::from((0..4096).map(|i| (i % 63) as u8).collect::<Vec<_>>());
 
-        let bitpacked = Compressor::new(&ctx())
-            .compress(unpacked.array(), None)
-            .unwrap();
+        let bitpacked = BitPackedArray::encode(unpacked.array(), 6).unwrap();
 
-        let result = take(&bitpacked, &indices).unwrap();
+        let result = take(bitpacked.array(), &indices).unwrap();
         assert_eq!(result.encoding().id(), Primitive::ID);
 
         let primitive_result = result.into_primitive().unwrap();

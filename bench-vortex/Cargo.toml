@@ -24,7 +24,7 @@ csv = { workspace = true }
 datafusion = { workspace = true }
 enum-iterator = { workspace = true }
 flexbuffers = { workspace = true }
-futures = { workspace = true }
+futures = { workspace = true, features = ["executor"] }
 humansize = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }
@@ -47,8 +47,9 @@ vortex-dtype = { path = "../vortex-dtype" }
 vortex-error = { path = "../vortex-error", features = ["parquet"] }
 vortex-fastlanes = { path = "../encodings/fastlanes" }
 vortex-ipc = { path = "../vortex-ipc" }
-vortex-ree = { path = "../encodings/runend" }
 vortex-roaring = { path = "../encodings/roaring" }
+vortex-runend = { path = "../encodings/runend" }
+vortex-sampling-compressor = { path = "../vortex-sampling-compressor" }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports", "async_tokio"] }

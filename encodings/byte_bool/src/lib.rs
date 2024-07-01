@@ -119,8 +119,6 @@ impl AcceptArrayVisitor for ByteBoolArray {
     }
 }
 
-impl EncodingCompression for ByteBoolEncoding {}
-
 #[cfg(test)]
 mod tests {
     use super::*;

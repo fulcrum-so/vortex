@@ -1,3 +1,4 @@
+pub use compress::*;
 use serde::{Deserialize, Serialize};
 use vortex::stats::ArrayStatisticsCompute;
 use vortex::validity::ValidityMetadata;
@@ -6,8 +7,6 @@ use vortex::visitor::{AcceptArrayVisitor, ArrayVisitor};
 use vortex::{impl_encoding, ArrayDType, Canonical, IntoCanonical};
 use vortex_dtype::match_each_unsigned_integer_ptype;
 use vortex_error::vortex_bail;
-
-use crate::delta::compress::decompress;
 
 mod compress;
 mod compute;
@@ -42,15 +41,18 @@ impl DeltaArray {
             );
         }
 
-        let delta = Self::try_from_parts(
-            bases.dtype().clone(),
-            DeltaMetadata {
-                validity: validity.to_metadata(len)?,
-                len,
-            },
-            [bases, deltas].into(),
-            StatsSet::new(),
-        )?;
+        let dtype = bases.dtype().clone();
+        let metadata = DeltaMetadata {
+            validity: validity.to_metadata(len)?,
+            len,
+        };
+
+        let mut children = vec![bases, deltas];
+        if let Some(varray) = validity.into_array() {
+            children.push(varray)
+        }
+
+        let delta = Self::try_from_parts(dtype, metadata, children.into(), StatsSet::new())?;
 
         let expected_bases_len = {
             let num_chunks = len / 1024;
@@ -96,7 +98,7 @@ impl DeltaArray {
 
 impl IntoCanonical for DeltaArray {
     fn into_canonical(self) -> VortexResult<Canonical> {
-        decompress(self).map(Canonical::Primitive)
+        delta_decompress(self).map(Canonical::Primitive)
     }
 }
 

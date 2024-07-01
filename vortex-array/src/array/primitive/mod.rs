@@ -211,5 +211,3 @@ impl Array {
         PrimitiveArray::try_from(self).expect("expected primitive array")
     }
 }
-
-impl EncodingCompression for PrimitiveEncoding {}

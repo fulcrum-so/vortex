@@ -1,47 +1,11 @@
 use croaring::Bitmap;
 use vortex::array::bool::BoolArray;
-use vortex::compress::{CompressConfig, Compressor, EncodingCompression};
-use vortex::{Array, ArrayDType, ArrayDef, ArrayTrait, IntoArray, IntoArrayVariant};
-use vortex_dtype::DType;
-use vortex_dtype::Nullability::NonNullable;
+use vortex::ArrayTrait;
 use vortex_error::VortexResult;
 
-use crate::{RoaringBool, RoaringBoolArray, RoaringBoolEncoding};
+use crate::RoaringBoolArray;
 
-impl EncodingCompression for RoaringBoolEncoding {
-    fn can_compress(
-        &self,
-        array: &Array,
-        _config: &CompressConfig,
-    ) -> Option<&dyn EncodingCompression> {
-        // Only support bool enc arrays
-        if array.encoding().id() != RoaringBool::ID {
-            return None;
-        }
-
-        // Only support non-nullable bool arrays
-        if array.dtype() != &DType::Bool(NonNullable) {
-            return None;
-        }
-
-        if array.len() > u32::MAX as usize {
-            return None;
-        }
-
-        Some(self)
-    }
-
-    fn compress(
-        &self,
-        array: &Array,
-        _like: Option<&Array>,
-        _ctx: Compressor,
-    ) -> VortexResult<Array> {
-        roaring_encode(array.clone().into_bool()?).map(move |a| a.into_array())
-    }
-}
-
-pub fn roaring_encode(bool_array: BoolArray) -> VortexResult<RoaringBoolArray> {
+pub fn roaring_bool_encode(bool_array: BoolArray) -> VortexResult<RoaringBoolArray> {
     let mut bitmap = Bitmap::new();
     bitmap.extend(
         bool_array

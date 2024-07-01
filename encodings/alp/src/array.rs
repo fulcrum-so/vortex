@@ -66,8 +66,8 @@ impl ALPArray {
     }
 
     #[inline]
-    pub fn exponents(&self) -> &Exponents {
-        &self.metadata().exponents
+    pub fn exponents(&self) -> Exponents {
+        self.metadata().exponents
     }
 
     pub fn patches(&self) -> Option<Array> {

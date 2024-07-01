@@ -2,86 +2,35 @@ use itertools::Itertools;
 use num_traits::{PrimInt, WrappingAdd, WrappingSub};
 use vortex::array::constant::ConstantArray;
 use vortex::array::primitive::PrimitiveArray;
-use vortex::compress::{CompressConfig, Compressor, EncodingCompression};
-use vortex::stats::{ArrayStatistics, Stat};
-use vortex::validity::ArrayValidity;
+use vortex::stats::{trailing_zeros, ArrayStatistics, Stat};
 use vortex::{Array, ArrayDType, ArrayTrait, IntoArray, IntoArrayVariant};
 use vortex_dtype::{match_each_integer_ptype, NativePType};
 use vortex_error::{vortex_err, VortexResult};
 use vortex_scalar::Scalar;
 
-use crate::{FoRArray, FoREncoding};
+use crate::FoRArray;
 
-impl EncodingCompression for FoREncoding {
-    fn cost(&self) -> u8 {
-        0
-    }
+pub fn for_compress(array: &PrimitiveArray) -> VortexResult<(Array, Scalar, u8)> {
+    let shift = trailing_zeros(array.array());
+    let min = array
+        .statistics()
+        .compute(Stat::Min)
+        .ok_or_else(|| vortex_err!("Min stat not found"))?;
 
-    fn can_compress(
-        &self,
-        array: &Array,
-        _config: &CompressConfig,
-    ) -> Option<&dyn EncodingCompression> {
-        // Only support primitive arrays
-        let parray = PrimitiveArray::try_from(array).ok()?;
-
-        // Only supports integers
-        if !parray.ptype().is_int() {
-            return None;
+    Ok(match_each_integer_ptype!(array.ptype(), |$T| {
+        if shift == <$T>::PTYPE.bit_width() as u8 {
+            (ConstantArray::new(
+                Scalar::zero::<$T>(array.dtype().nullability())
+                    .reinterpret_cast(array.ptype().to_unsigned()),
+                array.len(),
+            )
+            .into_array(), min, shift)
+        } else {
+            (compress_primitive::<$T>(&array, shift, $T::try_from(&min)?)
+                .reinterpret_cast(array.ptype().to_unsigned())
+                .into_array(), min, shift)
         }
-
-        // For all-null, cannot encode.
-        if parray.logical_validity().all_invalid() {
-            return None;
-        }
-
-        // Nothing for us to do if the min is already zero and tz == 0
-        let shift = trailing_zeros(array);
-        match_each_integer_ptype!(parray.ptype(), |$P| {
-            let min: $P = parray.statistics().compute_min()?;
-            if min == 0 && shift == 0 {
-                return None;
-            }
-        });
-
-        Some(self)
-    }
-
-    fn compress(
-        &self,
-        array: &Array,
-        like: Option<&Array>,
-        ctx: Compressor,
-    ) -> VortexResult<Array> {
-        let parray = PrimitiveArray::try_from(array)?;
-        let shift = trailing_zeros(array);
-        let min = parray
-            .statistics()
-            .compute(Stat::Min)
-            .ok_or_else(|| vortex_err!("Min stat not found"))?;
-
-        let child = match_each_integer_ptype!(parray.ptype(), |$T| {
-            if shift == <$T>::PTYPE.bit_width() as u8 {
-                ConstantArray::new(
-                    Scalar::zero::<$T>(parray.dtype().nullability())
-                        .reinterpret_cast(parray.ptype().to_unsigned()),
-                    parray.len(),
-                )
-                .into_array()
-            } else {
-                compress_primitive::<$T>(&parray, shift, $T::try_from(&min)?)
-                    .reinterpret_cast(parray.ptype().to_unsigned())
-                    .into_array()
-            }
-        });
-        let for_like = like.map(|like_arr| FoRArray::try_from(like_arr).unwrap());
-
-        let compressed_child = ctx
-            .named("for")
-            .excluding(&Self)
-            .compress(&child, for_like.as_ref().map(|l| l.encoded()).as_ref())?;
-        FoRArray::try_new(compressed_child, min, shift).map(|a| a.into_array())
-    }
+    }))
 }
 
 fn compress_primitive<T: NativePType + WrappingSub + PrimInt>(
@@ -142,58 +91,31 @@ fn decompress_primitive<T: NativePType + WrappingAdd + PrimInt>(
     }
 }
 
-fn trailing_zeros(array: &Array) -> u8 {
-    let tz_freq = array
-        .statistics()
-        .compute_trailing_zero_freq()
-        .unwrap_or_else(|| vec![0]);
-    tz_freq
-        .iter()
-        .enumerate()
-        .find_or_first(|(_, &v)| v > 0)
-        .map(|(i, _)| i)
-        .unwrap_or(0) as u8
-}
-
 #[cfg(test)]
 mod test {
     use vortex::compute::unary::scalar_at::ScalarAtFn;
-    use vortex::encoding::{ArrayEncoding, EncodingRef};
-    use vortex::{Context, IntoArrayVariant};
+    use vortex::IntoArrayVariant;
 
     use super::*;
-    use crate::BitPackedEncoding;
-
-    fn ctx() -> Context {
-        // We need some BitPacking else we will need choose FoR.
-        Context::default().with_encodings([&FoREncoding as EncodingRef, &BitPackedEncoding])
-    }
 
     #[test]
     fn test_compress() {
         // Create a range offset by a million
         let array = PrimitiveArray::from((0u32..10_000).map(|v| v + 1_000_000).collect_vec());
 
-        let compressed = Compressor::new(&ctx())
-            .compress(array.array(), None)
-            .unwrap();
-        assert_eq!(compressed.encoding().id(), FoREncoding.id());
-        assert_eq!(
-            u32::try_from(FoRArray::try_from(compressed).unwrap().reference()).unwrap(),
-            1_000_000u32
-        );
+        let (_, reference, _) = for_compress(&array).unwrap();
+        assert_eq!(u32::try_from(reference).unwrap(), 1_000_000u32);
     }
 
     #[test]
     fn test_decompress() {
         // Create a range offset by a million
         let array = PrimitiveArray::from((0u32..10_000).map(|v| v + 1_000_000).collect_vec());
-        let compressed = Compressor::new(&ctx())
-            .compress(array.array(), None)
+        let (compressed, reference, shift) = for_compress(&array).unwrap();
+        let decompressed = FoRArray::try_new(compressed, reference, shift)
+            .unwrap()
+            .into_primitive()
             .unwrap();
-        assert_eq!(compressed.encoding().id(), FoREncoding.id());
-
-        let decompressed = compressed.into_primitive().unwrap();
         assert_eq!(
             decompressed.maybe_null_slice::<u32>(),
             array.maybe_null_slice::<u32>()
@@ -203,10 +125,8 @@ mod test {
     #[test]
     fn test_overflow() {
         let array = PrimitiveArray::from((i8::MIN..=i8::MAX).collect_vec());
-        let compressed = FoREncoding
-            .compress(array.array(), None, Compressor::new(&ctx()))
-            .unwrap();
-        let compressed = FoRArray::try_from(compressed).unwrap();
+        let (compressed, reference, shift) = for_compress(&array).unwrap();
+        let compressed = FoRArray::try_new(compressed, reference, shift).unwrap();
         assert_eq!(i8::MIN, i8::try_from(compressed.reference()).unwrap());
 
         let encoded = compressed.encoded().into_primitive().unwrap();

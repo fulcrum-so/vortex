@@ -2,75 +2,36 @@ use arrayref::{array_mut_ref, array_ref};
 use fastlanes::{Delta, Transpose};
 use num_traits::{WrappingAdd, WrappingSub};
 use vortex::array::primitive::PrimitiveArray;
-use vortex::compress::{CompressConfig, Compressor, EncodingCompression};
 use vortex::compute::unary::fill_forward::fill_forward;
 use vortex::validity::Validity;
-use vortex::{Array, IntoArray, IntoArrayVariant};
+use vortex::IntoArrayVariant;
 use vortex_dtype::NativePType;
 use vortex_dtype::{match_each_unsigned_integer_ptype, Nullability};
 use vortex_error::VortexResult;
 
-use crate::{DeltaArray, DeltaEncoding};
+use crate::DeltaArray;
 
-impl EncodingCompression for DeltaEncoding {
-    fn can_compress(
-        &self,
-        array: &Array,
-        _config: &CompressConfig,
-    ) -> Option<&dyn EncodingCompression> {
-        // Only support primitive arrays
-        let parray = PrimitiveArray::try_from(array).ok()?;
+pub fn delta_compress(array: &PrimitiveArray) -> VortexResult<(PrimitiveArray, PrimitiveArray)> {
+    // Fill forward nulls
+    let filled = fill_forward(array.array())?.into_primitive()?;
 
-        // Only supports ints
-        if !parray.ptype().is_unsigned_int() {
-            return None;
-        }
+    // Compress the filled array
+    let (bases, deltas) = match_each_unsigned_integer_ptype!(array.ptype(), |$T| {
+        let (bases, deltas) = compress_primitive(filled.maybe_null_slice::<$T>());
+        let base_validity = (array.validity().nullability() != Nullability::NonNullable)
+            .then(|| Validity::AllValid)
+            .unwrap_or(Validity::NonNullable);
+        let delta_validity = (array.validity().nullability() != Nullability::NonNullable)
+            .then(|| Validity::AllValid)
+            .unwrap_or(Validity::NonNullable);
+        (
+            // To preserve nullability, we include Validity
+            PrimitiveArray::from_vec(bases, base_validity),
+            PrimitiveArray::from_vec(deltas, delta_validity),
+        )
+    });
 
-        Some(self)
-    }
-
-    fn compress(
-        &self,
-        array: &Array,
-        like: Option<&Array>,
-        ctx: Compressor,
-    ) -> VortexResult<Array> {
-        let parray = PrimitiveArray::try_from(array)?;
-        let like_delta = like.map(|l| DeltaArray::try_from(l).unwrap());
-
-        let validity = ctx.compress_validity(parray.validity())?;
-
-        // Fill forward nulls
-        let filled = fill_forward(array)?.into_primitive()?;
-
-        // Compress the filled array
-        let (bases, deltas) = match_each_unsigned_integer_ptype!(parray.ptype(), |$T| {
-            let (bases, deltas) = compress_primitive(filled.maybe_null_slice::<$T>());
-            let base_validity = (validity.nullability() != Nullability::NonNullable)
-                .then(|| Validity::AllValid)
-                .unwrap_or(Validity::NonNullable);
-            let delta_validity = (validity.nullability() != Nullability::NonNullable)
-                .then(|| Validity::AllValid)
-                .unwrap_or(Validity::NonNullable);
-            (
-                // To preserve nullability, we include Validity
-                PrimitiveArray::from_vec(bases, base_validity),
-                PrimitiveArray::from_vec(deltas, delta_validity),
-            )
-        });
-
-        // Recursively compress the bases and deltas
-        let bases = ctx.named("bases").compress(
-            bases.array(),
-            like_delta.as_ref().map(|d| d.bases()).as_ref(),
-        )?;
-        let deltas = ctx.named("deltas").compress(
-            deltas.array(),
-            like_delta.as_ref().map(|d| d.deltas()).as_ref(),
-        )?;
-
-        DeltaArray::try_new(array.len(), bases, deltas, validity).map(|a| a.into_array())
-    }
+    Ok((bases, deltas))
 }
 
 fn compress_primitive<T: NativePType + Delta + Transpose + WrappingSub>(
@@ -136,7 +97,7 @@ where
     (bases, deltas)
 }
 
-pub fn decompress(array: DeltaArray) -> VortexResult<PrimitiveArray> {
+pub fn delta_decompress(array: DeltaArray) -> VortexResult<PrimitiveArray> {
     let bases = array.bases().into_primitive()?;
     let deltas = array.deltas().into_primitive()?;
     let decoded = match_each_unsigned_integer_ptype!(deltas.ptype(), |$T| {
@@ -203,40 +164,36 @@ where
 
 #[cfg(test)]
 mod test {
-    use vortex::encoding::ArrayEncoding;
-    use vortex::Context;
+    use vortex::IntoArray;
 
     use super::*;
 
-    fn ctx() -> Context {
-        Context::default().with_encoding(&DeltaEncoding)
-    }
-
     #[test]
     fn test_compress() {
-        do_roundtrip_test(Vec::from_iter(0u32..10_000));
+        do_roundtrip_test((0u32..10_000).collect::<Vec<_>>());
     }
 
     #[test]
     fn test_compress_overflow() {
-        do_roundtrip_test(Vec::from_iter(
-            (0..10_000).map(|i| (i % (u8::MAX as i32)) as u8),
-        ));
+        do_roundtrip_test(
+            (0..10_000)
+                .map(|i| (i % (u8::MAX as i32)) as u8)
+                .collect::<Vec<_>>(),
+        );
     }
 
     fn do_roundtrip_test<T: NativePType>(input: Vec<T>) {
-        let compressed = DeltaEncoding
-            .compress(
-                PrimitiveArray::from(input.clone()).array(),
-                None,
-                Compressor::new(&ctx()),
-            )
-            .unwrap();
+        let (bases, deltas) = delta_compress(&PrimitiveArray::from(input.clone())).unwrap();
 
-        assert_eq!(compressed.encoding().id(), DeltaEncoding.id());
-        let delta = DeltaArray::try_from(compressed).unwrap();
+        let delta = DeltaArray::try_new(
+            input.len(),
+            bases.into_array(),
+            deltas.into_array(),
+            Validity::NonNullable,
+        )
+        .unwrap();
 
-        let decompressed = decompress(delta).unwrap();
+        let decompressed = delta_decompress(delta).unwrap();
         let decompressed_slice = decompressed.maybe_null_slice::<T>();
         assert_eq!(decompressed_slice.len(), input.len());
         for (actual, expected) in decompressed_slice.iter().zip(input) {

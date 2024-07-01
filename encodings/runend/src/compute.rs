@@ -8,9 +8,9 @@ use vortex_dtype::match_each_integer_ptype;
 use vortex_error::VortexResult;
 use vortex_scalar::Scalar;
 
-use crate::REEArray;
+use crate::RunEndArray;
 
-impl ArrayCompute for REEArray {
+impl ArrayCompute for RunEndArray {
     fn scalar_at(&self) -> Option<&dyn ScalarAtFn> {
         Some(self)
     }
@@ -24,13 +24,13 @@ impl ArrayCompute for REEArray {
     }
 }
 
-impl ScalarAtFn for REEArray {
+impl ScalarAtFn for RunEndArray {
     fn scalar_at(&self, index: usize) -> VortexResult<Scalar> {
         scalar_at(&self.values(), self.find_physical_index(index)?)
     }
 }
 
-impl TakeFn for REEArray {
+impl TakeFn for RunEndArray {
     fn take(&self, indices: &Array) -> VortexResult<Array> {
         let primitive_indices = indices.clone().into_primitive()?;
         let physical_indices = match_each_integer_ptype!(primitive_indices.ptype(), |$P| {
@@ -50,7 +50,7 @@ impl TakeFn for REEArray {
     }
 }
 
-impl SliceFn for REEArray {
+impl SliceFn for RunEndArray {
     fn slice(&self, start: usize, stop: usize) -> VortexResult<Array> {
         let slice_begin = self.find_physical_index(start)?;
         let slice_end = self.find_physical_index(stop)?;
@@ -71,11 +71,11 @@ mod test {
     use vortex::compute::take::take;
     use vortex::{IntoCanonical, ToArray};
 
-    use crate::REEArray;
+    use crate::RunEndArray;
 
     #[test]
     fn ree_take() {
-        let ree = REEArray::encode(
+        let ree = RunEndArray::encode(
             PrimitiveArray::from(vec![1, 1, 1, 4, 4, 4, 2, 2, 5, 5, 5, 5]).to_array(),
         )
         .unwrap();

@@ -30,6 +30,11 @@ vortex-scalar = { path = "../vortex-scalar" }
 build-vortex = { path = "../build-vortex" }
 
 [dev-dependencies]
+arrow = { workspace = true }
+arrow-array = { workspace = true }
+arrow-ipc = { workspace = true, features = ["lz4"] }
+arrow-schema = { workspace = true }
+arrow-select = { workspace = true }
 criterion = { workspace = true, features = ["async_futures"] }
 futures-executor = { workspace = true }
 rand = { workspace = true }
@@ -37,11 +42,7 @@ simplelog = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 vortex-alp = { path = "../encodings/alp" }
 vortex-fastlanes = { path = "../encodings/fastlanes" }
-arrow = { workspace = true }
-arrow-array = { workspace = true }
-arrow-ipc = { workspace = true, features = ["lz4"] }
-arrow-schema = { workspace = true }
-arrow-select = { workspace = true }
+vortex-sampling-compressor = { path = "../vortex-sampling-compressor" }
 
 [lints]
 workspace = true

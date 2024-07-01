@@ -52,8 +52,8 @@ impl Default for Context {
                     &VarBinEncoding,
                     &VarBinViewEncoding,
                 ]
-                .iter()
-                .map(|e| (e.id().to_string(), *e)),
+                .into_iter()
+                .map(|e| (e.id().to_string(), e)),
             ),
         }
     }

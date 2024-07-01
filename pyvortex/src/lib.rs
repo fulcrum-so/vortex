@@ -28,7 +28,7 @@ fn _lib(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<PyDictArray>()?;
     m.add_class::<PyFoRArray>()?;
     m.add_class::<PyPrimitiveArray>()?;
-    m.add_class::<PyREEArray>()?;
+    m.add_class::<PyRunEndArray>()?;
     m.add_class::<PyRoaringBoolArray>()?;
     m.add_class::<PyRoaringIntArray>()?;
     m.add_class::<PySparseArray>()?;

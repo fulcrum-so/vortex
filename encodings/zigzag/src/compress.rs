@@ -1,53 +1,11 @@
 use vortex::array::primitive::PrimitiveArray;
-use vortex::compress::{CompressConfig, Compressor, EncodingCompression};
-use vortex::stats::{ArrayStatistics, Stat};
 use vortex::validity::Validity;
-use vortex::{Array, IntoArray};
+use vortex::IntoArray;
 use vortex_dtype::{NativePType, PType};
 use vortex_error::VortexResult;
 use zigzag::ZigZag as ExternalZigZag;
 
-use crate::{ZigZagArray, ZigZagEncoding};
-
-impl EncodingCompression for ZigZagEncoding {
-    fn can_compress(
-        &self,
-        array: &Array,
-        _config: &CompressConfig,
-    ) -> Option<&dyn EncodingCompression> {
-        // Only support primitive arrays
-        let parray = PrimitiveArray::try_from(array).ok()?;
-
-        // Only supports signed integers
-        if !parray.ptype().is_signed_int() {
-            return None;
-        }
-
-        // Only compress if the array has negative values
-        // TODO(ngates): also check that Stat::Max is less than half the max value of the type
-        parray
-            .statistics()
-            .compute_as_cast::<i64>(Stat::Min)
-            .filter(|&min| min < 0)
-            .map(|_| self as &dyn EncodingCompression)
-    }
-
-    fn compress(
-        &self,
-        array: &Array,
-        like: Option<&Array>,
-        ctx: Compressor,
-    ) -> VortexResult<Array> {
-        let zigzag_like = like.map(|like_arr| ZigZagArray::try_from(like_arr).unwrap());
-        let encoded = zigzag_encode(&array.as_primitive())?;
-
-        Ok(ZigZagArray::new(ctx.compress(
-            &encoded.encoded(),
-            zigzag_like.as_ref().map(|z| z.encoded()).as_ref(),
-        )?)
-        .into_array())
-    }
-}
+use crate::ZigZagArray;
 
 pub fn zigzag_encode(parray: &PrimitiveArray) -> VortexResult<ZigZagArray> {
     let encoded = match parray.ptype() {
@@ -72,7 +30,6 @@ where
     PrimitiveArray::from_vec(encoded.to_vec(), validity)
 }
 
-#[allow(dead_code)]
 pub fn zigzag_decode(parray: &PrimitiveArray) -> PrimitiveArray {
     match parray.ptype() {
         PType::U8 => zigzag_decode_primitive::<i8>(parray.maybe_null_slice(), parray.validity()),
@@ -83,7 +40,6 @@ pub fn zigzag_decode(parray: &PrimitiveArray) -> PrimitiveArray {
     }
 }
 
-#[allow(dead_code)]
 fn zigzag_decode_primitive<T: ExternalZigZag + NativePType>(
     values: &[T::UInt],
     validity: Validity,
@@ -98,22 +54,17 @@ where
 
 #[cfg(test)]
 mod test {
-    use vortex::encoding::{ArrayEncoding, EncodingRef};
-    use vortex::Context;
-    use vortex_fastlanes::BitPackedEncoding;
+    use vortex::encoding::ArrayEncoding;
 
     use super::*;
+    use crate::ZigZagEncoding;
 
     #[test]
     fn test_compress() {
-        let ctx =
-            Context::default().with_encodings([&ZigZagEncoding as EncodingRef, &BitPackedEncoding]);
-        let compressed = Compressor::new(&ctx)
-            .compress(
-                PrimitiveArray::from(Vec::from_iter((-10_000..10_000).map(|i| i as i64))).array(),
-                None,
-            )
-            .unwrap();
-        assert_eq!(compressed.encoding().id(), ZigZagEncoding.id());
+        let compressed = zigzag_encode(&PrimitiveArray::from(Vec::from_iter(
+            (-10_000..10_000).map(|i| i as i64),
+        )))
+        .unwrap();
+        assert_eq!(compressed.array().encoding().id(), ZigZagEncoding.id());
     }
 }

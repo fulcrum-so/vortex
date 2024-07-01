@@ -214,8 +214,6 @@ pub fn varbin_scalar(value: Vec<u8>, dtype: &DType) -> Scalar {
     }
 }
 
-impl EncodingCompression for VarBinEncoding {}
-
 #[cfg(test)]
 mod test {
     use vortex_dtype::{DType, Nullability};

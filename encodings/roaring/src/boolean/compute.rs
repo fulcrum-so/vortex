@@ -20,11 +20,7 @@ impl ArrayCompute for RoaringBoolArray {
 
 impl ScalarAtFn for RoaringBoolArray {
     fn scalar_at(&self, index: usize) -> VortexResult<Scalar> {
-        if self.bitmap().contains(index as u32) {
-            Ok(true.into())
-        } else {
-            Ok(false.into())
-        }
+        Ok(self.bitmap().contains(index as u32).into())
     }
 }
 

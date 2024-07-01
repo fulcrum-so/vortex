@@ -188,8 +188,6 @@ impl AcceptArrayVisitor for StructArray {
 
 impl ArrayStatisticsCompute for StructArray {}
 
-impl EncodingCompression for StructEncoding {}
-
 #[cfg(test)]
 mod test {
     use vortex_dtype::{DType, FieldName, FieldNames, Nullability};

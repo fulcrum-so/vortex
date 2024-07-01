@@ -1,4 +1,4 @@
-use compress::roaring_encode;
+pub use compress::*;
 use croaring::{Bitmap, Portable};
 use serde::{Deserialize, Serialize};
 use vortex::array::primitive::{Primitive, PrimitiveArray};
@@ -25,10 +25,6 @@ pub struct RoaringIntMetadata {
 }
 
 impl RoaringIntArray {
-    pub fn new(bitmap: Bitmap, ptype: PType) -> Self {
-        Self::try_new(bitmap, ptype).unwrap()
-    }
-
     pub fn try_new(bitmap: Bitmap, ptype: PType) -> VortexResult<Self> {
         if !ptype.is_unsigned_int() {
             vortex_bail!("RoaringInt expected unsigned int");
@@ -63,7 +59,7 @@ impl RoaringIntArray {
 
     pub fn encode(array: Array) -> VortexResult<Array> {
         if array.encoding().id() == Primitive::ID {
-            Ok(roaring_encode(PrimitiveArray::try_from(array)?).into_array())
+            Ok(roaring_int_encode(PrimitiveArray::try_from(array)?)?.into_array())
         } else {
             Err(vortex_err!("RoaringInt can only encode primitive arrays"))
         }

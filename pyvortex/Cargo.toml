@@ -25,7 +25,7 @@ vortex-alp = { path = "../encodings/alp" }
 vortex-dict = { path = "../encodings/dict" }
 vortex-error = { path = "../vortex-error" }
 vortex-fastlanes = { path = "../encodings/fastlanes" }
-vortex-ree = { path = "../encodings/runend" }
+vortex-runend = { path = "../encodings/runend" }
 vortex-roaring = { path = "../encodings/roaring" }
 vortex-dtype = { path = "../vortex-dtype" }
 vortex-zigzag = { path = "../encodings/zigzag" }

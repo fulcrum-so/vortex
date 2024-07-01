@@ -20,20 +20,23 @@ use crate::{
 
 impl IntoCanonical for ChunkedArray {
     fn into_canonical(self) -> VortexResult<Canonical> {
-        try_canonicalize_chunks(self.chunks().collect(), self.dtype().clone())
+        try_canonicalize_chunks(self.chunks().collect(), self.dtype())
     }
 }
 
-pub(crate) fn try_canonicalize_chunks(chunks: Vec<Array>, dtype: DType) -> VortexResult<Canonical> {
+pub(crate) fn try_canonicalize_chunks(
+    chunks: Vec<Array>,
+    dtype: &DType,
+) -> VortexResult<Canonical> {
     let mismatched = chunks
         .iter()
-        .filter(|chunk| !chunk.dtype().eq(&dtype))
+        .filter(|chunk| !chunk.dtype().eq(dtype))
         .collect::<Vec<_>>();
     if !mismatched.is_empty() {
-        vortex_bail!(MismatchedTypes: dtype, ErrString::from(format!("{:?}", mismatched)))
+        vortex_bail!(MismatchedTypes: dtype.clone(), ErrString::from(format!("{:?}", mismatched)))
     }
 
-    match &dtype {
+    match dtype {
         // Structs can have their internal field pointers swizzled to push the chunking down
         // one level internally without copying or decompressing any data.
         DType::Struct(struct_dtype, _) => {
@@ -66,11 +69,11 @@ pub(crate) fn try_canonicalize_chunks(chunks: Vec<Array>, dtype: DType) -> Vorte
             Ok(Canonical::Primitive(prim_array))
         }
         DType::Utf8(nullability) => {
-            let varbin_array = pack_varbin(chunks.as_slice(), &dtype, *nullability)?;
+            let varbin_array = pack_varbin(chunks.as_slice(), dtype, *nullability)?;
             Ok(Canonical::VarBin(varbin_array))
         }
         DType::Binary(nullability) => {
-            let varbin_array = pack_varbin(chunks.as_slice(), &dtype, *nullability)?;
+            let varbin_array = pack_varbin(chunks.as_slice(), dtype, *nullability)?;
             Ok(Canonical::VarBin(varbin_array))
         }
         DType::Null => {
@@ -153,7 +156,8 @@ fn pack_primitives(
     match_each_native_ptype!(ptype, |$T| {
         Ok(PrimitiveArray::try_new(
             ScalarBuffer::<$T>::from(buffer),
-            validity)?)
+            validity,
+        )?)
     })
 }
 

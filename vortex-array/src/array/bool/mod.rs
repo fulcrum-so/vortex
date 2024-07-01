@@ -131,8 +131,6 @@ impl AcceptArrayVisitor for BoolArray {
     }
 }
 
-impl EncodingCompression for BoolEncoding {}
-
 #[cfg(test)]
 mod tests {
     use crate::array::bool::BoolArray;

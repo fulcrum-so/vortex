@@ -138,8 +138,6 @@ impl ArrayValidity for ChunkedArray {
     }
 }
 
-impl EncodingCompression for ChunkedEncoding {}
-
 impl SubtractScalarFn for ChunkedArray {
     fn subtract_scalar(&self, to_subtract: &Scalar) -> VortexResult<Array> {
         self.chunks()

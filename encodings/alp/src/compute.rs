@@ -44,7 +44,7 @@ impl TakeFn for ALPArray {
         // TODO(ngates): wrap up indices in an array that caches decompression?
         Ok(Self::try_new(
             take(&self.encoded(), indices)?,
-            self.exponents().clone(),
+            self.exponents(),
             self.patches().map(|p| take(&p, indices)).transpose()?,
         )?
         .into_array())
@@ -55,7 +55,7 @@ impl SliceFn for ALPArray {
     fn slice(&self, start: usize, end: usize) -> VortexResult<Array> {
         Ok(Self::try_new(
             slice(&self.encoded(), start, end)?,
-            self.exponents().clone(),
+            self.exponents(),
             self.patches().map(|p| slice(&p, start, end)).transpose()?,
         )?
         .into_array())

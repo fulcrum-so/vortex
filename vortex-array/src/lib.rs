@@ -44,7 +44,6 @@ pub mod encoding;
 mod implementation;
 pub mod iter;
 mod metadata;
-mod sampling;
 pub mod stats;
 pub mod stream;
 mod tree;

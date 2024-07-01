@@ -5,89 +5,12 @@ use hashbrown::hash_map::{Entry, RawEntryMut};
 use hashbrown::HashMap;
 use num_traits::AsPrimitive;
 use vortex::accessor::ArrayAccessor;
-use vortex::array::primitive::{Primitive, PrimitiveArray};
-use vortex::array::varbin::{VarBin, VarBinArray};
-use vortex::compress::{CompressConfig, Compressor, EncodingCompression};
-use vortex::stats::ArrayStatistics;
+use vortex::array::primitive::PrimitiveArray;
+use vortex::array::varbin::VarBinArray;
 use vortex::validity::Validity;
-use vortex::{Array, ArrayDType, ArrayDef, IntoArray, ToArray};
+use vortex::{ArrayDType, IntoArray};
 use vortex_dtype::{match_each_native_ptype, DType};
 use vortex_dtype::{NativePType, ToBytes};
-use vortex_error::VortexResult;
-
-use crate::dict::{DictArray, DictEncoding};
-
-impl EncodingCompression for DictEncoding {
-    fn can_compress(
-        &self,
-        array: &Array,
-        _config: &CompressConfig,
-    ) -> Option<&dyn EncodingCompression> {
-        // TODO(robert): Add support for VarBinView
-        if array.encoding().id() != Primitive::ID && array.encoding().id() != VarBin::ID {
-            return None;
-        };
-
-        // No point dictionary coding if the array is unique.
-        // We don't have a unique stat yet, but strict-sorted implies unique.
-        if array
-            .statistics()
-            .compute_is_strict_sorted()
-            .unwrap_or(false)
-        {
-            return None;
-        }
-
-        Some(self)
-    }
-
-    fn compress(
-        &self,
-        array: &Array,
-        like: Option<&Array>,
-        ctx: Compressor,
-    ) -> VortexResult<Array> {
-        let dict_like = like.map(|like_arr| DictArray::try_from(like_arr).unwrap());
-        let dict_like_ref = dict_like.as_ref();
-
-        let (codes, dict) = match array.encoding().id() {
-            Primitive::ID => {
-                let p = PrimitiveArray::try_from(array)?;
-                let (codes, dict) = match_each_native_ptype!(p.ptype(), |$P| {
-                    dict_encode_typed_primitive::<$P>(&p)
-                });
-                (
-                    ctx.auxiliary("codes").excluding(&Self).compress(
-                        &codes.to_array(),
-                        dict_like_ref.map(|dict| dict.codes()).as_ref(),
-                    )?,
-                    ctx.named("values").excluding(&Self).compress(
-                        &dict.to_array(),
-                        dict_like_ref.map(|dict| dict.values()).as_ref(),
-                    )?,
-                )
-            }
-            VarBin::ID => {
-                let vb = VarBinArray::try_from(array).unwrap();
-                let (codes, dict) = dict_encode_varbin(&vb);
-                (
-                    ctx.auxiliary("codes").excluding(&Self).compress(
-                        &codes.to_array(),
-                        dict_like_ref.map(|dict| dict.codes()).as_ref(),
-                    )?,
-                    ctx.named("values").excluding(&Self).compress(
-                        &dict.to_array(),
-                        dict_like_ref.map(|dict| dict.values()).as_ref(),
-                    )?,
-                )
-            }
-
-            _ => unreachable!("This array kind should have been filtered out"),
-        };
-
-        DictArray::try_new(codes, dict).map(|a| a.into_array())
-    }
-}
 
 #[derive(Debug)]
 struct Value<T>(T);
@@ -105,6 +28,12 @@ impl<T: ToBytes> PartialEq<Self> for Value<T> {
 }
 
 impl<T: ToBytes> Eq for Value<T> {}
+
+pub fn dict_encode_primitive(array: &PrimitiveArray) -> (PrimitiveArray, PrimitiveArray) {
+    match_each_native_ptype!(array.ptype(), |$P| {
+        dict_encode_typed_primitive::<$P>(array)
+    })
+}
 
 /// Dictionary encode primitive array with given PType.
 /// Null values in the original array are encoded in the dictionary.

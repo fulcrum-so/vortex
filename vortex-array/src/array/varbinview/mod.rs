@@ -360,8 +360,6 @@ impl<'a> FromIterator<Option<&'a str>> for VarBinViewArray {
     }
 }
 
-impl EncodingCompression for VarBinViewEncoding {}
-
 #[cfg(test)]
 mod test {
     use vortex_scalar::Scalar;

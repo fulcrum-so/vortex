@@ -4,10 +4,8 @@ use rand::distributions::Uniform;
 use rand::{thread_rng, Rng};
 use vortex::array::primitive::PrimitiveArray;
 use vortex::array::sparse::SparseArray;
-use vortex::compress::{Compressor, EncodingCompression};
 use vortex::compute::take::take;
-use vortex::Context;
-use vortex_fastlanes::{BitPackedArray, BitPackedEncoding};
+use vortex_fastlanes::{find_best_bit_width, BitPackedArray};
 
 fn values(len: usize, bits: usize) -> Vec<u32> {
     let rng = thread_rng();
@@ -16,22 +14,23 @@ fn values(len: usize, bits: usize) -> Vec<u32> {
 }
 
 fn bench_take(c: &mut Criterion) {
-    let ctx = Context::default().with_encoding(&BitPackedEncoding);
-
     let values = values(1_000_000, 8);
     let uncompressed = PrimitiveArray::from(values.clone());
-    let packed = BitPackedEncoding {}
-        .compress(uncompressed.array(), None, Compressor::new(&ctx))
-        .unwrap();
+
+    let packed = BitPackedArray::encode(
+        uncompressed.array(),
+        find_best_bit_width(&uncompressed).unwrap(),
+    )
+    .unwrap();
 
     let stratified_indices: PrimitiveArray = (0..10).map(|i| i * 10_000).collect::<Vec<_>>().into();
     c.bench_function("take_10_stratified", |b| {
-        b.iter(|| black_box(take(&packed, stratified_indices.array()).unwrap()));
+        b.iter(|| black_box(take(packed.array(), stratified_indices.array()).unwrap()));
     });
 
     let contiguous_indices: PrimitiveArray = (0..10).collect::<Vec<_>>().into();
     c.bench_function("take_10_contiguous", |b| {
-        b.iter(|| black_box(take(&packed, contiguous_indices.array()).unwrap()));
+        b.iter(|| black_box(take(packed.array(), contiguous_indices.array()).unwrap()));
     });
 
     let rng = thread_rng();
@@ -43,27 +42,26 @@ fn bench_take(c: &mut Criterion) {
         .collect_vec()
         .into();
     c.bench_function("take_10K_random", |b| {
-        b.iter(|| black_box(take(&packed, random_indices.array()).unwrap()));
+        b.iter(|| black_box(take(packed.array(), random_indices.array()).unwrap()));
     });
 
     let contiguous_indices: PrimitiveArray = (0..10_000).collect::<Vec<_>>().into();
     c.bench_function("take_10K_contiguous", |b| {
-        b.iter(|| black_box(take(&packed, contiguous_indices.array()).unwrap()));
+        b.iter(|| black_box(take(packed.array(), contiguous_indices.array()).unwrap()));
     });
 }
 
 fn bench_patched_take(c: &mut Criterion) {
-    let ctx = Context::default().with_encoding(&BitPackedEncoding);
-
     let big_base2 = 1048576;
     let num_exceptions = 10000;
     let values = (0u32..big_base2 + num_exceptions).collect_vec();
 
     let uncompressed = PrimitiveArray::from(values.clone());
-    let packed = BitPackedEncoding {}
-        .compress(uncompressed.array(), None, Compressor::new(&ctx))
-        .unwrap();
-    let packed = BitPackedArray::try_from(packed).unwrap();
+    let packed = BitPackedArray::encode(
+        uncompressed.array(),
+        find_best_bit_width(&uncompressed).unwrap(),
+    )
+    .unwrap();
     assert!(packed.patches().is_some());
     assert_eq!(
         SparseArray::try_from(packed.patches().unwrap())

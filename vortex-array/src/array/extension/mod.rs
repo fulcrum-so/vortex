@@ -80,5 +80,3 @@ impl ArrayTrait for ExtensionArray {
         self.storage().len()
     }
 }
-
-impl EncodingCompression for ExtensionEncoding {}

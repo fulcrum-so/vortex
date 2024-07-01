@@ -19,11 +19,11 @@ use vortex_fastlanes::{
     BitPacked, BitPackedArray, BitPackedEncoding, Delta, DeltaArray, DeltaEncoding, FoR, FoRArray,
     FoREncoding,
 };
-use vortex_ree::{REEArray, REEEncoding, REE};
 use vortex_roaring::{
     RoaringBool, RoaringBoolArray, RoaringBoolEncoding, RoaringInt, RoaringIntArray,
     RoaringIntEncoding,
 };
+use vortex_runend::{RunEnd, RunEndArray, RunEndEncoding};
 use vortex_zigzag::{ZigZag, ZigZagArray, ZigZagEncoding};
 
 use crate::dtype::PyDType;
@@ -74,7 +74,7 @@ pyarray!(BitPackedEncoding, BitPackedArray, "BitPackedArray");
 pyarray!(FoREncoding, FoRArray, "FoRArray");
 pyarray!(DeltaEncoding, DeltaArray, "DeltaArray");
 pyarray!(DictEncoding, DictArray, "DictArray");
-pyarray!(REEEncoding, REEArray, "REEArray");
+pyarray!(RunEndEncoding, RunEndArray, "RunEndArray");
 pyarray!(RoaringBoolEncoding, RoaringBoolArray, "RoaringBoolArray");
 pyarray!(RoaringIntEncoding, RoaringIntArray, "RoaringIntArray");
 pyarray!(ZigZagEncoding, ZigZagArray, "ZigZagArray");
@@ -128,9 +128,9 @@ impl PyArray {
                 DictArray::try_from(inner.into_array()).map_err(PyVortexError::map_err)?,
             )?
             .extract(py),
-            REE::ID => PyREEArray::wrap(
+            RunEnd::ID => PyRunEndArray::wrap(
                 py,
-                REEArray::try_from(inner.into_array()).map_err(PyVortexError::map_err)?,
+                RunEndArray::try_from(inner.into_array()).map_err(PyVortexError::map_err)?,
             )?
             .extract(py),
             Delta::ID => PyDeltaArray::wrap(

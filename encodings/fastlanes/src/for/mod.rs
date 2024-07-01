@@ -1,3 +1,4 @@
+pub use compress::*;
 use serde::{Deserialize, Serialize};
 use vortex::stats::ArrayStatisticsCompute;
 use vortex::validity::{ArrayValidity, LogicalValidity};
@@ -6,8 +7,6 @@ use vortex::{impl_encoding, ArrayDType, Canonical, IntoCanonical};
 use vortex_dtype::PType;
 use vortex_error::vortex_bail;
 use vortex_scalar::Scalar;
-
-use crate::r#for::compress::decompress;
 
 mod compress;
 mod compute;

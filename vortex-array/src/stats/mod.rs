@@ -2,11 +2,14 @@ use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 
 use enum_iterator::Sequence;
+use itertools::Itertools;
 pub use statsset::*;
 use vortex_dtype::Nullability::NonNullable;
 use vortex_dtype::{DType, NativePType};
 use vortex_error::{VortexError, VortexResult};
 use vortex_scalar::Scalar;
+
+use crate::Array;
 
 pub mod flatbuffers;
 mod statsset;
@@ -164,4 +167,17 @@ impl dyn Statistics + '_ {
     pub fn compute_trailing_zero_freq(&self) -> Option<Vec<usize>> {
         self.compute_as::<Vec<usize>>(Stat::TrailingZeroFreq)
     }
+}
+
+pub fn trailing_zeros(array: &Array) -> u8 {
+    let tz_freq = array
+        .statistics()
+        .compute_trailing_zero_freq()
+        .unwrap_or_else(|| vec![0]);
+    tz_freq
+        .iter()
+        .enumerate()
+        .find_or_first(|(_, &v)| v > 0)
+        .map(|(i, _)| i)
+        .unwrap_or(0) as u8
 }

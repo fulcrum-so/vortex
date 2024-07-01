@@ -11,7 +11,6 @@ use crate::validity::{ArrayValidity, LogicalValidity};
 use crate::visitor::{AcceptArrayVisitor, ArrayVisitor};
 use crate::{impl_encoding, ArrayDType, IntoCanonical};
 
-mod compress;
 mod compute;
 mod flatten;
 
@@ -89,7 +88,7 @@ impl SparseArray {
     }
 
     #[inline]
-    fn fill_value(&self) -> &Scalar {
+    pub fn fill_value(&self) -> &Scalar {
         &self.metadata().fill_value
     }
 

@@ -96,22 +96,16 @@ impl SearchSortedFn for FoRArray {
 #[cfg(test)]
 mod test {
     use vortex::array::primitive::PrimitiveArray;
-    use vortex::compress::{Compressor, EncodingCompression};
     use vortex::compute::search_sorted::{search_sorted, SearchResult, SearchSortedSide};
     use vortex::compute::unary::scalar_at::scalar_at;
-    use vortex::Context;
+    use vortex::IntoArray;
 
-    use crate::FoREncoding;
+    use crate::{for_compress, FoRArray};
 
     #[test]
     fn for_scalar_at() {
-        let forarr = FoREncoding
-            .compress(
-                PrimitiveArray::from(vec![11, 15, 19]).array(),
-                None,
-                Compressor::new(&Context::default()),
-            )
-            .unwrap();
+        let (child, min, shift) = for_compress(&PrimitiveArray::from(vec![11, 15, 19])).unwrap();
+        let forarr = FoRArray::try_new(child, min, shift).unwrap().into_array();
         assert_eq!(scalar_at(&forarr, 0).unwrap(), 11.into());
         assert_eq!(scalar_at(&forarr, 1).unwrap(), 15.into());
         assert_eq!(scalar_at(&forarr, 2).unwrap(), 19.into());
@@ -119,13 +113,8 @@ mod test {
 
     #[test]
     fn for_search() {
-        let forarr = FoREncoding
-            .compress(
-                PrimitiveArray::from(vec![11, 15, 19]).array(),
-                None,
-                Compressor::new(&Context::default()),
-            )
-            .unwrap();
+        let (child, min, shift) = for_compress(&PrimitiveArray::from(vec![11, 15, 19])).unwrap();
+        let forarr = FoRArray::try_new(child, min, shift).unwrap().into_array();
         assert_eq!(
             search_sorted(&forarr, 15, SearchSortedSide::Left).unwrap(),
             SearchResult::Found(1)

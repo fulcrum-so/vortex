@@ -12,6 +12,7 @@ members = [
     "vortex-expr",
     "vortex-flatbuffers",
     "vortex-ipc",
+    "vortex-sampling-compressor",
 ]
 resolver = "2"
 
@@ -57,9 +58,8 @@ datafusion-execution = "39.0.0"
 datafusion-expr = "39.0.0"
 datafusion-physical-expr = "39.0.0"
 datafusion-physical-plan = "39.0.0"
-derive_builder = "0.20.0"
 divan = "0.1.14"
-duckdb = { version = "0.10.1", features = ["bundled"] }
+duckdb = { version = "0.10.2", features = ["bundled"] }
 enum-iterator = "2.0.0"
 enum_dispatch = "0.3.13"
 fallible-iterator = "0.3.0"

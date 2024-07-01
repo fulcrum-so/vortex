@@ -40,7 +40,6 @@ macro_rules! impl_encoding {
                 ToArray,
                 TypedArray,
             };
-            use $crate::compress::EncodingCompression;
             use $crate::encoding::{
                 ArrayEncoding,
                 ArrayEncodingExt,
@@ -135,11 +134,6 @@ macro_rules! impl_encoding {
             pub struct [<$Name Encoding>];
             impl ArrayEncoding for [<$Name Encoding>] {
                 #[inline]
-                fn as_any(&self) -> &dyn Any {
-                    self
-                }
-
-                #[inline]
                 fn id(&self) -> EncodingId {
                     $Name::ID
                 }
@@ -156,11 +150,6 @@ macro_rules! impl_encoding {
                     f: &mut dyn for<'b> FnMut(&'b (dyn ArrayTrait + 'b)) -> VortexResult<()>,
                 ) -> VortexResult<()> {
                     <Self as ArrayEncodingExt>::with_dyn(array, f)
-                }
-
-                #[inline]
-                fn compression(&self) -> &dyn EncodingCompression {
-                    self
                 }
             }
             impl ArrayEncodingExt for [<$Name Encoding>] {
